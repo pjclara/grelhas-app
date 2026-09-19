@@ -1,11 +1,31 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import TopNav from '@/components/TopNav';
 import type { Aluno, Instrumento } from '@/lib/types';
 
 interface NotaValor {
   [perguntaId: string]: string; // string para permitir campo vazio no input
+}
+
+interface CelulaGrelha {
+  alunoId: string;
+  perguntaId: string;
+}
+
+// A Web Speech API não está nos tipos padrão do TS DOM; usamos `any` para o objeto de reconhecimento.
+type SpeechRecognitionInstance = any;
+
+const PALAVRAS_AVANCAR = ['seguinte', 'próximo', 'próxima', 'avançar'];
+const PALAVRAS_RECUAR = ['anterior', 'voltar', 'recuar'];
+const PALAVRAS_PARAR = ['parar', 'terminar', 'sair', 'para'];
+const PALAVRAS_LIMPAR = ['apagar', 'limpar', 'vazio'];
+
+/** Extrai o primeiro número (com vírgula ou ponto decimal) de uma frase ditada. */
+function extrairNumero(transcript: string): string | null {
+  const normalizado = transcript.replace(',', '.');
+  const match = normalizado.match(/-?\d+(?:\.\d+)?/);
+  return match ? match[0] : null;
 }
 
 export default function InstrumentoPage({
@@ -18,6 +38,16 @@ export default function InstrumentoPage({
   const [notas, setNotas] = useState<Record<string, NotaValor>>({});
   const [aGuardar, setAGuardar] = useState(false);
   const [guardadoEm, setGuardadoEm] = useState<Date | null>(null);
+
+  const [aDitar, setADitar] = useState(false);
+  const [ultimoOuvido, setUltimoOuvido] = useState<string | null>(null);
+  const [ditadoSuportado, setDitadoSuportado] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeIndexRef = useRef(0);
+  const ditandoRef = useRef(false);
+  const recognitionRef = useRef<SpeechRecognitionInstance>(null);
+  const flatCellsRef = useRef<CelulaGrelha[]>([]);
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   async function carregar() {
     const [ri, ra] = await Promise.all([
@@ -48,6 +78,129 @@ export default function InstrumentoPage({
   function atualizarNota(alunoId: string, perguntaId: string, valor: string) {
     setNotas((prev) => ({ ...prev, [alunoId]: { ...prev[alunoId], [perguntaId]: valor } }));
   }
+
+  // Lista plana de células (aluno × pergunta) pela ordem em que aparecem na grelha,
+  // usada para saber qual input preencher/focar a seguir durante o ditado.
+  useEffect(() => {
+    if (!instrumento) return;
+    flatCellsRef.current = alunos.flatMap((aluno) =>
+      instrumento.perguntas.map((p) => ({ alunoId: aluno.id, perguntaId: p.id }))
+    );
+  }, [alunos, instrumento]);
+
+  useEffect(() => {
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    setDitadoSuportado(Boolean(SpeechRecognitionCtor));
+  }, []);
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+    if (!aDitar) return;
+    const cell = flatCellsRef.current[activeIndex];
+    if (cell) {
+      const input = inputRefs.current[`${cell.alunoId}:${cell.perguntaId}`];
+      input?.focus();
+      input?.select();
+    }
+  }, [activeIndex, aDitar]);
+
+  function avancarCelula(delta: number) {
+    setActiveIndex((i) => {
+      const max = flatCellsRef.current.length - 1;
+      if (max < 0) return 0;
+      return Math.min(Math.max(i + delta, 0), max);
+    });
+  }
+
+  function processarTranscript(transcriptBruto: string) {
+    const transcript = transcriptBruto.trim().toLowerCase();
+    setUltimoOuvido(transcriptBruto);
+    if (!transcript) return;
+
+    if (PALAVRAS_PARAR.some((p) => transcript === p || transcript.startsWith(p + ' '))) {
+      pararDitado();
+      return;
+    }
+    if (PALAVRAS_AVANCAR.some((p) => transcript.includes(p))) {
+      avancarCelula(1);
+      return;
+    }
+    if (PALAVRAS_RECUAR.some((p) => transcript.includes(p))) {
+      avancarCelula(-1);
+      return;
+    }
+    if (PALAVRAS_LIMPAR.some((p) => transcript.includes(p))) {
+      const cell = flatCellsRef.current[activeIndexRef.current];
+      if (cell) atualizarNota(cell.alunoId, cell.perguntaId, '');
+      avancarCelula(1);
+      return;
+    }
+
+    const numero = extrairNumero(transcript);
+    if (numero !== null) {
+      const cell = flatCellsRef.current[activeIndexRef.current];
+      if (cell) atualizarNota(cell.alunoId, cell.perguntaId, numero);
+      avancarCelula(1);
+    }
+    // Se não se reconhece número nem comando, ignora-se (mantém-se na mesma célula).
+  }
+
+  function iniciarDitado() {
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) {
+      setDitadoSuportado(false);
+      return;
+    }
+    const recognition: SpeechRecognitionInstance = new SpeechRecognitionCtor();
+    recognition.lang = 'pt-PT';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: any) => {
+      const ultimo = event.results[event.results.length - 1];
+      const transcript = ultimo?.[0]?.transcript ?? '';
+      processarTranscript(transcript);
+    };
+    recognition.onerror = (event: any) => {
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setDitadoSuportado(false);
+        pararDitado();
+      }
+      // outros erros (ex.: 'no-speech') são ignorados; o onend trata do reinício
+    };
+    recognition.onend = () => {
+      if (ditandoRef.current) {
+        try {
+          recognition.start();
+        } catch {
+          // já iniciado ou instância inválida; ignora
+        }
+      }
+    };
+
+    recognitionRef.current = recognition;
+    ditandoRef.current = true;
+    setADitar(true);
+    setActiveIndex(0);
+    setUltimoOuvido(null);
+    recognition.start();
+  }
+
+  function pararDitado() {
+    ditandoRef.current = false;
+    setADitar(false);
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+  }
+
+  useEffect(() => {
+    return () => {
+      ditandoRef.current = false;
+      recognitionRef.current?.stop();
+    };
+  }, []);
 
   const totais = useMemo(() => {
     if (!instrumento) return {};
@@ -104,11 +257,39 @@ export default function InstrumentoPage({
     <div>
       <TopNav />
       <main className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="mb-1 text-2xl font-semibold text-slate-900">{instrumento.nome}</h1>
-        <p className="mb-6 text-sm text-slate-500">
+        <div className="mb-1 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-slate-900">{instrumento.nome}</h1>
+          {ditadoSuportado && (
+            <button
+              type="button"
+              onClick={() => (aDitar ? pararDitado() : iniciarDitado())}
+              className={`rounded-md px-4 py-2 text-sm font-medium ${
+                aDitar
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-brand-600 text-white hover:bg-brand-700'
+              }`}
+            >
+              {aDitar ? '⏹ Parar ditado' : '🎤 Ditar notas'}
+            </button>
+          )}
+        </div>
+        <p className="mb-2 text-sm text-slate-500">
           {instrumento.criterio?.nome} ·{' '}
           {instrumento.modo === 'PONTOS' ? 'pontos por pergunta' : `escala de 1 a ${instrumento.escalaMax}`}
         </p>
+
+        {aDitar && (
+          <p className="mb-4 rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-700">
+            A ouvir… diga um número para preencher a célula selecionada e avançar. Diga "seguinte",
+            "anterior", "apagar" ou "parar" para navegar.
+            {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: "{ultimoOuvido}"</span>}
+          </p>
+        )}
+        {!ditadoSuportado && (
+          <p className="mb-4 text-xs text-slate-400">
+            Ditado por voz não suportado neste navegador (funciona no Chrome/Edge).
+          </p>
+        )}
 
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="grelha min-w-full text-sm">
@@ -133,19 +314,29 @@ export default function InstrumentoPage({
                   <tr key={aluno.id}>
                     <td className="px-3 py-1.5">{aluno.numero}</td>
                     <td className="whitespace-nowrap px-3 py-1.5">{aluno.nome}</td>
-                    {instrumento.perguntas.map((p) => (
-                      <td key={p.id} className="px-1 py-1">
-                        <input
-                          type="number"
-                          min={0}
-                          max={p.valorMax}
-                          step="0.5"
-                          value={notas[aluno.id]?.[p.id] ?? ''}
-                          onChange={(e) => atualizarNota(aluno.id, p.id, e.target.value)}
-                          className="w-16 rounded border border-slate-200 px-1 py-0.5 text-center text-sm"
-                        />
-                      </td>
-                    ))}
+                    {instrumento.perguntas.map((p, pIdx) => {
+                      const cellKey = `${aluno.id}:${p.id}`;
+                      const cellIndex = alunos.indexOf(aluno) * instrumento.perguntas.length + pIdx;
+                      const ativa = aDitar && cellIndex === activeIndex;
+                      return (
+                        <td key={p.id} className="px-1 py-1">
+                          <input
+                            ref={(el) => {
+                              inputRefs.current[cellKey] = el;
+                            }}
+                            type="number"
+                            min={0}
+                            max={p.valorMax}
+                            step="0.5"
+                            value={notas[aluno.id]?.[p.id] ?? ''}
+                            onChange={(e) => atualizarNota(aluno.id, p.id, e.target.value)}
+                            className={`w-16 rounded border px-1 py-0.5 text-center text-sm ${
+                              ativa ? 'border-brand-500 ring-2 ring-brand-300' : 'border-slate-200'
+                            }`}
+                          />
+                        </td>
+                      );
+                    })}
                     <td className="px-3 py-1.5 text-center font-medium">
                       {total?.preenchido ? `${total.soma}/${total.max}` : '—'}
                     </td>

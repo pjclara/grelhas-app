@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
-import { UnauthorizedError } from '@/lib/auth';
+import { UnauthorizedError, ForbiddenError } from '@/lib/auth';
 
 export function handleApiError(error: unknown) {
   if (error instanceof UnauthorizedError) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+  }
+  if (error instanceof ForbiddenError) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
   }
   if (error instanceof ZodError) {
     return NextResponse.json(

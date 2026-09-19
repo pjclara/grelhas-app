@@ -68,6 +68,17 @@ export const instrumentoSchema = z.object({
   perguntas: z.array(perguntaInputSchema).min(1),
 });
 
+export const roleUpdateSchema = z.object({
+  role: z.enum(['PROFESSOR', 'ADMIN']),
+});
+
+export const adminCreateUserSchema = z.object({
+  name: z.string().min(2, 'Nome demasiado curto'),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'A palavra-passe deve ter pelo menos 6 caracteres'),
+  role: z.enum(['PROFESSOR', 'ADMIN']).default('PROFESSOR'),
+});
+
 export const notasLancamentoSchema = z.object({
   // notas[alunoId][perguntaId] = valor | null
   notas: z.record(z.string(), z.record(z.string(), z.number().nullable())),

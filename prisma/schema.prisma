@@ -9,11 +9,17 @@ datasource db {
 
 // ---------- Utilizadores (professores) ----------
 
+enum Role {
+  PROFESSOR
+  ADMIN
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String
+  role         Role     @default(PROFESSOR)
   createdAt    DateTime @default(now())
 
   disciplinas Disciplina[]

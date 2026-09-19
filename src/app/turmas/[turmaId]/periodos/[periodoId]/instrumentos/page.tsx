@@ -6,6 +6,7 @@ import TopNav from '@/components/TopNav';
 import type { Criterio, Instrumento, ModoAvaliacao } from '@/lib/types';
 
 interface PerguntaForm {
+  id?: string;
   codigo: string;
   valorMax: string;
 }
@@ -18,6 +19,7 @@ export default function InstrumentosPage({
   const [instrumentos, setInstrumentos] = useState<Instrumento[]>([]);
   const [criterios, setCriterios] = useState<Criterio[]>([]);
   const [mostrarForm, setMostrarForm] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
 
   const [nome, setNome] = useState('');
   const [criterioId, setCriterioId] = useState('');
@@ -53,7 +55,38 @@ export default function InstrumentosPage({
     setPerguntas((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  async function criarInstrumento(e: React.FormEvent) {
+  function abrirNovo() {
+    setEditandoId(null);
+    setNome('');
+    setCriterioId('');
+    setModo('PONTOS');
+    setEscalaMax('5');
+    setTema('');
+    setPerguntas([{ codigo: '1.', valorMax: '' }]);
+    setErro(null);
+    setMostrarForm(true);
+  }
+
+  function iniciarEdicao(instrumento: Instrumento) {
+    setEditandoId(instrumento.id);
+    setNome(instrumento.nome);
+    setCriterioId(instrumento.criterioId);
+    setModo(instrumento.modo);
+    setEscalaMax(String(instrumento.escalaMax));
+    setTema(instrumento.tema ?? '');
+    setPerguntas(
+      instrumento.perguntas.map((p) => ({ id: p.id, codigo: p.codigo, valorMax: String(p.valorMax) }))
+    );
+    setErro(null);
+    setMostrarForm(true);
+  }
+
+  function fecharForm() {
+    setMostrarForm(false);
+    setEditandoId(null);
+  }
+
+  async function guardarInstrumento(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
     if (!nome || !criterioId || perguntas.length === 0) {
@@ -66,33 +99,38 @@ export default function InstrumentosPage({
       return;
     }
     setAGravar(true);
-    const res = await fetch(`/api/turmas/${params.turmaId}/instrumentos`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        periodoId: params.periodoId,
-        criterioId,
-        nome,
-        modo,
-        escalaMax: Number(escalaMax) || 5,
-        tema: tema || null,
-        ordem: instrumentos.length,
-        perguntas: perguntasValidas.map((p, idx) => ({
-          codigo: p.codigo,
-          valorMax: Number(p.valorMax),
-          ordem: idx,
-        })),
-      }),
-    });
+    const corpo = {
+      periodoId: params.periodoId,
+      criterioId,
+      nome,
+      modo,
+      escalaMax: Number(escalaMax) || 5,
+      tema: tema || null,
+      ordem: editandoId ? undefined : instrumentos.length,
+      perguntas: perguntasValidas.map((p, idx) => ({
+        id: p.id,
+        codigo: p.codigo,
+        valorMax: Number(p.valorMax),
+        ordem: idx,
+      })),
+    };
+    const res = editandoId
+      ? await fetch(`/api/turmas/${params.turmaId}/instrumentos/${editandoId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(corpo),
+        })
+      : await fetch(`/api/turmas/${params.turmaId}/instrumentos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(corpo),
+        });
     setAGravar(false);
     if (!res.ok) {
-      setErro('Não foi possível criar o instrumento.');
+      setErro(editandoId ? 'Não foi possível guardar as alterações.' : 'Não foi possível criar o instrumento.');
       return;
     }
-    setMostrarForm(false);
-    setNome('');
-    setTema('');
-    setPerguntas([{ codigo: '1.', valorMax: '' }]);
+    fecharForm();
     carregar();
   }
 
@@ -109,7 +147,7 @@ export default function InstrumentosPage({
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-slate-900">Instrumentos de avaliação</h1>
           <button
-            onClick={() => setMostrarForm((v) => !v)}
+            onClick={() => (mostrarForm ? fecharForm() : abrirNovo())}
             className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
             {mostrarForm ? 'Cancelar' : '+ Novo instrumento'}
@@ -117,7 +155,7 @@ export default function InstrumentosPage({
         </div>
 
         {mostrarForm && (
-          <form onSubmit={criarInstrumento} className="mb-8 space-y-4 rounded-lg border border-slate-200 bg-white p-5">
+          <form onSubmit={guardarInstrumento} className="mb-8 space-y-4 rounded-lg border border-slate-200 bg-white p-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Nome</label>
@@ -220,7 +258,7 @@ export default function InstrumentosPage({
               disabled={aGravar}
               className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {aGravar ? 'A criar…' : 'Criar instrumento'}
+              {aGravar ? 'A guardar…' : editandoId ? 'Guardar alterações' : 'Criar instrumento'}
             </button>
           </form>
         )}
@@ -242,9 +280,14 @@ export default function InstrumentosPage({
                   {i.criterio?.nome} · {i.perguntas.length} {i.modo === 'PONTOS' ? 'perguntas' : 'itens'}
                 </p>
               </div>
-              <button onClick={() => remover(i.id)} className="text-sm text-red-600 hover:underline">
-                Remover
-              </button>
+              <div className="flex gap-3">
+                <button onClick={() => iniciarEdicao(i)} className="text-sm text-brand-600 hover:underline">
+                  Editar
+                </button>
+                <button onClick={() => remover(i.id)} className="text-sm text-red-600 hover:underline">
+                  Remover
+                </button>
+              </div>
             </div>
           ))}
           {instrumentos.length === 0 && (

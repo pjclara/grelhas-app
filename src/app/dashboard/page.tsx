@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { signOut } from 'next-auth/react';
 import TopNav from '@/components/TopNav';
 import type { Disciplina, AnoLetivo, Turma } from '@/lib/types';
 
@@ -11,14 +12,25 @@ export default function DashboardPage() {
   const [anos, setAnos] = useState<AnoLetivo[]>([]);
   const [aCarregar, setACarregar] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
+  const [erroCarregar, setErroCarregar] = useState<string | null>(null);
 
   async function carregarTudo() {
     setACarregar(true);
+    setErroCarregar(null);
     const [rt, rd, ra] = await Promise.all([
       fetch('/api/turmas'),
       fetch('/api/disciplinas'),
       fetch('/api/anos-letivos'),
     ]);
+    if (rt.status === 401 || rd.status === 401 || ra.status === 401) {
+      signOut({ callbackUrl: '/login' });
+      return;
+    }
+    if (!rt.ok || !rd.ok || !ra.ok) {
+      setErroCarregar('Não foi possível carregar os dados. Tente novamente.');
+      setACarregar(false);
+      return;
+    }
     setTurmas(await rt.json());
     setDisciplinas(await rd.json());
     setAnos(await ra.json());
@@ -56,7 +68,9 @@ export default function DashboardPage() {
           />
         )}
 
-        {aCarregar ? (
+        {erroCarregar ? (
+          <p className="text-sm text-red-600">{erroCarregar}</p>
+        ) : aCarregar ? (
           <p className="text-sm text-slate-500">A carregar…</p>
         ) : turmas.length === 0 ? (
           <p className="text-sm text-slate-500">Ainda não tem turmas. Crie a primeira acima.</p>
@@ -105,6 +119,7 @@ function NovaTurmaForm({
 
   async function adicionarDisciplina() {
     if (!novaDisciplina.trim()) return;
+    setErro(null);
     const res = await fetch('/api/disciplinas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -115,11 +130,14 @@ function NovaTurmaForm({
       onDisciplinasAtualizadas([...disciplinas, nova]);
       setDisciplinaId(nova.id);
       setNovaDisciplina('');
+    } else {
+      setErro('Não foi possível adicionar a disciplina.');
     }
   }
 
   async function adicionarAno() {
     if (!novoAno.trim()) return;
+    setErro(null);
     const res = await fetch('/api/anos-letivos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -130,6 +148,8 @@ function NovaTurmaForm({
       onAnosAtualizados([novo, ...anos]);
       setAnoLetivoId(novo.id);
       setNovoAno('');
+    } else {
+      setErro('Não foi possível adicionar o ano letivo.');
     }
   }
 

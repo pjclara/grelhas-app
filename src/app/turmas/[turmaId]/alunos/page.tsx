@@ -33,6 +33,12 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   const [medidas, setMedidas] = useState('');
   const [erro, setErro] = useState<string | null>(null);
 
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [numeroEdit, setNumeroEdit] = useState('');
+  const [nomeEdit, setNomeEdit] = useState('');
+  const [medidasEdit, setMedidasEdit] = useState('');
+  const [erroEdit, setErroEdit] = useState<string | null>(null);
+
   const [aDitar, setADitar] = useState(false);
   const [ultimoOuvido, setUltimoOuvido] = useState<string | null>(null);
   const [ultimoAdicionado, setUltimoAdicionado] = useState<string | null>(null);
@@ -220,6 +226,42 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     carregar();
   }
 
+  function iniciarEdicao(aluno: Aluno) {
+    setEditandoId(aluno.id);
+    setNumeroEdit(String(aluno.numero));
+    setNomeEdit(aluno.nome);
+    setMedidasEdit(aluno.medidas ?? '');
+    setErroEdit(null);
+  }
+
+  function cancelarEdicao() {
+    setEditandoId(null);
+    setErroEdit(null);
+  }
+
+  async function guardarEdicao(id: string) {
+    setErroEdit(null);
+    if (!numeroEdit || !nomeEdit) {
+      setErroEdit('Indique número e nome.');
+      return;
+    }
+    const res = await fetch(`/api/turmas/${params.turmaId}/alunos/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        numero: Number(numeroEdit),
+        nome: nomeEdit,
+        medidas: medidasEdit || null,
+      }),
+    });
+    if (!res.ok) {
+      setErroEdit('Não foi possível guardar (número já usado?).');
+      return;
+    }
+    setEditandoId(null);
+    carregar();
+  }
+
   return (
     <div>
       <TopNav />
@@ -308,23 +350,70 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
             </tr>
           </thead>
           <tbody>
-            {alunos.map((a) => (
-              <tr key={a.id} className="border-t border-slate-100">
-                <td className="px-3 py-2">{a.numero}</td>
-                <td className="px-3 py-2">{a.nome}</td>
-                <td className="px-3 py-2 text-slate-500">{a.medidas ?? '—'}</td>
-                <td className="px-3 py-2">
-                  <button onClick={() => alternarAtivo(a)} className="text-brand-600 hover:underline">
-                    {a.ativo ? 'Ativo' : 'Inativo'}
-                  </button>
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <button onClick={() => remover(a.id)} className="text-red-600 hover:underline">
-                    Remover
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {alunos.map((a) =>
+              editandoId === a.id ? (
+                <tr key={a.id} className="border-t border-slate-100 bg-slate-50">
+                  <td className="px-3 py-2">
+                    <input
+                      type="number"
+                      value={numeroEdit}
+                      onChange={(e) => setNumeroEdit(e.target.value)}
+                      className="w-16 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      value={nomeEdit}
+                      onChange={(e) => setNomeEdit(e.target.value)}
+                      className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      value={medidasEdit}
+                      onChange={(e) => setMedidasEdit(e.target.value)}
+                      className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-slate-400">{a.ativo ? 'Ativo' : 'Inativo'}</td>
+                  <td className="px-3 py-2 text-right">
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() => guardarEdicao(a.id)}
+                        className="text-emerald-600 hover:underline"
+                      >
+                        Guardar
+                      </button>
+                      <button onClick={cancelarEdicao} className="text-slate-500 hover:underline">
+                        Cancelar
+                      </button>
+                    </div>
+                    {erroEdit && <p className="mt-1 text-xs text-red-600">{erroEdit}</p>}
+                  </td>
+                </tr>
+              ) : (
+                <tr key={a.id} className="border-t border-slate-100">
+                  <td className="px-3 py-2">{a.numero}</td>
+                  <td className="px-3 py-2">{a.nome}</td>
+                  <td className="px-3 py-2 text-slate-500">{a.medidas ?? '—'}</td>
+                  <td className="px-3 py-2">
+                    <button onClick={() => alternarAtivo(a)} className="text-brand-600 hover:underline">
+                      {a.ativo ? 'Ativo' : 'Inativo'}
+                    </button>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <div className="flex justify-end gap-3">
+                      <button onClick={() => iniciarEdicao(a)} className="text-brand-600 hover:underline">
+                        Editar
+                      </button>
+                      <button onClick={() => remover(a.id)} className="text-red-600 hover:underline">
+                        Remover
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            )}
           </tbody>
         </table>
       </main>

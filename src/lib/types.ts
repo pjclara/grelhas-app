@@ -4,6 +4,8 @@ export type NivelEnsino = (typeof NIVEIS_ENSINO)[number];
 export interface Disciplina {
   id: string;
   nome: string;
+  ciclo: string | null;
+  _count?: { turmas: number };
 }
 
 export interface AnoLetivo {

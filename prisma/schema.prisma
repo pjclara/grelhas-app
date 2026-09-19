@@ -30,9 +30,10 @@ model User {
 // ---------- Estrutura académica ----------
 
 model Disciplina {
-  id     String @id @default(cuid())
+  id     String  @id @default(cuid())
   userId String
   nome   String
+  ciclo  String? // ex: "2.º ciclo", "3.º ciclo", "Secundário"
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   turmas Turma[]

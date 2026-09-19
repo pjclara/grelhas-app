@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import TopNav from '@/components/TopNav';
+import Sidebar from '@/components/Sidebar';
 import { NIVEIS_ENSINO, type Disciplina, type AnoLetivo, type Turma } from '@/lib/types';
 
 export default function DashboardPage() {
@@ -44,7 +45,10 @@ export default function DashboardPage() {
   return (
     <div>
       <TopNav />
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <div className="flex">
+        <Sidebar />
+        <main className="min-w-0 flex-1 px-6 py-8">
+        <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-slate-900">As minhas turmas</h1>
           <button
@@ -90,7 +94,9 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
-      </main>
+        </div>
+        </main>
+      </div>
     </div>
   );
 }

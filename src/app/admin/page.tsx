@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import TopNav from '@/components/TopNav';
+import Sidebar from '@/components/Sidebar';
 
 interface AdminUser {
   id: string;
@@ -81,7 +82,10 @@ export default function AdminPage() {
   return (
     <div>
       <TopNav />
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <div className="flex">
+        <Sidebar />
+        <main className="min-w-0 flex-1 px-6 py-8">
+        <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-slate-900">Administração</h1>
           {tab === 'utilizadores' && (
@@ -229,7 +233,9 @@ export default function AdminPage() {
             </table>
           </div>
         )}
-      </main>
+        </div>
+        </main>
+      </div>
     </div>
   );
 }

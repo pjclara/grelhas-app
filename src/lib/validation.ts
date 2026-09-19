@@ -9,6 +9,7 @@ export const registerSchema = z.object({
 
 export const disciplinaSchema = z.object({
   nome: z.string().min(2),
+  ciclo: z.enum(NIVEIS_ENSINO).optional().nullable(),
 });
 
 export const anoLetivoSchema = z.object({

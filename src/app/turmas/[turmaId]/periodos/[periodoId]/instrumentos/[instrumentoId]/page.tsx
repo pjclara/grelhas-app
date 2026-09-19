@@ -28,6 +28,32 @@ function extrairNumero(transcript: string): string | null {
   return match ? match[0] : null;
 }
 
+/** Normaliza um código de pergunta para comparação (minúsculas, sem pontos/espaços). */
+function normalizarCodigo(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** Extrai "aluno [número] X" de uma frase ditada, ex.: "aluno número 3" -> 3. */
+function extrairAlunoNumero(transcript: string): number | null {
+  const m = transcript.match(/aluno\s*(?:n[uú]mero)?\s*(\d+)/i);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Extrai o código de uma pergunta ditada após "pergunta"/"questão"/"item", ex.:
+ * "pergunta 2a" -> "2a", ou "pergunta 2 a" (dígito + letra falados em separado) -> "2a".
+ */
+function extrairPerguntaCodigo(transcript: string): string | null {
+  const m = transcript.match(/(?:pergunta|quest[ãa]o|item)\s+([a-zçãáéíóú0-9]+)(?:\s+([a-zçãáéíóú]))?/i);
+  if (!m) return null;
+  const primeiro = m[1];
+  const segundo = m[2];
+  if (segundo && /^\d+$/.test(primeiro) && /^[a-zçãáéíóú]$/i.test(segundo)) {
+    return primeiro + segundo;
+  }
+  return primeiro;
+}
+
 export default function InstrumentoPage({
   params,
 }: {
@@ -41,6 +67,7 @@ export default function InstrumentoPage({
 
   const [aDitar, setADitar] = useState(false);
   const [ultimoOuvido, setUltimoOuvido] = useState<string | null>(null);
+  const [avisoDitado, setAvisoDitado] = useState<string | null>(null);
   const [ditadoSuportado, setDitadoSuportado] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const activeIndexRef = useRef(0);
@@ -113,6 +140,47 @@ export default function InstrumentoPage({
     });
   }
 
+  /** Salta diretamente para a célula referida por "aluno [número] X" e/ou "pergunta/questão/item Y". */
+  function navegarParaCelula(transcript: string) {
+    if (!instrumento) return;
+    const numPerguntas = instrumento.perguntas.length;
+    if (numPerguntas === 0 || alunos.length === 0) return;
+
+    const idxAtual = activeIndexRef.current;
+    let alunoIdx = Math.floor(idxAtual / numPerguntas);
+    let perguntaIdx = idxAtual % numPerguntas;
+
+    const numeroAluno = extrairAlunoNumero(transcript);
+    let alunoEncontrado = true;
+    if (numeroAluno !== null) {
+      const idx = alunos.findIndex((a) => a.numero === numeroAluno);
+      alunoEncontrado = idx !== -1;
+      if (alunoEncontrado) alunoIdx = idx;
+    }
+
+    const codigoPergunta = extrairPerguntaCodigo(transcript);
+    let perguntaEncontrada = true;
+    if (codigoPergunta !== null) {
+      const alvo = normalizarCodigo(codigoPergunta);
+      const idx = instrumento.perguntas.findIndex((p) => normalizarCodigo(p.codigo) === alvo);
+      perguntaEncontrada = idx !== -1;
+      if (perguntaEncontrada) perguntaIdx = idx;
+    }
+
+    if (!alunoEncontrado || !perguntaEncontrada) {
+      setAvisoDitado(
+        !alunoEncontrado && !perguntaEncontrada
+          ? 'Não encontrei esse aluno nem essa pergunta.'
+          : !alunoEncontrado
+            ? 'Não encontrei esse número de aluno.'
+            : 'Não encontrei essa pergunta/item.'
+      );
+      return;
+    }
+    setAvisoDitado(null);
+    setActiveIndex(alunoIdx * numPerguntas + perguntaIdx);
+  }
+
   function processarTranscript(transcriptBruto: string) {
     const transcript = transcriptBruto.trim().toLowerCase();
     setUltimoOuvido(transcriptBruto);
@@ -120,6 +188,10 @@ export default function InstrumentoPage({
 
     if (PALAVRAS_PARAR.some((p) => transcript === p || transcript.startsWith(p + ' '))) {
       pararDitado();
+      return;
+    }
+    if (/\baluno\b/.test(transcript) || /\b(pergunta|quest[ãa]o|item)\b/.test(transcript)) {
+      navegarParaCelula(transcript);
       return;
     }
     if (PALAVRAS_AVANCAR.some((p) => transcript.includes(p))) {
@@ -185,6 +257,7 @@ export default function InstrumentoPage({
     setADitar(true);
     setActiveIndex(0);
     setUltimoOuvido(null);
+    setAvisoDitado(null);
     recognition.start();
   }
 
@@ -279,11 +352,17 @@ export default function InstrumentoPage({
         </p>
 
         {aDitar && (
-          <p className="mb-4 rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-700">
-            A ouvir… diga um número para preencher a célula selecionada e avançar. Diga "seguinte",
-            "anterior", "apagar" ou "parar" para navegar.
-            {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: "{ultimoOuvido}"</span>}
-          </p>
+          <div className="mb-4 space-y-1">
+            <p className="rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-700">
+              A ouvir… diga um número para preencher a célula selecionada e avançar. Diga "aluno número 3
+              pergunta 2a" para saltar diretamente para essa célula, ou "seguinte", "anterior", "apagar",
+              "parar" para navegar.
+              {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: "{ultimoOuvido}"</span>}
+            </p>
+            {avisoDitado && (
+              <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">{avisoDitado}</p>
+            )}
+          </div>
         )}
         {!ditadoSuportado && (
           <p className="mb-4 text-xs text-slate-400">

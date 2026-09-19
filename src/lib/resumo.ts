@@ -10,7 +10,7 @@ import {
 } from '@/lib/calc';
 
 export interface ResumoPeriodo {
-  turma: { id: string; nome: string; disciplina: string; anoLetivo: string };
+  turma: { id: string; nome: string; disciplina: string; anoLetivo: string; nivelEnsino: string | null };
   periodo: { id: string; nome: string };
   criterios: CriterioCalc[];
   alunos: Array<{ id: string; numero: number; nome: string }>;
@@ -83,6 +83,7 @@ export async function construirResumoPeriodo(
       nome: turma.nome,
       disciplina: turma.disciplina.nome,
       anoLetivo: turma.anoLetivo.nome,
+      nivelEnsino: turma.nivelEnsino,
     },
     periodo: { id: periodo.id, nome: periodo.nome },
     criterios,

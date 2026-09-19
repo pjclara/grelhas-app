@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { requireUserId } from '@/lib/auth';
 import { assertTurmaOwnership } from '@/lib/turma-access';
 import { construirResumoPeriodo } from '@/lib/resumo';
-import { construirLinhas, nomeFicheiro } from '@/lib/export-format';
+import { construirLinhas, mostraNivel, nomeFicheiro } from '@/lib/export-format';
 import { handleApiError } from '@/lib/api-helpers';
 
 export const runtime = 'nodejs';
@@ -17,6 +17,7 @@ export async function GET(
     await assertTurmaOwnership(params.turmaId, userId);
     const resumo = await construirResumoPeriodo(params.turmaId, params.periodoId);
     const linhas = construirLinhas(resumo);
+    const comNivel = mostraNivel(resumo);
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Grelhas de Avaliação';
@@ -34,7 +35,7 @@ export async function GET(
       'Nome',
       ...resumo.criterios.map((c) => `${c.nome} (${Math.round(c.peso * 100)}%)`),
       'Nota final (0-20)',
-      'Nível',
+      ...(comNivel ? ['Nível'] : []),
     ];
     const headerRow = sheet.addRow(cabecalho);
     headerRow.font = { bold: true };
@@ -49,16 +50,23 @@ export async function GET(
         linha.nome,
         ...linha.porCriterio.map((c) => c.valor),
         linha.notaFinal20,
-        linha.nivel,
+        ...(comNivel ? [linha.nivel] : []),
       ]);
     }
+
+    const comNota20 = resumo.resultados.filter((r) => r.notaFinal20 != null);
+    const percentNegativas = comNivel
+      ? resumo.estatisticas.percentNegativas
+      : comNota20.length > 0
+        ? (comNota20.filter((r) => (r.notaFinal20 as number) < 10).length / comNota20.length) * 100
+        : null;
 
     sheet.addRow([]);
     const estatRow = sheet.addRow([
       'Média da turma (0-20):',
       resumo.estatisticas.mediaTurma20?.toFixed(2).replace('.', ',') ?? '—',
       '% negativas:',
-      resumo.estatisticas.percentNegativas?.toFixed(1).replace('.', ',') + '%' ?? '—',
+      percentNegativas != null ? percentNegativas.toFixed(1).replace('.', ',') + '%' : '—',
     ]);
     estatRow.font = { italic: true };
 

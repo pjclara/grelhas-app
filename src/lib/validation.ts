@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { NIVEIS_ENSINO } from '@/lib/types';
 
 export const registerSchema = z.object({
   name: z.string().min(2, 'Nome demasiado curto'),
@@ -18,7 +19,7 @@ export const turmaSchema = z.object({
   disciplinaId: z.string().min(1),
   anoLetivoId: z.string().min(1),
   nome: z.string().min(1),
-  nivelEnsino: z.string().optional().nullable(),
+  nivelEnsino: z.enum(NIVEIS_ENSINO).optional().nullable(),
 });
 
 export const turmaLimiaresSchema = z.object({

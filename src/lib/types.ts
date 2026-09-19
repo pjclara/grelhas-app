@@ -1,3 +1,6 @@
+export const NIVEIS_ENSINO = ['2.º ciclo', '3.º ciclo', 'Secundário'] as const;
+export type NivelEnsino = (typeof NIVEIS_ENSINO)[number];
+
 export interface Disciplina {
   id: string;
   nome: string;
@@ -99,7 +102,7 @@ export interface ResultadoAlunoDTO {
 }
 
 export interface ResumoPeriodoDTO {
-  turma: { id: string; nome: string; disciplina: string; anoLetivo: string };
+  turma: { id: string; nome: string; disciplina: string; anoLetivo: string; nivelEnsino: string | null };
   periodo: { id: string; nome: string };
   criterios: Criterio[];
   alunos: Array<{ id: string; numero: number; nome: string }>;

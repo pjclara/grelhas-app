@@ -5,7 +5,12 @@ export interface LinhaExport {
   nome: string;
   porCriterio: Array<{ nome: string; valor: string }>;
   notaFinal20: string;
-  nivel: string;
+  nivel: string | null;
+}
+
+/** Os níveis 1-5 só se aplicam ao 2.º/3.º ciclo; no Secundário a nota é diretamente 0-20. */
+export function mostraNivel(resumo: ResumoPeriodo): boolean {
+  return resumo.turma.nivelEnsino !== 'Secundário';
 }
 
 export function formatNum(valor: number | null, casas = 1): string {
@@ -14,6 +19,7 @@ export function formatNum(valor: number | null, casas = 1): string {
 }
 
 export function construirLinhas(resumo: ResumoPeriodo): LinhaExport[] {
+  const comNivel = mostraNivel(resumo);
   return resumo.alunos.map((aluno) => {
     const resultado = resumo.resultados.find((r) => r.alunoId === aluno.id)!;
     return {
@@ -24,7 +30,7 @@ export function construirLinhas(resumo: ResumoPeriodo): LinhaExport[] {
         return { nome: c.nome, valor: formatNum(r?.media ?? null) + '%' };
       }),
       notaFinal20: formatNum(resultado.notaFinal20),
-      nivel: resultado.nivel?.toString() ?? '—',
+      nivel: comNivel ? (resultado.nivel?.toString() ?? '—') : null,
     };
   });
 }

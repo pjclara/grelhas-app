@@ -26,6 +26,15 @@ export default function ResumoPage({
     );
   }
 
+  // Os níveis 1-5 só se aplicam ao 2.º/3.º ciclo; no Secundário a nota é diretamente 0-20
+  // e "negativa" significa nota final < 10 valores, não níveis 1-2.
+  const mostrarNivel = resumo.turma.nivelEnsino !== 'Secundário';
+  const comNota20 = resumo.resultados.filter((r) => r.notaFinal20 != null);
+  const percentNegativasSecundario =
+    comNota20.length > 0
+      ? (comNota20.filter((r) => (r.notaFinal20 as number) < 10).length / comNota20.length) * 100
+      : null;
+
   return (
     <div>
       <TopNav />
@@ -64,7 +73,7 @@ export default function ResumoPage({
                   </th>
                 ))}
                 <th className="px-3 py-2 text-center">Final (0-20)</th>
-                <th className="px-3 py-2 text-center">Nível</th>
+                {mostrarNivel && <th className="px-3 py-2 text-center">Nível</th>}
               </tr>
             </thead>
             <tbody>
@@ -85,9 +94,11 @@ export default function ResumoPage({
                     <td className="px-3 py-1.5 text-center font-medium">
                       {resultado.notaFinal20 != null ? resultado.notaFinal20.toFixed(1) : '—'}
                     </td>
-                    <td className="px-3 py-1.5 text-center font-medium">
-                      {resultado.nivel ?? '—'}
-                    </td>
+                    {mostrarNivel && (
+                      <td className="px-3 py-1.5 text-center font-medium">
+                        {resultado.nivel ?? '—'}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -100,24 +111,33 @@ export default function ResumoPage({
             titulo="Média da turma (0-20)"
             valor={resumo.estatisticas.mediaTurma20?.toFixed(2) ?? '—'}
           />
-          <Estatistica
-            titulo="% negativas (níveis 1-2)"
-            valor={
-              resumo.estatisticas.percentNegativas != null
-                ? `${resumo.estatisticas.percentNegativas.toFixed(0)}%`
-                : '—'
-            }
-          />
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="mb-2 text-xs font-medium uppercase text-slate-500">Alunos por nível</p>
-            <div className="flex gap-3 text-sm">
-              {([1, 2, 3, 4, 5] as const).map((n) => (
-                <span key={n}>
-                  N{n}: <strong>{resumo.estatisticas.contagemPorNivel[n]}</strong>
-                </span>
-              ))}
-            </div>
-          </div>
+          {mostrarNivel ? (
+            <>
+              <Estatistica
+                titulo="% negativas (níveis 1-2)"
+                valor={
+                  resumo.estatisticas.percentNegativas != null
+                    ? `${resumo.estatisticas.percentNegativas.toFixed(0)}%`
+                    : '—'
+                }
+              />
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <p className="mb-2 text-xs font-medium uppercase text-slate-500">Alunos por nível</p>
+                <div className="flex gap-3 text-sm">
+                  {([1, 2, 3, 4, 5] as const).map((n) => (
+                    <span key={n}>
+                      N{n}: <strong>{resumo.estatisticas.contagemPorNivel[n]}</strong>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <Estatistica
+              titulo="% negativas (< 10 valores)"
+              valor={percentNegativasSecundario != null ? `${percentNegativasSecundario.toFixed(0)}%` : '—'}
+            />
+          )}
         </div>
       </main>
     </div>

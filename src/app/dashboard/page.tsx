@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import TopNav from '@/components/TopNav';
-import type { Disciplina, AnoLetivo, Turma } from '@/lib/types';
+import { NIVEIS_ENSINO, type Disciplina, type AnoLetivo, type Turma } from '@/lib/types';
 
 export default function DashboardPage() {
   const [turmas, setTurmas] = useState<Turma[]>([]);
@@ -252,12 +252,18 @@ function NovaTurmaForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Nível de ensino</label>
-          <input
-            placeholder="ex: 3.º ciclo"
+          <select
             value={nivelEnsino}
             onChange={(e) => setNivelEnsino(e.target.value)}
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
+          >
+            <option value="">Selecionar…</option>
+            {NIVEIS_ENSINO.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
       {erro && <p className="text-sm text-red-600">{erro}</p>}

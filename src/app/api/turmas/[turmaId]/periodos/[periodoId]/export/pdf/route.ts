@@ -3,7 +3,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf
 import { requireUserId } from '@/lib/auth';
 import { assertTurmaOwnership } from '@/lib/turma-access';
 import { construirResumoPeriodo } from '@/lib/resumo';
-import { construirLinhas, nomeFicheiro } from '@/lib/export-format';
+import { construirLinhas, mostraNivel, nomeFicheiro } from '@/lib/export-format';
 import { handleApiError } from '@/lib/api-helpers';
 
 export const runtime = 'nodejs';
@@ -21,6 +21,7 @@ export async function GET(
     await assertTurmaOwnership(params.turmaId, userId);
     const resumo = await construirResumoPeriodo(params.turmaId, params.periodoId);
     const linhas = construirLinhas(resumo);
+    const comNivel = mostraNivel(resumo);
 
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -34,7 +35,7 @@ export async function GET(
         largura: 100,
       })),
       { titulo: 'Final (0-20)', largura: 60 },
-      { titulo: 'Nível', largura: 40 },
+      ...(comNivel ? [{ titulo: 'Nível', largura: 40 }] : []),
     ];
 
     let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -64,7 +65,7 @@ export async function GET(
         linha.nome,
         ...linha.porCriterio.map((c) => c.valor),
         linha.notaFinal20,
-        linha.nivel,
+        ...(comNivel ? [linha.nivel ?? '—'] : []),
       ];
       y = desenharLinhaTabela(page, valores, colunas, y, font, false);
     }
@@ -74,9 +75,15 @@ export async function GET(
       page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
       y = PAGE_HEIGHT - MARGIN;
     }
+    const comNota20 = resumo.resultados.filter((r) => r.notaFinal20 != null);
+    const percentNegativas = comNivel
+      ? resumo.estatisticas.percentNegativas
+      : comNota20.length > 0
+        ? (comNota20.filter((r) => (r.notaFinal20 as number) < 10).length / comNota20.length) * 100
+        : null;
     page.drawText(
       `Média da turma (0-20): ${resumo.estatisticas.mediaTurma20?.toFixed(2).replace('.', ',') ?? '—'}    ` +
-        `% negativas: ${resumo.estatisticas.percentNegativas?.toFixed(1).replace('.', ',') ?? '—'}%`,
+        `% negativas: ${percentNegativas?.toFixed(1).replace('.', ',') ?? '—'}%`,
       { x: MARGIN, y, size: 9, font }
     );
 

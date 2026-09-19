@@ -1,8 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import TopNav from '@/components/TopNav';
 import type { Aluno } from '@/lib/types';
+
+// A Web Speech API não está nos tipos padrão do TS DOM; usamos `any` para o objeto de reconhecimento.
+type SpeechRecognitionInstance = any;
+
+const PALAVRAS_PARAR = ['parar', 'terminar', 'sair', 'para'];
+const PALAVRAS_DESFAZER = ['apagar último', 'apagar ultimo', 'remover último', 'remover ultimo', 'desfazer'];
+
+/** Extrai "número/aluno número N ..." do início de uma frase ditada, devolvendo [número, resto] ou null. */
+function extrairNumeroExplicito(transcript: string): [number, string] | null {
+  const m = transcript.match(/^(?:aluno\s*)?n[uú]mero\s*(\d+)\s*(.*)$/i);
+  if (!m) return null;
+  return [Number(m[1]), m[2].trim()];
+}
+
+/** Capitaliza cada palavra do nome (o reconhecimento de voz costuma devolver tudo em minúsculas). */
+function capitalizarNome(nome: string): string {
+  return nome
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(' ');
+}
 
 export default function AlunosPage({ params }: { params: { turmaId: string } }) {
   const [alunos, setAlunos] = useState<Aluno[]>([]);
@@ -11,14 +33,40 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   const [medidas, setMedidas] = useState('');
   const [erro, setErro] = useState<string | null>(null);
 
+  const [aDitar, setADitar] = useState(false);
+  const [ultimoOuvido, setUltimoOuvido] = useState<string | null>(null);
+  const [ultimoAdicionado, setUltimoAdicionado] = useState<string | null>(null);
+  const [avisoDitado, setAvisoDitado] = useState<string | null>(null);
+  const [ditadoSuportado, setDitadoSuportado] = useState(true);
+  const ditandoRef = useRef(false);
+  const recognitionRef = useRef<SpeechRecognitionInstance>(null);
+  const alunosRef = useRef<Aluno[]>([]);
+  const ultimoAdicionadoIdRef = useRef<string | null>(null);
+
   async function carregar() {
     const r = await fetch(`/api/turmas/${params.turmaId}/alunos`);
-    setAlunos(await r.json());
+    const lista: Aluno[] = await r.json();
+    setAlunos(lista);
+    alunosRef.current = lista;
+    return lista;
   }
 
   useEffect(() => {
     carregar();
   }, [params.turmaId]);
+
+  useEffect(() => {
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    setDitadoSuportado(Boolean(SpeechRecognitionCtor));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      ditandoRef.current = false;
+      recognitionRef.current?.stop();
+    };
+  }, []);
 
   async function adicionar(e: React.FormEvent) {
     e.preventDefault();
@@ -42,6 +90,121 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     carregar();
   }
 
+  function proximoNumero(): number {
+    const maior = alunosRef.current.reduce((max, a) => Math.max(max, a.numero), 0);
+    return maior + 1;
+  }
+
+  async function adicionarAlunoViaVoz(numeroExplicito: number | null, nomeTexto: string) {
+    const nomeFinal = capitalizarNome(nomeTexto.trim());
+    if (!nomeFinal) return;
+    const numeroFinal = numeroExplicito ?? proximoNumero();
+
+    const res = await fetch(`/api/turmas/${params.turmaId}/alunos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numero: numeroFinal, nome: nomeFinal, medidas: null }),
+    });
+    if (!res.ok) {
+      setAvisoDitado(`Não foi possível adicionar "${nomeFinal}" (nº ${numeroFinal} já usado?).`);
+      return;
+    }
+    const novo = await res.json();
+    ultimoAdicionadoIdRef.current = novo.id;
+    setUltimoAdicionado(`Nº ${numeroFinal} — ${nomeFinal}`);
+    setAvisoDitado(null);
+    await carregar();
+  }
+
+  async function desfazerUltimoDitado() {
+    const id = ultimoAdicionadoIdRef.current;
+    if (!id) {
+      setAvisoDitado('Não há nenhum aluno adicionado por voz nesta sessão para desfazer.');
+      return;
+    }
+    await fetch(`/api/turmas/${params.turmaId}/alunos/${id}`, { method: 'DELETE' });
+    ultimoAdicionadoIdRef.current = null;
+    setUltimoAdicionado(null);
+    setAvisoDitado('Último aluno removido.');
+    await carregar();
+  }
+
+  function processarTranscript(transcriptBruto: string) {
+    const transcript = transcriptBruto.trim();
+    setUltimoOuvido(transcriptBruto);
+    if (!transcript) return;
+    const minusculas = transcript.toLowerCase();
+
+    if (PALAVRAS_PARAR.some((p) => minusculas === p || minusculas.startsWith(p + ' '))) {
+      pararDitado();
+      return;
+    }
+    if (PALAVRAS_DESFAZER.some((p) => minusculas.includes(p))) {
+      desfazerUltimoDitado();
+      return;
+    }
+
+    const explicito = extrairNumeroExplicito(transcript);
+    if (explicito) {
+      const [numeroExplicito, resto] = explicito;
+      if (resto) adicionarAlunoViaVoz(numeroExplicito, resto);
+      else setAvisoDitado('Diga o número seguido do nome, ex.: "número 5 Maria Silva".');
+      return;
+    }
+
+    adicionarAlunoViaVoz(null, transcript);
+  }
+
+  function iniciarDitado() {
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) {
+      setDitadoSuportado(false);
+      return;
+    }
+    const recognition: SpeechRecognitionInstance = new SpeechRecognitionCtor();
+    recognition.lang = 'pt-PT';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: any) => {
+      const ultimo = event.results[event.results.length - 1];
+      const transcript = ultimo?.[0]?.transcript ?? '';
+      processarTranscript(transcript);
+    };
+    recognition.onerror = (event: any) => {
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setDitadoSuportado(false);
+        pararDitado();
+      }
+    };
+    recognition.onend = () => {
+      if (ditandoRef.current) {
+        try {
+          recognition.start();
+        } catch {
+          // já iniciado ou instância inválida; ignora
+        }
+      }
+    };
+
+    recognitionRef.current = recognition;
+    ditandoRef.current = true;
+    setADitar(true);
+    setUltimoOuvido(null);
+    setUltimoAdicionado(null);
+    setAvisoDitado(null);
+    ultimoAdicionadoIdRef.current = null;
+    recognition.start();
+  }
+
+  function pararDitado() {
+    ditandoRef.current = false;
+    setADitar(false);
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+  }
+
   async function remover(id: string) {
     if (!confirm('Remover este aluno e todas as suas notas?')) return;
     await fetch(`/api/turmas/${params.turmaId}/alunos/${id}`, { method: 'DELETE' });
@@ -61,7 +224,41 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     <div>
       <TopNav />
       <main className="mx-auto max-w-3xl px-6 py-8">
-        <h1 className="mb-6 text-2xl font-semibold text-slate-900">Alunos</h1>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-slate-900">Alunos</h1>
+          {ditadoSuportado && (
+            <button
+              type="button"
+              onClick={() => (aDitar ? pararDitado() : iniciarDitado())}
+              className={`rounded-md px-4 py-2 text-sm font-medium ${
+                aDitar
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-brand-600 text-white hover:bg-brand-700'
+              }`}
+            >
+              {aDitar ? '⏹ Parar ditado' : '🎤 Ditar alunos'}
+            </button>
+          )}
+        </div>
+
+        {aDitar && (
+          <div className="mb-4 space-y-1">
+            <p className="rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-700">
+              A ouvir… diga o nome do aluno para o adicionar com o número seguinte automático, ou
+              "número 5 Maria Silva" para indicar o número. Diga "apagar último" para desfazer ou
+              "parar" para terminar.
+              {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: "{ultimoOuvido}"</span>}
+            </p>
+            {ultimoAdicionado && (
+              <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                Adicionado: {ultimoAdicionado}
+              </p>
+            )}
+            {avisoDitado && (
+              <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">{avisoDitado}</p>
+            )}
+          </div>
+        )}
 
         <form onSubmit={adicionar} className="mb-6 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4">
           <div>

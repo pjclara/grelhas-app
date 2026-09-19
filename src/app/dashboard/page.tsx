@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import TopNav from '@/components/TopNav';
 import Sidebar from '@/components/Sidebar';
-import { NIVEIS_ENSINO, type Disciplina, type AnoLetivo, type Turma } from '@/lib/types';
+import { NIVEIS_ENSINO, anoLetivoAtual, type Disciplina, type AnoLetivo, type Turma } from '@/lib/types';
 
 export default function DashboardPage() {
   const [turmas, setTurmas] = useState<Turma[]>([]);
@@ -122,6 +122,21 @@ function NovaTurmaForm({
   const [novoAno, setNovoAno] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [aGravar, setAGravar] = useState(false);
+
+  // Por omissão sugere o ano letivo corrente: se já existir, pré-seleciona-o;
+  // caso contrário, pré-preenche o campo de criação para bastar um clique.
+  // O professor pode sempre escolher outro ano ou mudar o texto.
+  useEffect(() => {
+    if (anoLetivoId) return;
+    const atual = anoLetivoAtual();
+    const existente = anos.find((a) => a.nome === atual);
+    if (existente) {
+      setAnoLetivoId(existente.id);
+    } else if (!novoAno) {
+      setNovoAno(atual);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anos]);
 
   async function adicionarDisciplina() {
     if (!novaDisciplina.trim()) return;

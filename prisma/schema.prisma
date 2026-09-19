@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Utilizadores (professores) ----------
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  disciplinas Disciplina[]
+  anosLetivos AnoLetivo[]
+  turmas      Turma[]
+}
+
+// ---------- Estrutura académica ----------
+
+model Disciplina {
+  id     String @id @default(cuid())
+  userId String
+  nome   String
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turmas Turma[]
+
+  @@unique([userId, nome])
+}
+
+model AnoLetivo {
+  id   String @id @default(cuid())
+  userId String
+  nome String // ex: "2025/2026"
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turmas Turma[]
+
+  @@unique([userId, nome])
+}
+
+model Turma {
+  id           String @id @default(cuid())
+  userId       String
+  disciplinaId String
+  anoLetivoId  String
+  nome         String // ex: "9.º F"
+  nivelEnsino  String? // ex: "3.º ciclo"
+  createdAt    DateTime @default(now())
+
+  // Limiares de nível (percentagem 0-100), configuráveis por turma
+  limiarNivel2 Float @default(20)
+  limiarNivel3 Float @default(50)
+  limiarNivel4 Float @default(70)
+  limiarNivel5 Float @default(90)
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  disciplina Disciplina  @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  anoLetivo  AnoLetivo   @relation(fields: [anoLetivoId], references: [id], onDelete: Cascade)
+  alunos     Aluno[]
+  periodos   Periodo[]
+  criterios  Criterio[]
+  instrumentos Instrumento[]
+
+  @@unique([userId, disciplinaId, anoLetivoId, nome])
+}
+
+model Aluno {
+  id       String  @id @default(cuid())
+  turmaId  String
+  numero   Int
+  nome     String
+  medidas  String? // Dec-Lei 54, ex: "Medidas seletivas;Medidas adicionais"
+  aliena   String?
+  ativo    Boolean @default(true)
+
+  turma Turma  @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  notas Nota[]
+
+  @@unique([turmaId, numero])
+}
+
+model Periodo {
+  id      String @id @default(cuid())
+  turmaId String
+  nome    String // ex: "1.º Semestre"
+  ordem   Int
+
+  turma        Turma         @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  instrumentos Instrumento[]
+
+  @@unique([turmaId, ordem])
+}
+
+// ---------- Critérios de avaliação (pesos configuráveis) ----------
+
+enum ModoAvaliacao {
+  PONTOS // soma de pontos obtidos / soma de pontos máximos
+  ESCALA // média de valores numa escala (ex.: 1 a 5)
+}
+
+model Criterio {
+  id      String @id @default(cuid())
+  turmaId String
+  grupo   String // ex: "Conhecimentos e Capacidades", "Atitudes"
+  nome    String // ex: "Testes de avaliação", "Responsabilidade..."
+  peso    Float // 0 a 1 (ex.: 0.45 = 45%)
+  ordem   Int
+
+  turma        Turma         @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  instrumentos Instrumento[]
+
+  @@unique([turmaId, nome])
+}
+
+// ---------- Instrumentos de avaliação ----------
+
+model Instrumento {
+  id          String        @id @default(cuid())
+  turmaId     String
+  periodoId   String
+  criterioId  String
+  nome        String // ex: "Teste de Avaliação 1", "Responsabilidade e valores..."
+  modo        ModoAvaliacao @default(PONTOS)
+  escalaMax   Int           @default(5) // usado quando modo = ESCALA
+  unidade     String?
+  tema        String?
+  data        DateTime?
+  ordem       Int           @default(0)
+
+  turma     Turma      @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  periodo   Periodo    @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  criterio  Criterio   @relation(fields: [criterioId], references: [id], onDelete: Cascade)
+  perguntas Pergunta[]
+
+  @@index([turmaId, periodoId])
+}
+
+model Pergunta {
+  id            String  @id @default(cuid())
+  instrumentoId String
+  codigo        String // ex: "2.1.", "Responsabilidade"
+  valorMax      Float // pontos máximos (modo=PONTOS) ou escala máxima (modo=ESCALA)
+  ordem         Int
+
+  instrumento Instrumento @relation(fields: [instrumentoId], references: [id], onDelete: Cascade)
+  notas       Nota[]
+
+  @@index([instrumentoId])
+}
+
+model Nota {
+  id         String @id @default(cuid())
+  perguntaId String
+  alunoId    String
+  valor      Float?
+
+  pergunta Pergunta @relation(fields: [perguntaId], references: [id], onDelete: Cascade)
+  aluno    Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+
+  @@unique([perguntaId, alunoId])
+  @@index([alunoId])
+}

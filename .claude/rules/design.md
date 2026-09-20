@@ -53,16 +53,12 @@ Evitar criar componentes visualmente equivalentes com nomes diferentes.
 
 ## Layout
 
-Priorizar:
+Regras detalhadas de layout, sidebar e responsividade vivem em
+[`layout.md`](layout.md) — não duplicar aqui.
 
-* hierarquia visual clara;
-* espaçamento consistente;
-* alinhamento;
-* proporções equilibradas;
-* leitura fácil;
-* responsividade.
-
-Não utilizar espaçamentos arbitrários quando o projeto já possuir uma escala definida.
+Resumo: priorizar hierarquia visual clara, espaçamento consistente,
+alinhamento, proporções equilibradas e leitura fácil. Não utilizar
+espaçamentos arbitrários quando o projeto já possuir uma escala definida.
 
 ---
 
@@ -127,24 +123,13 @@ Não implementar somente o estado "feliz".
 
 ## Responsividade
 
-Toda interface deve considerar:
+Regras detalhadas (desktop, tablet, mobile, sidebar) vivem em
+[`layout.md`](layout.md) — não duplicar aqui.
 
-* desktop;
-* tablet;
-* mobile.
-
-Não assumir que uma interface desktop simplesmente pode ser reduzida para mobile.
-
-Verificar:
-
-* navegação;
-* tabelas;
-* formulários;
-* modais;
-* cards;
-* grids;
-* espaçamento;
-* tamanho dos elementos interativos.
+Resumo: toda interface deve funcionar em desktop, tablet e mobile — não
+assumir que uma interface desktop simplesmente pode ser reduzida para
+mobile. Verificar em particular: navegação, tabelas, formulários, modais,
+cards, grids, espaçamento e tamanho dos elementos interativos.
 
 ---
 

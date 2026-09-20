@@ -384,3 +384,28 @@ mudança na lógica de cálculo de notas):
 * O diff contém apenas alterações relacionadas com a tarefa?
 * Algum ficheiro sensível (`.env*`) foi acidentalmente incluído?
 * Existem alterações acidentais a ficheiros não relacionados?
+
+
+## Design e Layout
+
+Regras detalhadas de UI, design system e responsividade vivem em
+[`.claude/rules/design.md`](.claude/rules/design.md) e
+[`.claude/rules/layout.md`](.claude/rules/layout.md) — não duplicar aqui;
+se uma regra de design/layout mudar, atualizar primeiro esses ficheiros.
+
+Resumo do que nunca deve ser violado:
+
+* Antes de criar/alterar UI, identificar o layout global, a sidebar, os
+  componentes de navegação e os padrões usados por páginas semelhantes —
+  depois reutilizá-los. Não redesenhar uma página do zero nem introduzir
+  uma linguagem visual paralela.
+* Alterações estruturais significativas ao layout devem ser justificadas
+  (responsividade, usabilidade, acessibilidade ou consistência com o
+  design existente) — evite alterações puramente estéticas que introduzam
+  padrões diferentes dos já usados no produto.
+* **Estado real do código**: `src/components/Sidebar.tsx` e `TopNav.tsx`
+  são hoje fixos, sempre visíveis, sem colapso e sem comportamento
+  responsivo (sem classes `sm:`/`md:`/`lg:`); `tailwind.config.ts` não
+  define breakpoints nem escala de espaçamento customizados. Ver
+  `.claude/rules/layout.md` antes de assumir que existe um padrão de
+  sidebar colapsável/drawer já implementado.

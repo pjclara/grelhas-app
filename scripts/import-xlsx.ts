@@ -89,13 +89,16 @@ async function main() {
   const turma = await prisma.turma.create({
     data: {
       userId: user.id,
-      disciplinaId: disciplina.id,
       anoLetivoId: anoLetivo.id,
       nome: turmaNome,
       nivelEnsino: nivelEnsino ?? null,
     },
   });
   console.log(`Turma criada: ${turma.nome} (${turma.id})`);
+
+  const turmaDisciplina = await prisma.turmaDisciplina.create({
+    data: { turmaId: turma.id, disciplinaId: disciplina.id },
+  });
 
   const alunosCriados = await Promise.all(
     alunosOrigem.map((a) =>
@@ -106,16 +109,22 @@ async function main() {
   );
   const alunoIdPorNumero = new Map(alunosCriados.map((a) => [a.numero, a.id]));
 
+  // A importação assume que todos os alunos da turma estão inscritos na
+  // disciplina importada (era essa a premissa da grelha de Excel original).
+  await prisma.alunoDisciplina.createMany({
+    data: alunosCriados.map((a) => ({ alunoId: a.id, turmaDisciplinaId: turmaDisciplina.id })),
+  });
+
   const criterioTestes = await prisma.criterio.create({
-    data: { turmaId: turma.id, grupo: 'Conhecimentos e Capacidades', nome: 'Testes de avaliação', peso: pesoTestes, ordem: 0 },
+    data: { turmaDisciplinaId: turmaDisciplina.id, grupo: 'Conhecimentos e Capacidades', nome: 'Testes de avaliação', peso: pesoTestes, ordem: 0 },
   });
   const criterioOutros = await prisma.criterio.create({
-    data: { turmaId: turma.id, grupo: 'Conhecimentos e Capacidades', nome: 'Outros instrumentos', peso: pesoOutros, ordem: 1 },
+    data: { turmaDisciplinaId: turmaDisciplina.id, grupo: 'Conhecimentos e Capacidades', nome: 'Outros instrumentos', peso: pesoOutros, ordem: 1 },
   });
   const criteriosAtitude = await Promise.all(
     atitudeDefs.map((def, idx) =>
       prisma.criterio.create({
-        data: { turmaId: turma.id, grupo: 'Atitudes', nome: def.nome, peso: def.peso, ordem: 2 + idx },
+        data: { turmaDisciplinaId: turmaDisciplina.id, grupo: 'Atitudes', nome: def.nome, peso: def.peso, ordem: 2 + idx },
       })
     )
   );
@@ -155,7 +164,7 @@ async function main() {
 
     const instrumento = await prisma.instrumento.create({
       data: {
-        turmaId: turma.id,
+        turmaDisciplinaId: turmaDisciplina.id,
         periodoId,
         criterioId,
         nome: nomeInstrumento,
@@ -201,7 +210,7 @@ async function main() {
       const criterio = criteriosAtitude[idx];
       const instrumento = await prisma.instrumento.create({
         data: {
-          turmaId: turma.id,
+          turmaDisciplinaId: turmaDisciplina.id,
           periodoId,
           criterioId: criterio.id,
           nome: criterio.nome,

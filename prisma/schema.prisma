@@ -37,7 +37,7 @@ model Disciplina {
   ciclo  String? // ex: "2.º ciclo", "3.º ciclo", "Secundário"
 
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  turmas           Turma[]
+  turmaDisciplinas TurmaDisciplina[]
   instrumentoPesos InstrumentoPeso[]
 
   @@unique([userId, nome])
@@ -97,45 +97,85 @@ model InstrumentoPeso {
   @@unique([instrumentoId, disciplinaId])
 }
 
+// Turma = grupo de alunos (ex.: "9.º F"). Não está ligada a nenhuma
+// disciplina diretamente — as disciplinas que a turma leciona são geridas
+// em TurmaDisciplina, e a inscrição de cada aluno em cada disciplina é
+// individual (ver AlunoDisciplina).
 model Turma {
-  id           String @id @default(cuid())
-  userId       String
-  disciplinaId String
-  anoLetivoId  String
-  nome         String // ex: "9.º F"
-  nivelEnsino  String? // ex: "3.º ciclo"
-  createdAt    DateTime @default(now())
+  id          String @id @default(cuid())
+  userId      String
+  anoLetivoId String
+  nome        String // ex: "9.º F"
+  nivelEnsino String? // ex: "3.º ciclo"
+  createdAt   DateTime @default(now())
 
-  // Limiares de nível (percentagem 0-100), configuráveis por turma
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anoLetivo   AnoLetivo         @relation(fields: [anoLetivoId], references: [id], onDelete: Cascade)
+  alunos      Aluno[]
+  periodos    Periodo[]
+  disciplinas TurmaDisciplina[]
+
+  @@unique([userId, anoLetivoId, nome])
+}
+
+// Disciplina oferecida por uma turma (catálogo global de Disciplina,
+// associado a uma Turma concreta). A mesma Disciplina pode estar associada
+// a várias Turmas sem duplicar o registo de Disciplina; a mesma Turma não
+// pode ter a mesma Disciplina associada duas vezes (@@unique abaixo).
+// Os critérios/instrumentos de avaliação e os limiares de nível vivem aqui,
+// porque dependem da disciplina, não só da turma.
+model TurmaDisciplina {
+  id           String @id @default(cuid())
+  turmaId      String
+  disciplinaId String
+
+  // Limiares de nível (percentagem 0-100), configuráveis por disciplina da turma
   limiarNivel2 Float @default(20)
   limiarNivel3 Float @default(50)
   limiarNivel4 Float @default(70)
   limiarNivel5 Float @default(90)
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  disciplina Disciplina  @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
-  anoLetivo  AnoLetivo   @relation(fields: [anoLetivoId], references: [id], onDelete: Cascade)
-  alunos     Aluno[]
-  periodos   Periodo[]
-  criterios  Criterio[]
+  turma        Turma             @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  disciplina   Disciplina        @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  criterios    Criterio[]
   instrumentos Instrumento[]
+  alunos       AlunoDisciplina[]
 
-  @@unique([userId, disciplinaId, anoLetivoId, nome])
+  @@unique([turmaId, disciplinaId])
 }
 
 model Aluno {
-  id       String  @id @default(cuid())
-  turmaId  String
-  numero   Int
-  nome     String
-  medidas  String? // Dec-Lei 54, ex: "Medidas seletivas;Medidas adicionais"
-  aliena   String?
-  ativo    Boolean @default(true)
+  id      String  @id @default(cuid())
+  turmaId String
+  numero  Int
+  nome    String
+  medidas String? // Dec-Lei 54, ex: "Medidas seletivas;Medidas adicionais"
+  aliena  String?
+  ativo   Boolean @default(true)
 
-  turma Turma  @relation(fields: [turmaId], references: [id], onDelete: Cascade)
-  notas Nota[]
+  turma       Turma             @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  notas       Nota[]
+  disciplinas AlunoDisciplina[]
 
   @@unique([turmaId, numero])
+}
+
+// Inscrição individual do aluno numa disciplina da turma. Liga-se a
+// TurmaDisciplina (não a Disciplina diretamente), o que garante que um
+// aluno só se pode inscrever numa disciplina que a sua turma efetivamente
+// oferece. `ativo=false` fecha a inscrição (saída/mudança) sem apagar
+// histórico — permite reabrir mais tarde sem violar o @@unique.
+model AlunoDisciplina {
+  id                String  @id @default(cuid())
+  alunoId           String
+  turmaDisciplinaId String
+  ativo             Boolean @default(true)
+  criadoEm          DateTime @default(now())
+
+  aluno           Aluno           @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  turmaDisciplina TurmaDisciplina @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
+
+  @@unique([alunoId, turmaDisciplinaId])
 }
 
 model Periodo {
@@ -158,40 +198,40 @@ enum ModoAvaliacao {
 }
 
 model Criterio {
-  id      String @id @default(cuid())
-  turmaId String
-  grupo   String // ex: "Conhecimentos e Capacidades", "Atitudes"
-  nome    String // ex: "Testes de avaliação", "Responsabilidade..."
-  peso    Float // 0 a 1 (ex.: 0.45 = 45%)
-  ordem   Int
+  id                String @id @default(cuid())
+  turmaDisciplinaId String
+  grupo             String // ex: "Conhecimentos e Capacidades", "Atitudes"
+  nome              String // ex: "Testes de avaliação", "Responsabilidade..."
+  peso              Float // 0 a 1 (ex.: 0.45 = 45%)
+  ordem             Int
 
-  turma        Turma         @relation(fields: [turmaId], references: [id], onDelete: Cascade)
-  instrumentos Instrumento[]
+  turmaDisciplina TurmaDisciplina @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
+  instrumentos    Instrumento[]
 
-  @@unique([turmaId, nome])
+  @@unique([turmaDisciplinaId, nome])
 }
 
 // ---------- Instrumentos de avaliação ----------
 
 model Instrumento {
-  id          String        @id @default(cuid())
-  turmaId     String
-  periodoId   String
-  criterioId  String
-  nome        String // ex: "Teste de Avaliação 1", "Responsabilidade e valores..."
-  modo        ModoAvaliacao @default(PONTOS)
-  escalaMax   Int           @default(5) // usado quando modo = ESCALA
-  unidade     String?
-  tema        String?
-  data        DateTime?
-  ordem       Int           @default(0)
+  id                String        @id @default(cuid())
+  turmaDisciplinaId String
+  periodoId         String
+  criterioId        String
+  nome              String // ex: "Teste de Avaliação 1", "Responsabilidade e valores..."
+  modo              ModoAvaliacao @default(PONTOS)
+  escalaMax         Int           @default(5) // usado quando modo = ESCALA
+  unidade           String?
+  tema              String?
+  data              DateTime?
+  ordem             Int           @default(0)
 
-  turma     Turma      @relation(fields: [turmaId], references: [id], onDelete: Cascade)
-  periodo   Periodo    @relation(fields: [periodoId], references: [id], onDelete: Cascade)
-  criterio  Criterio   @relation(fields: [criterioId], references: [id], onDelete: Cascade)
-  perguntas Pergunta[]
+  turmaDisciplina TurmaDisciplina @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
+  periodo         Periodo         @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  criterio        Criterio        @relation(fields: [criterioId], references: [id], onDelete: Cascade)
+  perguntas       Pergunta[]
 
-  @@index([turmaId, periodoId])
+  @@index([turmaDisciplinaId, periodoId])
 }
 
 model Pergunta {

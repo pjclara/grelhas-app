@@ -17,10 +17,13 @@ export const anoLetivoSchema = z.object({
 });
 
 export const turmaSchema = z.object({
-  disciplinaId: z.string().min(1),
   anoLetivoId: z.string().min(1),
   nome: z.string().min(1),
   nivelEnsino: z.enum(NIVEIS_ENSINO).optional().nullable(),
+});
+
+export const turmaDisciplinaSchema = z.object({
+  disciplinaId: z.string().min(1),
 });
 
 export const turmaLimiaresSchema = z.object({
@@ -28,6 +31,10 @@ export const turmaLimiaresSchema = z.object({
   limiarNivel3: z.number().min(0).max(100),
   limiarNivel4: z.number().min(0).max(100),
   limiarNivel5: z.number().min(0).max(100),
+});
+
+export const alunoDisciplinaSchema = z.object({
+  alunoId: z.string().min(1),
 });
 
 export const alunoSchema = z.object({

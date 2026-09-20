@@ -18,7 +18,7 @@ interface AdminTurma {
   nome: string;
   nivelEnsino: string | null;
   createdAt: string;
-  disciplina: { nome: string };
+  disciplinas: Array<{ disciplina: { nome: string } }>;
   anoLetivo: { nome: string };
   user: { id: string; name: string; email: string };
   _count: { alunos: number };
@@ -214,7 +214,11 @@ export default function AdminPage() {
                 {turmas.map((t) => (
                   <tr key={t.id} className="border-t border-slate-100">
                     <td className="px-4 py-2 font-medium text-slate-900">{t.nome}</td>
-                    <td className="px-4 py-2">{t.disciplina.nome}</td>
+                    <td className="px-4 py-2">
+                      {t.disciplinas.length > 0
+                        ? t.disciplinas.map((td) => td.disciplina.nome).join(', ')
+                        : '—'}
+                    </td>
                     <td className="px-4 py-2">{t.anoLetivo.nome}</td>
                     <td className="px-4 py-2">{t._count.alunos}</td>
                     <td className="px-4 py-2 text-slate-500">

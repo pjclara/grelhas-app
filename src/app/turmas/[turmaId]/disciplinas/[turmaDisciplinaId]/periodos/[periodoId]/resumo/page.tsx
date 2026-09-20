@@ -1,0 +1,183 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import TopNav from '@/components/TopNav';
+import type { ResumoPeriodoDTO } from '@/lib/types';
+
+export default function ResumoPage({
+  params,
+}: {
+  params: { turmaId: string; turmaDisciplinaId: string; periodoId: string };
+}) {
+  const [resumo, setResumo] = useState<ResumoPeriodoDTO | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const disciplinaBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
+  const voltarHref = `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
+
+  useEffect(() => {
+    fetch(`${disciplinaBase}/periodos/${params.periodoId}/resumo`).then((r) => {
+      if (!r.ok) {
+        setErro('Não foi possível carregar o resumo.');
+        return;
+      }
+      r.json().then(setResumo);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.turmaId, params.turmaDisciplinaId, params.periodoId]);
+
+  if (erro) {
+    return (
+      <div>
+        <TopNav />
+        <main className="mx-auto max-w-6xl px-6 py-8">
+          <Link href={voltarHref} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
+            ← Voltar à disciplina
+          </Link>
+          <p className="text-sm text-red-600">{erro}</p>
+        </main>
+      </div>
+    );
+  }
+
+  if (!resumo) {
+    return (
+      <div>
+        <TopNav />
+        <main className="mx-auto max-w-6xl px-6 py-8">
+          <p className="text-sm text-slate-500">A carregar…</p>
+        </main>
+      </div>
+    );
+  }
+
+  // Os níveis 1-5 só se aplicam ao 2.º/3.º ciclo; no Secundário a nota é diretamente 0-20
+  // e "negativa" significa nota final < 10 valores, não níveis 1-2.
+  const mostrarNivel = resumo.turma.nivelEnsino !== 'Secundário';
+  const comNota20 = resumo.resultados.filter((r) => r.notaFinal20 != null);
+  const percentNegativasSecundario =
+    comNota20.length > 0
+      ? (comNota20.filter((r) => (r.notaFinal20 as number) < 10).length / comNota20.length) * 100
+      : null;
+
+  return (
+    <div>
+      <TopNav />
+      <main className="mx-auto max-w-6xl px-6 py-8">
+        <Link href={voltarHref} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
+          ← Voltar à disciplina
+        </Link>
+        <p className="text-sm text-slate-500">
+          {resumo.turma.disciplina} · {resumo.turma.anoLetivo} · {resumo.turma.nome}
+        </p>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-slate-900">Resumo — {resumo.periodo.nome}</h1>
+          <div className="flex gap-2">
+            <a
+              href={`${disciplinaBase}/periodos/${params.periodoId}/export/pdf`}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+            >
+              Exportar PDF
+            </a>
+            <a
+              href={`${disciplinaBase}/periodos/${params.periodoId}/export/xlsx`}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+            >
+              Exportar Excel
+            </a>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-left">
+              <tr>
+                <th className="px-3 py-2">Nº</th>
+                <th className="px-3 py-2">Nome</th>
+                {resumo.criterios.map((c) => (
+                  <th key={c.id} className="px-3 py-2 text-center">
+                    {c.nome}
+                    <div className="text-xs font-normal text-slate-400">{Math.round(c.peso * 100)}%</div>
+                  </th>
+                ))}
+                <th className="px-3 py-2 text-center">Final (0-20)</th>
+                {mostrarNivel && <th className="px-3 py-2 text-center">Nível</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {resumo.alunos.map((aluno) => {
+                const resultado = resumo.resultados.find((r) => r.alunoId === aluno.id)!;
+                return (
+                  <tr key={aluno.id} className="border-t border-slate-100">
+                    <td className="px-3 py-1.5">{aluno.numero}</td>
+                    <td className="whitespace-nowrap px-3 py-1.5">{aluno.nome}</td>
+                    {resumo.criterios.map((c) => {
+                      const r = resultado.porCriterio.find((x) => x.criterioId === c.id);
+                      return (
+                        <td key={c.id} className="px-3 py-1.5 text-center">
+                          {r?.media != null ? `${r.media.toFixed(0)}%` : '—'}
+                        </td>
+                      );
+                    })}
+                    <td className="px-3 py-1.5 text-center font-medium">
+                      {resultado.notaFinal20 != null ? resultado.notaFinal20.toFixed(1) : '—'}
+                    </td>
+                    {mostrarNivel && (
+                      <td className="px-3 py-1.5 text-center font-medium">
+                        {resultado.nivel ?? '—'}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <Estatistica
+            titulo="Média da turma (0-20)"
+            valor={resumo.estatisticas.mediaTurma20?.toFixed(2) ?? '—'}
+          />
+          {mostrarNivel ? (
+            <>
+              <Estatistica
+                titulo="% negativas (níveis 1-2)"
+                valor={
+                  resumo.estatisticas.percentNegativas != null
+                    ? `${resumo.estatisticas.percentNegativas.toFixed(0)}%`
+                    : '—'
+                }
+              />
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <p className="mb-2 text-xs font-medium uppercase text-slate-500">Alunos por nível</p>
+                <div className="flex gap-3 text-sm">
+                  {([1, 2, 3, 4, 5] as const).map((n) => (
+                    <span key={n}>
+                      N{n}: <strong>{resumo.estatisticas.contagemPorNivel[n]}</strong>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <Estatistica
+              titulo="% negativas (< 10 valores)"
+              valor={percentNegativasSecundario != null ? `${percentNegativasSecundario.toFixed(0)}%` : '—'}
+            />
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function Estatistica({ titulo, valor }: { titulo: string; valor: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <p className="mb-1 text-xs font-medium uppercase text-slate-500">{titulo}</p>
+      <p className="text-2xl font-semibold text-slate-900">{valor}</p>
+    </div>
+  );
+}

@@ -18,26 +18,40 @@ export interface ResumoPeriodo {
   estatisticas: ReturnType<typeof calcularEstatisticasTurma>;
 }
 
+/**
+ * Constrói o resumo de um período para uma disciplina concreta de uma
+ * turma. Os critérios/instrumentos são os da TurmaDisciplina; os alunos
+ * considerados são apenas os que têm inscrição ativa nessa disciplina
+ * (AlunoDisciplina.ativo) e continuam ativos na turma.
+ */
 export async function construirResumoPeriodo(
   turmaId: string,
+  turmaDisciplinaId: string,
   periodoId: string
 ): Promise<ResumoPeriodo> {
-  const turma = await prisma.turma.findUnique({
-    where: { id: turmaId },
+  const turmaDisciplina = await prisma.turmaDisciplina.findFirst({
+    where: { id: turmaDisciplinaId, turmaId },
     include: {
       disciplina: true,
-      anoLetivo: true,
-      alunos: { where: { ativo: true }, orderBy: { numero: 'asc' } },
+      turma: { include: { anoLetivo: true } },
       criterios: { orderBy: { ordem: 'asc' } },
+      alunos: {
+        where: { ativo: true, aluno: { ativo: true } },
+        include: { aluno: true },
+      },
     },
   });
-  if (!turma) throw new NotFoundError('Turma não encontrada');
+  if (!turmaDisciplina) throw new NotFoundError('Disciplina da turma não encontrada');
 
   const periodo = await prisma.periodo.findFirst({ where: { id: periodoId, turmaId } });
   if (!periodo) throw new NotFoundError('Período não encontrado');
 
+  const alunos = turmaDisciplina.alunos
+    .map((ad) => ad.aluno)
+    .sort((a, b) => a.numero - b.numero);
+
   const instrumentosDb = await prisma.instrumento.findMany({
-    where: { turmaId, periodoId },
+    where: { turmaDisciplinaId, periodoId },
     include: { perguntas: true },
   });
 
@@ -52,26 +66,26 @@ export async function construirResumoPeriodo(
 
   const perguntaIds = instrumentosDb.flatMap((i) => i.perguntas.map((p) => p.id));
   const notasDb = await prisma.nota.findMany({
-    where: { perguntaId: { in: perguntaIds }, alunoId: { in: turma.alunos.map((a) => a.id) } },
+    where: { perguntaId: { in: perguntaIds }, alunoId: { in: alunos.map((a) => a.id) } },
   });
 
   const notasPorAluno = new Map<string, NotasAluno>();
-  for (const aluno of turma.alunos) notasPorAluno.set(aluno.id, {});
+  for (const aluno of alunos) notasPorAluno.set(aluno.id, {});
   for (const nota of notasDb) {
     const mapa = notasPorAluno.get(nota.alunoId);
     if (mapa) mapa[nota.perguntaId] = nota.valor;
   }
 
-  const criterios: CriterioCalc[] = turma.criterios;
+  const criterios: CriterioCalc[] = turmaDisciplina.criterios;
 
-  const resultados = turma.alunos.map((aluno) =>
+  const resultados = alunos.map((aluno) =>
     calcularAluno(
       aluno.id,
       periodoId,
       criterios,
       instrumentos,
       notasPorAluno.get(aluno.id) ?? {},
-      turma
+      turmaDisciplina
     )
   );
 
@@ -79,15 +93,15 @@ export async function construirResumoPeriodo(
 
   return {
     turma: {
-      id: turma.id,
-      nome: turma.nome,
-      disciplina: turma.disciplina.nome,
-      anoLetivo: turma.anoLetivo.nome,
-      nivelEnsino: turma.nivelEnsino,
+      id: turmaDisciplina.turma.id,
+      nome: turmaDisciplina.turma.nome,
+      disciplina: turmaDisciplina.disciplina.nome,
+      anoLetivo: turmaDisciplina.turma.anoLetivo.nome,
+      nivelEnsino: turmaDisciplina.turma.nivelEnsino,
     },
     periodo: { id: periodo.id, nome: periodo.nome },
     criterios,
-    alunos: turma.alunos.map((a) => ({ id: a.id, numero: a.numero, nome: a.nome })),
+    alunos: alunos.map((a) => ({ id: a.id, numero: a.numero, nome: a.nome })),
     resultados,
     estatisticas,
   };

@@ -16,7 +16,7 @@ export interface Disciplina {
   id: string;
   nome: string;
   ciclo: string | null;
-  _count?: { turmas: number };
+  _count?: { turmaDisciplinas: number };
 }
 
 export interface AnoLetivo {
@@ -28,13 +28,20 @@ export interface Turma {
   id: string;
   nome: string;
   nivelEnsino: string | null;
-  disciplina: Disciplina;
   anoLetivo: AnoLetivo;
+  _count?: { alunos: number };
+  disciplinas?: TurmaDisciplina[];
+}
+
+/** Disciplina oferecida por uma turma (associação turma↔disciplina). */
+export interface TurmaDisciplina {
+  id: string;
+  turmaId: string;
+  disciplina: Disciplina;
   limiarNivel2: number;
   limiarNivel3: number;
   limiarNivel4: number;
   limiarNivel5: number;
-  _count?: { alunos: number };
 }
 
 export interface Aluno {
@@ -93,7 +100,7 @@ export interface Pergunta {
 
 export interface Instrumento {
   id: string;
-  turmaId: string;
+  turmaDisciplinaId: string;
   periodoId: string;
   criterioId: string;
   nome: string;
@@ -111,6 +118,18 @@ export interface Instrumento {
 export interface TurmaDetalhe extends Turma {
   alunos: Aluno[];
   periodos: Periodo[];
+  disciplinas: TurmaDisciplina[];
+}
+
+/** Aluno inscrito (ou não) numa TurmaDisciplina — usado na gestão de inscrições. */
+export interface AlunoDisciplina {
+  id: string;
+  alunoId: string;
+  turmaDisciplinaId: string;
+  ativo: boolean;
+}
+
+export interface TurmaDisciplinaDetalhe extends TurmaDisciplina {
   criterios: Criterio[];
 }
 

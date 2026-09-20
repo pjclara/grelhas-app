@@ -5,11 +5,10 @@ import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import TopNav from '@/components/TopNav';
 import Sidebar from '@/components/Sidebar';
-import { NIVEIS_ENSINO, anoLetivoAtual, type Disciplina, type AnoLetivo, type Turma } from '@/lib/types';
+import { NIVEIS_ENSINO, anoLetivoAtual, type AnoLetivo, type Turma } from '@/lib/types';
 
 export default function DashboardPage() {
   const [turmas, setTurmas] = useState<Turma[]>([]);
-  const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);
   const [anos, setAnos] = useState<AnoLetivo[]>([]);
   const [aCarregar, setACarregar] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -18,22 +17,17 @@ export default function DashboardPage() {
   async function carregarTudo() {
     setACarregar(true);
     setErroCarregar(null);
-    const [rt, rd, ra] = await Promise.all([
-      fetch('/api/turmas'),
-      fetch('/api/disciplinas'),
-      fetch('/api/anos-letivos'),
-    ]);
-    if (rt.status === 401 || rd.status === 401 || ra.status === 401) {
+    const [rt, ra] = await Promise.all([fetch('/api/turmas'), fetch('/api/anos-letivos')]);
+    if (rt.status === 401 || ra.status === 401) {
       signOut({ callbackUrl: '/login' });
       return;
     }
-    if (!rt.ok || !rd.ok || !ra.ok) {
+    if (!rt.ok || !ra.ok) {
       setErroCarregar('Não foi possível carregar os dados. Tente novamente.');
       setACarregar(false);
       return;
     }
     setTurmas(await rt.json());
-    setDisciplinas(await rd.json());
     setAnos(await ra.json());
     setACarregar(false);
   }
@@ -61,13 +55,11 @@ export default function DashboardPage() {
 
         {mostrarForm && (
           <NovaTurmaForm
-            disciplinas={disciplinas}
             anos={anos}
             onCriada={() => {
               setMostrarForm(false);
               carregarTudo();
             }}
-            onDisciplinasAtualizadas={setDisciplinas}
             onAnosAtualizados={setAnos}
           />
         )}
@@ -87,7 +79,11 @@ export default function DashboardPage() {
                 className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md"
               >
                 <p className="font-semibold text-slate-900">{t.nome}</p>
-                <p className="text-sm text-slate-500">{t.disciplina.nome}</p>
+                <p className="text-sm text-slate-500">
+                  {t.disciplinas && t.disciplinas.length > 0
+                    ? t.disciplinas.map((td) => td.disciplina.nome).join(', ')
+                    : 'Sem disciplinas associadas'}
+                </p>
                 <p className="text-xs text-slate-400">{t.anoLetivo.nome}</p>
                 <p className="mt-2 text-xs text-slate-500">{t._count?.alunos ?? 0} alunos</p>
               </Link>
@@ -102,23 +98,17 @@ export default function DashboardPage() {
 }
 
 function NovaTurmaForm({
-  disciplinas,
   anos,
   onCriada,
-  onDisciplinasAtualizadas,
   onAnosAtualizados,
 }: {
-  disciplinas: Disciplina[];
   anos: AnoLetivo[];
   onCriada: () => void;
-  onDisciplinasAtualizadas: (d: Disciplina[]) => void;
   onAnosAtualizados: (a: AnoLetivo[]) => void;
 }) {
   const [nome, setNome] = useState('');
   const [nivelEnsino, setNivelEnsino] = useState('');
-  const [disciplinaId, setDisciplinaId] = useState('');
   const [anoLetivoId, setAnoLetivoId] = useState('');
-  const [novaDisciplina, setNovaDisciplina] = useState('');
   const [novoAno, setNovoAno] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [aGravar, setAGravar] = useState(false);
@@ -137,24 +127,6 @@ function NovaTurmaForm({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anos]);
-
-  async function adicionarDisciplina() {
-    if (!novaDisciplina.trim()) return;
-    setErro(null);
-    const res = await fetch('/api/disciplinas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome: novaDisciplina.trim() }),
-    });
-    if (res.ok) {
-      const nova = await res.json();
-      onDisciplinasAtualizadas([...disciplinas, nova]);
-      setDisciplinaId(nova.id);
-      setNovaDisciplina('');
-    } else {
-      setErro('Não foi possível adicionar a disciplina.');
-    }
-  }
 
   async function adicionarAno() {
     if (!novoAno.trim()) return;
@@ -177,15 +149,15 @@ function NovaTurmaForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
-    if (!disciplinaId || !anoLetivoId || !nome) {
-      setErro('Preencha disciplina, ano letivo e nome da turma.');
+    if (!anoLetivoId || !nome) {
+      setErro('Preencha ano letivo e nome da turma.');
       return;
     }
     setAGravar(true);
     const res = await fetch('/api/turmas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ disciplinaId, anoLetivoId, nome, nivelEnsino: nivelEnsino || null }),
+      body: JSON.stringify({ anoLetivoId, nome, nivelEnsino: nivelEnsino || null }),
     });
     setAGravar(false);
     if (!res.ok) {
@@ -198,39 +170,6 @@ function NovaTurmaForm({
   return (
     <form onSubmit={onSubmit} className="mb-8 space-y-4 rounded-lg border border-slate-200 bg-white p-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Disciplina</label>
-          <div className="flex gap-2">
-            <select
-              value={disciplinaId}
-              onChange={(e) => setDisciplinaId(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="">Selecionar…</option>
-              {disciplinas.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.nome}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="mt-2 flex gap-2">
-            <input
-              placeholder="Nova disciplina"
-              value={novaDisciplina}
-              onChange={(e) => setNovaDisciplina(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-            />
-            <button
-              type="button"
-              onClick={adicionarDisciplina}
-              className="whitespace-nowrap rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
-            >
-              Adicionar
-            </button>
-          </div>
-        </div>
-
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Ano letivo</label>
           <select
@@ -296,7 +235,8 @@ function NovaTurmaForm({
         {aGravar ? 'A criar…' : 'Criar turma'}
       </button>
       <p className="text-xs text-slate-400">
-        A turma é criada já com os critérios de avaliação e semestres padrão (editáveis depois).
+        A turma é criada já com os semestres padrão. Depois de criada, associe as disciplinas que a
+        turma leciona — cada uma nasce já com os critérios de avaliação padrão (editáveis depois).
       </p>
     </form>
   );

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const disciplinas = await prisma.disciplina.findMany({
       where: { userId },
       orderBy: { nome: 'asc' },
-      ...(comContagem ? { include: { _count: { select: { turmas: true } } } } : {}),
+      ...(comContagem ? { include: { _count: { select: { turmaDisciplinas: true } } } } : {}),
     });
     return NextResponse.json(disciplinas);
   } catch (error) {

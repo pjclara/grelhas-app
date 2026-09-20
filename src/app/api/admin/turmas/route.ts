@@ -9,7 +9,7 @@ export async function GET() {
     const turmas = await prisma.turma.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        disciplina: { select: { nome: true } },
+        disciplinas: { include: { disciplina: { select: { nome: true } } } },
         anoLetivo: { select: { nome: true } },
         user: { select: { id: true, name: true, email: true } },
         _count: { select: { alunos: true } },

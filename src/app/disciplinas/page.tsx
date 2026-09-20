@@ -94,7 +94,7 @@ export default function DisciplinasPage() {
   }
 
   async function remover(d: Disciplina) {
-    const turmas = d._count?.turmas ?? 0;
+    const turmas = d._count?.turmaDisciplinas ?? 0;
     const aviso =
       turmas > 0
         ? `A disciplina "${d.nome}" tem ${turmas} turma(s) associada(s). Eliminá-la apaga também essas turmas, alunos e notas. Esta ação não pode ser desfeita. Continuar?`
@@ -190,7 +190,7 @@ export default function DisciplinasPage() {
                             ))}
                           </select>
                         </td>
-                        <td className="px-3 py-2 text-slate-400">{d._count?.turmas ?? 0}</td>
+                        <td className="px-3 py-2 text-slate-400">{d._count?.turmaDisciplinas ?? 0}</td>
                         <td className="px-3 py-2 text-right">
                           <div className="flex justify-end gap-3">
                             <button
@@ -210,7 +210,7 @@ export default function DisciplinasPage() {
                       <tr key={d.id} className="border-t border-slate-100">
                         <td className="px-3 py-2 font-medium text-slate-900">{d.nome}</td>
                         <td className="px-3 py-2 text-slate-500">{d.ciclo ?? '—'}</td>
-                        <td className="px-3 py-2 text-slate-500">{d._count?.turmas ?? 0}</td>
+                        <td className="px-3 py-2 text-slate-500">{d._count?.turmaDisciplinas ?? 0}</td>
                         <td className="px-3 py-2 text-right">
                           <div className="flex justify-end gap-3">
                             <button

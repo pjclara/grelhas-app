@@ -154,10 +154,18 @@ export interface ResultadoAlunoDTO {
   nivel: 1 | 2 | 3 | 4 | 5 | null;
 }
 
+export interface InstrumentoResumoDTO {
+  id: string;
+  nome: string;
+  criterioId: string;
+  ordem: number;
+}
+
 export interface ResumoPeriodoDTO {
   turma: { id: string; nome: string; disciplina: string; anoLetivo: string; nivelEnsino: string | null };
   periodo: { id: string; nome: string };
   criterios: Criterio[];
+  instrumentos: InstrumentoResumoDTO[];
   alunos: Array<{ id: string; numero: number; nome: string }>;
   resultados: ResultadoAlunoDTO[];
   estatisticas: {

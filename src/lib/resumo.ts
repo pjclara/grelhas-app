@@ -9,10 +9,18 @@ import {
   type ResultadoAluno,
 } from '@/lib/calc';
 
+export interface InstrumentoResumo {
+  id: string;
+  nome: string;
+  criterioId: string;
+  ordem: number;
+}
+
 export interface ResumoPeriodo {
   turma: { id: string; nome: string; disciplina: string; anoLetivo: string; nivelEnsino: string | null };
   periodo: { id: string; nome: string };
   criterios: CriterioCalc[];
+  instrumentos: InstrumentoResumo[];
   alunos: Array<{ id: string; numero: number; nome: string }>;
   resultados: ResultadoAluno[];
   estatisticas: ReturnType<typeof calcularEstatisticasTurma>;
@@ -53,6 +61,7 @@ export async function construirResumoPeriodo(
   const instrumentosDb = await prisma.instrumento.findMany({
     where: { turmaDisciplinaId, periodoId },
     include: { perguntas: true },
+    orderBy: { ordem: 'asc' },
   });
 
   const instrumentos: InstrumentoCalc[] = instrumentosDb.map((i) => ({
@@ -101,6 +110,12 @@ export async function construirResumoPeriodo(
     },
     periodo: { id: periodo.id, nome: periodo.nome },
     criterios,
+    instrumentos: instrumentosDb.map((i) => ({
+      id: i.id,
+      nome: i.nome,
+      criterioId: i.criterioId,
+      ordem: i.ordem,
+    })),
     alunos: alunos.map((a) => ({ id: a.id, numero: a.numero, nome: a.nome })),
     resultados,
     estatisticas,

@@ -61,10 +61,21 @@ export default function ResumoPage({
       ? (comNota20.filter((r) => (r.notaFinal20 as number) < 10).length / comNota20.length) * 100
       : null;
 
+  // Para os critérios fora do grupo "Atitudes" (ex.: Conhecimentos e Capacidades), mostra-se
+  // uma coluna por instrumento (além da média do critério) — em Atitudes cada critério já
+  // corresponde a um único instrumento, pelo que a coluna do critério já mostra esse valor.
+  const instrumentosPorCriterio = resumo.criterios.map((c) => ({
+    criterio: c,
+    instrumentos:
+      c.grupo === 'Atitudes'
+        ? []
+        : resumo.instrumentos.filter((i) => i.criterioId === c.id).sort((a, b) => a.ordem - b.ordem),
+  }));
+
   return (
     <div>
       <TopNav />
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-screen-2xl px-6 py-8">
         <Link href={voltarHref} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
           ← Voltar à disciplina
         </Link>
@@ -93,16 +104,39 @@ export default function ResumoPage({
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 text-left">
               <tr>
-                <th className="px-3 py-2">Nº</th>
-                <th className="px-3 py-2">Nome</th>
-                {resumo.criterios.map((c) => (
-                  <th key={c.id} className="px-3 py-2 text-center">
-                    {c.nome}
-                    <div className="text-xs font-normal text-slate-400">{Math.round(c.peso * 100)}%</div>
-                  </th>
-                ))}
-                <th className="px-3 py-2 text-center">Final (0-20)</th>
-                {mostrarNivel && <th className="px-3 py-2 text-center">Nível</th>}
+                <th className="px-3 py-2" rowSpan={2}>Nº</th>
+                <th className="px-3 py-2" rowSpan={2}>Nome</th>
+                {instrumentosPorCriterio.map(({ criterio: c, instrumentos }) =>
+                  instrumentos.length > 0 ? (
+                    <th key={c.id} className="px-2 py-2 text-center" colSpan={instrumentos.length + 1}>
+                      {c.nome}
+                      <div className="text-xs font-normal text-slate-400">{Math.round(c.peso * 100)}%</div>
+                    </th>
+                  ) : (
+                    <th key={c.id} className="px-3 py-2 text-center" rowSpan={2}>
+                      {c.nome}
+                      <div className="text-xs font-normal text-slate-400">{Math.round(c.peso * 100)}%</div>
+                    </th>
+                  )
+                )}
+                <th className="px-3 py-2 text-center" rowSpan={2}>Final (0-20)</th>
+                {mostrarNivel && <th className="px-3 py-2 text-center" rowSpan={2}>Nível</th>}
+              </tr>
+              <tr>
+                {instrumentosPorCriterio.flatMap(({ criterio: c, instrumentos }) =>
+                  instrumentos.length > 0
+                    ? [
+                        ...instrumentos.map((i) => (
+                          <th key={i.id} className="whitespace-nowrap px-2 py-1 text-center text-xs font-normal text-slate-500">
+                            {i.nome}
+                          </th>
+                        )),
+                        <th key={`${c.id}-media`} className="px-2 py-1 text-center text-xs font-medium text-slate-600">
+                          Média
+                        </th>,
+                      ]
+                    : []
+                )}
               </tr>
             </thead>
             <tbody>
@@ -112,13 +146,28 @@ export default function ResumoPage({
                   <tr key={aluno.id} className="border-t border-slate-100">
                     <td className="px-3 py-1.5">{aluno.numero}</td>
                     <td className="whitespace-nowrap px-3 py-1.5">{aluno.nome}</td>
-                    {resumo.criterios.map((c) => {
-                      const r = resultado.porCriterio.find((x) => x.criterioId === c.id);
-                      return (
-                        <td key={c.id} className="px-3 py-1.5 text-center">
-                          {r?.media != null ? `${r.media.toFixed(0)}%` : '—'}
-                        </td>
-                      );
+                    {instrumentosPorCriterio.flatMap(({ criterio: c, instrumentos }) => {
+                      const media = resultado.porCriterio.find((x) => x.criterioId === c.id);
+                      if (instrumentos.length === 0) {
+                        return [
+                          <td key={c.id} className="px-3 py-1.5 text-center">
+                            {media?.media != null ? `${media.media.toFixed(0)}%` : '—'}
+                          </td>,
+                        ];
+                      }
+                      return [
+                        ...instrumentos.map((i) => {
+                          const r = resultado.porInstrumento.find((x) => x.instrumentoId === i.id);
+                          return (
+                            <td key={i.id} className="px-2 py-1.5 text-center text-slate-500">
+                              {r?.percent != null ? `${r.percent.toFixed(0)}%` : '—'}
+                            </td>
+                          );
+                        }),
+                        <td key={`${c.id}-media`} className="px-2 py-1.5 text-center font-medium">
+                          {media?.media != null ? `${media.media.toFixed(0)}%` : '—'}
+                        </td>,
+                      ];
                     })}
                     <td className="px-3 py-1.5 text-center font-medium">
                       {resultado.notaFinal20 != null ? resultado.notaFinal20.toFixed(1) : '—'}

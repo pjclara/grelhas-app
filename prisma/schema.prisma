@@ -22,9 +22,10 @@ model User {
   role         Role     @default(PROFESSOR)
   createdAt    DateTime @default(now())
 
-  disciplinas Disciplina[]
-  anosLetivos AnoLetivo[]
-  turmas      Turma[]
+  disciplinas     Disciplina[]
+  anosLetivos     AnoLetivo[]
+  turmas          Turma[]
+  gruposAvaliacao GrupoAvaliacao[]
 }
 
 // ---------- Estrutura académica ----------
@@ -35,8 +36,9 @@ model Disciplina {
   nome   String
   ciclo  String? // ex: "2.º ciclo", "3.º ciclo", "Secundário"
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  turmas Turma[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turmas          Turma[]
+  gruposAvaliacao GrupoAvaliacao[]
 
   @@unique([userId, nome])
 }
@@ -46,10 +48,40 @@ model AnoLetivo {
   userId String
   nome String // ex: "2025/2026"
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  turmas Turma[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turmas          Turma[]
+  gruposAvaliacao GrupoAvaliacao[]
 
   @@unique([userId, nome])
+}
+
+// ---------- Critérios de avaliação (configuração por ano letivo/disciplina) ----------
+
+model GrupoAvaliacao {
+  id          String @id @default(cuid())
+  userId      String
+  anoLetivoId String
+  nome        String // ex: "Atitudes", "Conhecimentos e Capacidades"
+  ordem       Int    @default(0)
+
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anoLetivo    AnoLetivo              @relation(fields: [anoLetivoId], references: [id], onDelete: Cascade)
+  disciplinas  Disciplina[]
+  instrumentos InstrumentoAvaliacao[]
+
+  @@unique([userId, anoLetivoId, nome])
+}
+
+model InstrumentoAvaliacao {
+  id      String @id @default(cuid())
+  grupoId String
+  nome    String // ex: "Testes", "Trabalhos de grupo"
+  peso    Float // peso relativo do instrumento dentro do grupo (0 a 1)
+  ordem   Int    @default(0)
+
+  grupo GrupoAvaliacao @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+
+  @@unique([grupoId, nome])
 }
 
 model Turma {

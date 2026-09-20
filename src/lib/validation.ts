@@ -43,6 +43,19 @@ export const periodoSchema = z.object({
   ordem: z.number().int().min(1),
 });
 
+export const grupoAvaliacaoSchema = z.object({
+  anoLetivoId: z.string().min(1),
+  nome: z.string().min(1),
+  ordem: z.number().int().min(0).optional(),
+  disciplinaIds: z.array(z.string().min(1)).min(1),
+});
+
+export const instrumentoAvaliacaoSchema = z.object({
+  nome: z.string().min(1),
+  peso: z.number().min(0).max(1),
+  ordem: z.number().int().min(0).optional(),
+});
+
 export const criterioSchema = z.object({
   grupo: z.string().min(1),
   nome: z.string().min(1),

@@ -52,6 +52,22 @@ export interface Periodo {
   ordem: number;
 }
 
+export interface InstrumentoAvaliacao {
+  id: string;
+  nome: string;
+  peso: number;
+  ordem: number;
+}
+
+export interface GrupoAvaliacao {
+  id: string;
+  anoLetivoId: string;
+  nome: string;
+  ordem: number;
+  disciplinas: Disciplina[];
+  instrumentos: InstrumentoAvaliacao[];
+}
+
 export interface Criterio {
   id: string;
   grupo: string;

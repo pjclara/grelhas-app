@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 const LINKS = [
   { href: '/dashboard', label: 'Turmas' },
   { href: '/disciplinas', label: 'Disciplinas' },
+  { href: '/criterios-avaliacao', label: 'Critérios de Avaliação' },
 ];
 
 export default function Sidebar() {

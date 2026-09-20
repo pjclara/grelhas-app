@@ -1,8 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import TopNav from '@/components/TopNav';
-import Sidebar from '@/components/Sidebar';
+import { Plus, ShieldCheck, Users2 } from 'lucide-react';
+import AppShell from '@/components/AppShell';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input, Select } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Alert } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { Tabs } from '@/components/ui/Tabs';
+import { PageLoading } from '@/components/ui/Spinner';
+import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
 
 interface AdminUser {
   id: string;
@@ -80,44 +89,35 @@ export default function AdminPage() {
   }
 
   return (
-    <div>
-      <TopNav />
-      <div className="flex">
-        <Sidebar />
-        <main className="min-w-0 flex-1 px-6 py-8">
-        <div className="mx-auto max-w-6xl">
+    <AppShell width="full">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-slate-900">Administração</h1>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Administração</h1>
+            <p className="mt-1 text-sm text-slate-500">Gerir utilizadores e visualizar todas as turmas.</p>
+          </div>
           {tab === 'utilizadores' && (
-            <button
-              onClick={() => setMostrarFormUser((v) => !v)}
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-            >
-              {mostrarFormUser ? 'Cancelar' : '+ Novo utilizador'}
-            </button>
+            <Button onClick={() => setMostrarFormUser((v) => !v)}>
+              <Plus className="h-4 w-4" />
+              Novo utilizador
+            </Button>
           )}
         </div>
 
-        <div className="mb-6 flex gap-2 border-b border-slate-200">
-          <button
-            onClick={() => setTab('utilizadores')}
-            className={`border-b-2 px-3 py-2 text-sm font-medium ${
-              tab === 'utilizadores' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500'
-            }`}
-          >
-            Utilizadores
-          </button>
-          <button
-            onClick={() => setTab('turmas')}
-            className={`border-b-2 px-3 py-2 text-sm font-medium ${
-              tab === 'turmas' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500'
-            }`}
-          >
-            Todas as turmas
-          </button>
-        </div>
+        <Tabs
+          tabs={[
+            { key: 'utilizadores', label: 'Utilizadores' },
+            { key: 'turmas', label: 'Todas as turmas' },
+          ]}
+          active={tab}
+          onChange={(k) => setTab(k as 'utilizadores' | 'turmas')}
+        />
 
-        {erro && <p className="mb-4 text-sm text-red-600">{erro}</p>}
+        {erro && (
+          <div className="mb-4">
+            <Alert tone="danger">{erro}</Alert>
+          </div>
+        )}
 
         {tab === 'utilizadores' && mostrarFormUser && (
           <NovoUtilizadorForm
@@ -129,118 +129,107 @@ export default function AdminPage() {
         )}
 
         {aCarregar ? (
-          <p className="text-sm text-slate-500">A carregar…</p>
+          <PageLoading />
         ) : tab === 'utilizadores' ? (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-4 py-2">Nome</th>
-                  <th className="px-4 py-2">Email</th>
-                  <th className="px-4 py-2">Papel</th>
-                  <th className="px-4 py-2">Turmas</th>
-                  <th className="px-4 py-2">Registado em</th>
-                  <th className="px-4 py-2">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer>
+            <Table>
+              <THead>
+                <Tr>
+                  <Th>Nome</Th>
+                  <Th>Email</Th>
+                  <Th>Papel</Th>
+                  <Th>Turmas</Th>
+                  <Th>Registado em</Th>
+                  <Th className="text-right">Ações</Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {users.map((u) => (
-                  <tr key={u.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2">{u.name}</td>
-                    <td className="px-4 py-2 text-slate-500">{u.email}</td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          u.role === 'ADMIN' ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
+                  <Tr key={u.id}>
+                    <Td className="font-medium text-slate-900">{u.name}</Td>
+                    <Td className="text-slate-500">{u.email}</Td>
+                    <Td>
+                      <Badge tone={u.role === 'ADMIN' ? 'brand' : 'neutral'}>
+                        {u.role === 'ADMIN' && <ShieldCheck className="h-3 w-3" />}
                         {u.role === 'ADMIN' ? 'Administrador' : 'Professor'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">{u._count.turmas}</td>
-                    <td className="px-4 py-2 text-slate-500">
-                      {new Date(u.createdAt).toLocaleDateString('pt-PT')}
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="flex gap-3">
+                      </Badge>
+                    </Td>
+                    <Td>{u._count.turmas}</Td>
+                    <Td className="text-slate-500">{new Date(u.createdAt).toLocaleDateString('pt-PT')}</Td>
+                    <Td className="text-right">
+                      <div className="flex justify-end gap-3">
                         {u.role === 'ADMIN' ? (
                           <button
                             onClick={() => alterarRole(u.id, 'PROFESSOR')}
-                            className="text-xs text-brand-600 hover:underline"
+                            className="text-xs font-medium text-brand-600 hover:underline"
                           >
                             Despromover
                           </button>
                         ) : (
                           <button
                             onClick={() => alterarRole(u.id, 'ADMIN')}
-                            className="text-xs text-brand-600 hover:underline"
+                            className="text-xs font-medium text-brand-600 hover:underline"
                           >
                             Promover a admin
                           </button>
                         )}
                         <button
                           onClick={() => eliminarUtilizador(u.id, u.name)}
-                          className="text-xs text-red-600 hover:underline"
+                          className="text-xs font-medium text-red-600 hover:underline"
                         >
                           Eliminar
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
                 {users.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                      Sem utilizadores.
-                    </td>
-                  </tr>
+                  <Tr>
+                    <Td colSpan={6}>
+                      <div className="py-4 text-center text-slate-400">Sem utilizadores.</div>
+                    </Td>
+                  </Tr>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </TBody>
+            </Table>
+          </TableContainer>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-4 py-2">Turma</th>
-                  <th className="px-4 py-2">Disciplina</th>
-                  <th className="px-4 py-2">Ano letivo</th>
-                  <th className="px-4 py-2">Alunos</th>
-                  <th className="px-4 py-2">Professor</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer>
+            <Table>
+              <THead>
+                <Tr>
+                  <Th>Turma</Th>
+                  <Th>Disciplina</Th>
+                  <Th>Ano letivo</Th>
+                  <Th>Alunos</Th>
+                  <Th>Professor</Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {turmas.map((t) => (
-                  <tr key={t.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2 font-medium text-slate-900">{t.nome}</td>
-                    <td className="px-4 py-2">
-                      {t.disciplinas.length > 0
-                        ? t.disciplinas.map((td) => td.disciplina.nome).join(', ')
-                        : '—'}
-                    </td>
-                    <td className="px-4 py-2">{t.anoLetivo.nome}</td>
-                    <td className="px-4 py-2">{t._count.alunos}</td>
-                    <td className="px-4 py-2 text-slate-500">
+                  <Tr key={t.id}>
+                    <Td className="font-medium text-slate-900">{t.nome}</Td>
+                    <Td>{t.disciplinas.length > 0 ? t.disciplinas.map((td) => td.disciplina.nome).join(', ') : '—'}</Td>
+                    <Td>{t.anoLetivo.nome}</Td>
+                    <Td>{t._count.alunos}</Td>
+                    <Td className="text-slate-500">
                       {t.user.name} ({t.user.email})
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
                 {turmas.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                      Sem turmas.
-                    </td>
-                  </tr>
+                  <Tr>
+                    <Td colSpan={5}>
+                      <div className="py-4 text-center text-slate-400">Sem turmas.</div>
+                    </Td>
+                  </Tr>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </TBody>
+            </Table>
+          </TableContainer>
         )}
-        </div>
-        </main>
       </div>
-    </div>
+    </AppShell>
   );
 }
 
@@ -271,58 +260,43 @@ function NovoUtilizadorForm({ onCriado }: { onCriado: () => void }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mb-8 space-y-4 rounded-lg border border-slate-200 bg-white p-5">
+    <Card as="form" onSubmit={onSubmit} className="mb-6 space-y-4 p-5">
+      <div className="flex items-center gap-2">
+        <Users2 className="h-4 w-4 text-slate-400" />
+        <h2 className="text-sm font-semibold text-slate-900">Novo utilizador</h2>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Nome</label>
-          <input
-            required
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
+          <Label htmlFor="nome">Nome</Label>
+          <Input id="nome" required value={nome} onChange={(e) => setNome(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
-          <input
-            required
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" required type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Palavra-passe</label>
-          <input
+          <Label htmlFor="password">Palavra-passe</Label>
+          <Input
+            id="password"
             required
             type="password"
             minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Papel</label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as 'PROFESSOR' | 'ADMIN')}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          >
+          <Label htmlFor="role">Papel</Label>
+          <Select id="role" value={role} onChange={(e) => setRole(e.target.value as 'PROFESSOR' | 'ADMIN')}>
             <option value="PROFESSOR">Professor</option>
             <option value="ADMIN">Administrador</option>
-          </select>
+          </Select>
         </div>
       </div>
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
-      <button
-        type="submit"
-        disabled={aGravar}
-        className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-      >
+      {erro && <Alert tone="danger">{erro}</Alert>}
+      <Button type="submit" loading={aGravar}>
         {aGravar ? 'A criar…' : 'Criar utilizador'}
-      </button>
-    </form>
+      </Button>
+    </Card>
   );
 }

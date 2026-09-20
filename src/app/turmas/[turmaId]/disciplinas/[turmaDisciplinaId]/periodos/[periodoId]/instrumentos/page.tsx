@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import TopNav from '@/components/TopNav';
+import { ArrowLeft, Plus, Pencil, Trash2, ExternalLink, Smile } from 'lucide-react';
+import AppShell from '@/components/AppShell';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input, Select } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Alert } from '@/components/ui/Alert';
+import { PageLoading } from '@/components/ui/Spinner';
 import type { Criterio, Instrumento, ModoAvaliacao } from '@/lib/types';
 
 interface PerguntaForm {
@@ -211,181 +218,138 @@ export default function InstrumentosPage({
   }
 
   return (
-    <div>
-      <TopNav />
-      <main className="mx-auto max-w-4xl px-6 py-8">
-        <Link
-          href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`}
-          className="mb-2 inline-block text-sm text-brand-600 hover:underline"
-        >
-          ← Voltar à disciplina
-        </Link>
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-slate-900">Instrumentos de avaliação</h1>
-          <button
-            onClick={() => (mostrarForm ? fecharForm() : abrirNovo())}
-            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            {mostrarForm ? 'Cancelar' : '+ Novo instrumento'}
-          </button>
-        </div>
+    <AppShell>
+      <Link
+        href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`}
+        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline"
+      >
+        <ArrowLeft className="h-4 w-4" /> Voltar à disciplina
+      </Link>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Instrumentos de avaliação</h1>
+        <Button onClick={() => (mostrarForm ? fecharForm() : abrirNovo())}>
+          <Plus className="h-4 w-4" />
+          Novo instrumento
+        </Button>
+      </div>
 
-        {mostrarForm && (
-          <form onSubmit={guardarInstrumento} className="mb-8 space-y-4 rounded-lg border border-slate-200 bg-white p-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              {!isAtitudes && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Nome</label>
-                  <input
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    placeholder="ex: Teste de Avaliação 1"
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                  />
-                </div>
-              )}
+      {mostrarForm && (
+        <Card as="form" onSubmit={guardarInstrumento} className="mb-8 space-y-4 p-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {!isAtitudes && (
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Critério</label>
-                <select
-                  value={criterioId}
-                  onChange={(e) => setCriterioId(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="">Selecionar…</option>
-                  {criterios
-                    .filter((c) => c.grupo !== 'Atitudes')
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.grupo} — {c.nome} ({Math.round(c.peso * 100)}%)
-                      </option>
-                    ))}
-                  {criteriosAtitude.length > 0 && !editandoId && (
-                    <option value={ATITUDES_OPTION} disabled={grelhaAtitudesJaCriada}>
-                      {grelhaAtitudesJaCriada
-                        ? 'Atitudes — grelha já criada'
-                        : `Atitudes — grelha com todos os critérios (${criteriosAtitude.length})`}
-                    </option>
-                  )}
-                </select>
-              </div>
-              {!isAtitudes && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Modo de avaliação</label>
-                  <select
-                    value={modo}
-                    onChange={(e) => setModo(e.target.value as ModoAvaliacao)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                  >
-                    <option value="PONTOS">Pontos por pergunta (ex.: teste)</option>
-                    <option value="ESCALA">Escala (ex.: 1 a 5, atitudes)</option>
-                  </select>
-                </div>
-              )}
-              {!isAtitudes && modo === 'ESCALA' && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Escala máxima</label>
-                  <input
-                    type="number"
-                    value={escalaMax}
-                    onChange={(e) => setEscalaMax(e.target.value)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                  />
-                </div>
-              )}
-              {!isAtitudes && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Tema (opcional)</label>
-                  <input
-                    value={tema}
-                    onChange={(e) => setTema(e.target.value)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                  />
-                </div>
-              )}
-            </div>
-
-            {isAtitudes ? (
-              <div className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                Vai ser criada uma grelha com uma coluna por critério, com escala de 1 a 5:
-                <ul className="mt-1 list-inside list-disc">
-                  {criteriosAtitude.map((c) => (
-                    <li key={c.id}>{c.nome}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {modo === 'PONTOS' ? 'Perguntas' : 'Itens da escala'}
-                </label>
-                <div className="space-y-2">
-                  {perguntas.map((p, i) => (
-                    <div key={i} className="flex gap-2">
-                      <input
-                        placeholder="Código (ex: 2.1.)"
-                        value={p.codigo}
-                        onChange={(e) => atualizarPergunta(i, 'codigo', e.target.value)}
-                        className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                      />
-                      <input
-                        type="number"
-                        placeholder={modo === 'PONTOS' ? 'Pontos máx.' : 'Escala máx.'}
-                        value={p.valorMax}
-                        onChange={(e) => atualizarPergunta(i, 'valorMax', e.target.value)}
-                        className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removerPergunta(i)}
-                        className="text-sm text-red-600 hover:underline"
-                      >
-                        Remover
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={adicionarPergunta}
-                  className="mt-2 text-sm text-brand-600 hover:underline"
-                >
-                  + Adicionar linha
-                </button>
+                <Label htmlFor="nome-instrumento">Nome</Label>
+                <Input
+                  id="nome-instrumento"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="ex: Teste de Avaliação 1"
+                />
               </div>
             )}
+            <div>
+              <Label htmlFor="criterio">Critério</Label>
+              <Select id="criterio" value={criterioId} onChange={(e) => setCriterioId(e.target.value)}>
+                <option value="">Selecionar…</option>
+                {criterios
+                  .filter((c) => c.grupo !== 'Atitudes')
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.grupo} — {c.nome} ({Math.round(c.peso * 100)}%)
+                    </option>
+                  ))}
+                {criteriosAtitude.length > 0 && !editandoId && (
+                  <option value={ATITUDES_OPTION} disabled={grelhaAtitudesJaCriada}>
+                    {grelhaAtitudesJaCriada
+                      ? 'Atitudes — grelha já criada'
+                      : `Atitudes — grelha com todos os critérios (${criteriosAtitude.length})`}
+                  </option>
+                )}
+              </Select>
+            </div>
+            {!isAtitudes && (
+              <div>
+                <Label htmlFor="modo">Modo de avaliação</Label>
+                <Select id="modo" value={modo} onChange={(e) => setModo(e.target.value as ModoAvaliacao)}>
+                  <option value="PONTOS">Pontos por pergunta (ex.: teste)</option>
+                  <option value="ESCALA">Escala (ex.: 1 a 5, atitudes)</option>
+                </Select>
+              </div>
+            )}
+            {!isAtitudes && modo === 'ESCALA' && (
+              <div>
+                <Label htmlFor="escala-max">Escala máxima</Label>
+                <Input id="escala-max" type="number" value={escalaMax} onChange={(e) => setEscalaMax(e.target.value)} />
+              </div>
+            )}
+            {!isAtitudes && (
+              <div>
+                <Label htmlFor="tema">Tema (opcional)</Label>
+                <Input id="tema" value={tema} onChange={(e) => setTema(e.target.value)} />
+              </div>
+            )}
+          </div>
 
-            {erro && <p className="text-sm text-red-600">{erro}</p>}
-            <button
-              type="submit"
-              disabled={aGravar || (isAtitudes && grelhaAtitudesJaCriada)}
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-            >
-              {aGravar
-                ? 'A guardar…'
-                : isAtitudes
-                  ? 'Criar grelha de Atitudes'
-                  : editandoId
-                    ? 'Guardar alterações'
-                    : 'Criar instrumento'}
-            </button>
-          </form>
-        )}
+          {isAtitudes ? (
+            <div className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              Vai ser criada uma grelha com uma coluna por critério, com escala de 1 a 5:
+              <ul className="mt-1 list-inside list-disc">
+                {criteriosAtitude.map((c) => (
+                  <li key={c.id}>{c.nome}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div>
+              <Label>{modo === 'PONTOS' ? 'Perguntas' : 'Itens da escala'}</Label>
+              <div className="space-y-2">
+                {perguntas.map((p, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      placeholder="Código (ex: 2.1.)"
+                      value={p.codigo}
+                      onChange={(e) => atualizarPergunta(i, 'codigo', e.target.value)}
+                      className="w-40"
+                    />
+                    <Input
+                      type="number"
+                      placeholder={modo === 'PONTOS' ? 'Pontos máx.' : 'Escala máx.'}
+                      value={p.valorMax}
+                      onChange={(e) => atualizarPergunta(i, 'valorMax', e.target.value)}
+                      className="w-32"
+                    />
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removerPergunta(i)} aria-label="Remover linha">
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button type="button" variant="secondary" size="sm" className="mt-2" onClick={adicionarPergunta}>
+                <Plus className="h-4 w-4" />
+                Adicionar linha
+              </Button>
+            </div>
+          )}
 
-        {erroCarregar ? (
-          <p className="text-sm text-red-600">{erroCarregar}</p>
-        ) : aCarregar ? (
-          <p className="text-sm text-slate-500">A carregar…</p>
-        ) : (
+          {erro && <Alert tone="danger">{erro}</Alert>}
+          <Button type="submit" loading={aGravar} disabled={isAtitudes && grelhaAtitudesJaCriada}>
+            {isAtitudes ? 'Criar grelha de Atitudes' : editandoId ? 'Guardar alterações' : 'Criar instrumento'}
+          </Button>
+        </Card>
+      )}
+
+      {erroCarregar ? (
+        <Alert tone="danger">{erroCarregar}</Alert>
+      ) : aCarregar ? (
+        <PageLoading />
+      ) : (
         <div className="space-y-2">
           {instrumentosOutros.map((i) => (
-            <div
-              key={i.id}
-              className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3"
-            >
+            <Card key={i.id} className="flex items-center justify-between px-4 py-3">
               <div>
                 <Link
                   href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/instrumentos/${i.id}`}
-                  className="font-medium text-brand-700 hover:underline"
+                  className="font-medium text-slate-900 hover:text-brand-700"
                 >
                   {i.nome}
                 </Link>
@@ -393,42 +357,48 @@ export default function InstrumentosPage({
                   {i.criterio?.nome} · {i.perguntas.length} {i.modo === 'PONTOS' ? 'perguntas' : 'itens'}
                 </p>
               </div>
-              <div className="flex gap-3">
-                <button onClick={() => iniciarEdicao(i)} className="text-sm text-brand-600 hover:underline">
-                  Editar
-                </button>
-                <button onClick={() => remover(i.id)} className="text-sm text-red-600 hover:underline">
-                  Remover
-                </button>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" onClick={() => iniciarEdicao(i)} aria-label="Editar">
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => remover(i.id)} aria-label="Remover">
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
               </div>
-            </div>
+            </Card>
           ))}
           {instrumentosAtitude.length > 0 && (
-            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3">
-              <div>
-                <Link href={atitudesHref} className="font-medium text-brand-700 hover:underline">
-                  Atitudes
-                </Link>
-                <p className="text-xs text-slate-500">
-                  {instrumentosAtitude.length} critérios · escala de 1 a 5
-                </p>
+            <Card className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+                  <Smile className="h-4 w-4" />
+                </span>
+                <div>
+                  <Link href={atitudesHref} className="font-medium text-slate-900 hover:text-brand-700">
+                    Atitudes
+                  </Link>
+                  <p className="text-xs text-slate-500">{instrumentosAtitude.length} critérios · escala de 1 a 5</p>
+                </div>
               </div>
-              <div className="flex gap-3">
-                <Link href={atitudesHref} className="text-sm text-brand-600 hover:underline">
-                  Abrir grelha
+              <div className="flex items-center gap-1">
+                <Link href={atitudesHref}>
+                  <Button size="sm" variant="ghost" aria-label="Abrir grelha">
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
                 </Link>
-                <button onClick={() => removerGrelhaAtitudes()} className="text-sm text-red-600 hover:underline">
-                  Remover
-                </button>
+                <Button size="sm" variant="ghost" onClick={() => removerGrelhaAtitudes()} aria-label="Remover">
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
               </div>
-            </div>
+            </Card>
           )}
           {instrumentos.length === 0 && (
-            <p className="text-sm text-slate-400">Ainda não há instrumentos neste período.</p>
+            <Card>
+              <div className="py-8 text-center text-sm text-slate-400">Ainda não há instrumentos neste período.</div>
+            </Card>
           )}
         </div>
-        )}
-      </main>
-    </div>
+      )}
+    </AppShell>
   );
 }

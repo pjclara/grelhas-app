@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import TopNav from '@/components/TopNav';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import AppShell from '@/components/AppShell';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
+import { PageLoading } from '@/components/ui/Spinner';
 import type { Aluno, Instrumento } from '@/lib/types';
 
 interface Inscricao {
@@ -130,67 +135,49 @@ export default function AtitudesPage({
     if (resultados.every((r) => r.ok)) setGuardadoEm(new Date());
   }
 
-  if (erroCarregar) {
-    return (
-      <div>
-        <TopNav />
-        <main className="mx-auto max-w-6xl px-6 py-8">
-          <Link href={voltarHref} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-            ← Voltar aos instrumentos
-          </Link>
-          <p className="text-sm text-red-600">{erroCarregar}</p>
-        </main>
-      </div>
-    );
-  }
-
-  if (aCarregar) {
-    return (
-      <div>
-        <TopNav />
-        <main className="mx-auto max-w-6xl px-6 py-8">
-          <p className="text-sm text-slate-500">A carregar…</p>
-        </main>
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <TopNav />
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <Link href={voltarHref} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-          ← Voltar aos instrumentos
+    <AppShell width="full">
+      <div className="mx-auto max-w-6xl">
+        <Link href={voltarHref} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+          <ArrowLeft className="h-4 w-4" /> Voltar aos instrumentos
         </Link>
-        <h1 className="mb-1 text-2xl font-semibold text-slate-900">Atitudes</h1>
+        <h1 className="mb-1 text-2xl font-semibold tracking-tight text-slate-900">Atitudes</h1>
         <p className="mb-4 text-sm text-slate-500">Escala de 1 a 5 por critério.</p>
 
-        {instrumentos.length === 0 ? (
-          <p className="text-sm text-slate-400">Ainda não há critérios de Atitudes configurados.</p>
+        {erroCarregar ? (
+          <Alert tone="danger">{erroCarregar}</Alert>
+        ) : aCarregar ? (
+          <PageLoading />
+        ) : instrumentos.length === 0 ? (
+          <Card>
+            <div className="py-8 text-center text-sm text-slate-400">
+              Ainda não há critérios de Atitudes configurados.
+            </div>
+          </Card>
         ) : (
           <>
             <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
               <table className="grelha min-w-full text-sm">
-                <thead className="bg-slate-50">
+                <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-3 py-2 text-left">Nº</th>
                     <th className="px-3 py-2 text-left">Nome</th>
                     {instrumentos.map((inst) => (
                       <th key={inst.id} className="w-32 px-2 py-2 text-center">
                         {inst.criterio?.nome ?? inst.nome}
-                        <div className="text-xs font-normal text-slate-400">/{inst.escalaMax}</div>
+                        <div className="text-xs font-normal normal-case text-slate-400">/{inst.escalaMax}</div>
                       </th>
                     ))}
                     <th className="px-3 py-2 text-center">Total</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {alunos.map((aluno) => {
                     const total = totais[aluno.id];
                     return (
-                      <tr key={aluno.id}>
-                        <td className="px-3 py-1.5">{aluno.numero}</td>
-                        <td className="whitespace-nowrap px-3 py-1.5">{aluno.nome}</td>
+                      <tr key={aluno.id} className="hover:bg-slate-50/70">
+                        <td className="px-3 py-1.5 tabular-nums text-slate-500">{aluno.numero}</td>
+                        <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">{aluno.nome}</td>
                         {instrumentos.map((inst) => (
                           <td key={inst.id} className="px-1 py-1">
                             <input
@@ -201,11 +188,11 @@ export default function AtitudesPage({
                               value={notas[aluno.id]?.[inst.id] ?? ''}
                               onChange={(e) => atualizarNota(aluno.id, inst.id, e.target.value)}
                               aria-label={`Nota de ${aluno.nome} em ${inst.criterio?.nome ?? inst.nome}`}
-                              className="w-16 rounded border border-slate-200 px-1 py-0.5 text-center text-sm"
+                              className="w-16 rounded-md border border-slate-200 px-1 py-1 text-center text-sm transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
                             />
                           </td>
                         ))}
-                        <td className="px-3 py-1.5 text-center font-medium">
+                        <td className="px-3 py-1.5 text-center font-medium text-slate-900">
                           {total?.preenchido ? `${total.soma}/${total.max}` : '—'}
                         </td>
                       </tr>
@@ -213,7 +200,7 @@ export default function AtitudesPage({
                   })}
                   {alunos.length === 0 && (
                     <tr>
-                      <td colSpan={instrumentos.length + 3} className="px-3 py-4 text-center text-slate-400">
+                      <td colSpan={instrumentos.length + 3} className="px-3 py-6 text-center text-slate-400">
                         Não há alunos inscritos nesta disciplina.
                       </td>
                     </tr>
@@ -223,20 +210,19 @@ export default function AtitudesPage({
             </div>
 
             <div className="mt-4 flex items-center gap-3">
-              <button
-                onClick={guardar}
-                disabled={aGuardar}
-                className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-              >
+              <Button onClick={guardar} loading={aGuardar}>
                 {aGuardar ? 'A guardar…' : 'Guardar notas'}
-              </button>
+              </Button>
               {guardadoEm && (
-                <span className="text-sm text-emerald-600">Guardado às {guardadoEm.toLocaleTimeString('pt-PT')}</span>
+                <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Guardado às {guardadoEm.toLocaleTimeString('pt-PT')}
+                </span>
               )}
             </div>
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }

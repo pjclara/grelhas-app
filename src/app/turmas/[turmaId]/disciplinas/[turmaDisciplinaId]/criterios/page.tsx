@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import TopNav from '@/components/TopNav';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import AppShell from '@/components/AppShell';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Alert } from '@/components/ui/Alert';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PageLoading } from '@/components/ui/Spinner';
 import type { Criterio } from '@/lib/types';
 
 export default function CriteriosPage({
@@ -77,92 +85,89 @@ export default function CriteriosPage({
   }
 
   const grupos = Array.from(new Set(criterios.map((c) => c.grupo)));
+  const pesoOk = Math.abs(totalPeso - 1) < 0.001;
 
   return (
-    <div>
-      <TopNav />
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        <Link
-          href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`}
-          className="mb-2 inline-block text-sm text-brand-600 hover:underline"
-        >
-          ← Voltar à disciplina
-        </Link>
-        <h1 className="mb-2 text-2xl font-semibold text-slate-900">Critérios de avaliação</h1>
-        {!aCarregar && !erroCarregar && (
-          <p className={`mb-6 text-sm ${Math.abs(totalPeso - 1) < 0.001 ? 'text-emerald-600' : 'text-amber-600'}`}>
-            Soma dos pesos: {(totalPeso * 100).toFixed(0)}%{' '}
-            {Math.abs(totalPeso - 1) > 0.001 && '— deve somar 100% para a nota final ser calculada'}
-          </p>
-        )}
+    <AppShell>
+      <Link
+        href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`}
+        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline"
+      >
+        <ArrowLeft className="h-4 w-4" /> Voltar à disciplina
+      </Link>
+      <h1 className="mb-2 text-2xl font-semibold tracking-tight text-slate-900">Critérios de avaliação</h1>
+      {!aCarregar && !erroCarregar && criterios.length > 0 && (
+        <div className="mb-6">
+          <Alert tone={pesoOk ? 'success' : 'warning'}>
+            Soma dos pesos: {(totalPeso * 100).toFixed(0)}%
+            {!pesoOk && ' — deve somar 100% para a nota final ser calculada'}
+          </Alert>
+        </div>
+      )}
 
-        {erroCarregar ? (
-          <p className="mb-6 text-sm text-red-600">{erroCarregar}</p>
-        ) : aCarregar ? (
-          <p className="mb-6 text-sm text-slate-500">A carregar…</p>
-        ) : grupos.length === 0 ? (
-          <p className="mb-6 text-sm text-slate-400">Ainda não tem critérios configurados. Adicione o primeiro abaixo.</p>
-        ) : (
+      {erroCarregar ? (
+        <div className="mb-6">
+          <Alert tone="danger">{erroCarregar}</Alert>
+        </div>
+      ) : aCarregar ? (
+        <PageLoading />
+      ) : grupos.length === 0 ? (
+        <div className="mb-6">
+          <Card>
+            <EmptyState title="Ainda não tem critérios configurados" description="Adicione o primeiro abaixo." />
+          </Card>
+        </div>
+      ) : (
         grupos.map((g) => (
           <div key={g} className="mb-6">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">{g}</h2>
-            <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{g}</h2>
+            <Card className="divide-y divide-slate-100">
               {criterios
                 .filter((c) => c.grupo === g)
                 .map((c) => (
                   <div key={c.id} className="flex items-center gap-3 px-4 py-3">
                     <span className="flex-1 text-sm text-slate-800">{c.nome}</span>
-                    <input
-                      type="number"
-                      defaultValue={(c.peso * 100).toFixed(0)}
-                      onBlur={(e) => atualizarPeso(c, e.target.value)}
-                      className="w-20 rounded-md border border-slate-300 px-2 py-1 text-right text-sm"
-                    />
-                    <span className="text-sm text-slate-500">%</span>
-                    <button onClick={() => remover(c.id)} className="text-sm text-red-600 hover:underline">
-                      Remover
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        defaultValue={(c.peso * 100).toFixed(0)}
+                        onBlur={(e) => atualizarPeso(c, e.target.value)}
+                        className="w-16 rounded-md border border-slate-300 px-2 py-1 text-right text-sm shadow-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                      />
+                      <span className="text-sm text-slate-500">%</span>
+                    </div>
+                    <button
+                      onClick={() => remover(c.id)}
+                      aria-label="Remover critério"
+                      className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
-            </div>
+            </Card>
           </div>
-        )))}
+        ))
+      )}
 
-        <form onSubmit={adicionar} className="mt-8 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Grupo</label>
-            <input
-              value={grupo}
-              onChange={(e) => setGrupo(e.target.value)}
-              placeholder="ex: Atitudes"
-              className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium text-slate-700">Nome do critério</label>
-            <input
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Peso (%)</label>
-            <input
-              type="number"
-              value={pesoPct}
-              onChange={(e) => setPesoPct(e.target.value)}
-              className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
-          </div>
-          <button
-            type="submit"
-            className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            Adicionar critério
-          </button>
-        </form>
-      </main>
-    </div>
+      <Card as="form" onSubmit={adicionar} className="mt-8 flex flex-wrap items-end gap-3 p-4">
+        <div>
+          <Label htmlFor="grupo">Grupo</Label>
+          <Input id="grupo" value={grupo} onChange={(e) => setGrupo(e.target.value)} placeholder="ex: Atitudes" className="w-40" />
+        </div>
+        <div className="min-w-[200px] flex-1">
+          <Label htmlFor="nome-criterio">Nome do critério</Label>
+          <Input id="nome-criterio" value={nome} onChange={(e) => setNome(e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="peso">Peso (%)</Label>
+          <Input id="peso" type="number" value={pesoPct} onChange={(e) => setPesoPct(e.target.value)} className="w-24" />
+        </div>
+        <Button type="submit">
+          <Plus className="h-4 w-4" />
+          Adicionar critério
+        </Button>
+      </Card>
+    </AppShell>
   );
 }

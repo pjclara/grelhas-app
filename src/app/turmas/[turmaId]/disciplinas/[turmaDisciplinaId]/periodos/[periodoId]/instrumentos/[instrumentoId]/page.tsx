@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import TopNav from '@/components/TopNav';
+import { ArrowLeft, Mic, Square, CheckCircle2 } from 'lucide-react';
+import AppShell from '@/components/AppShell';
+import { Button } from '@/components/ui/Button';
+import { Alert } from '@/components/ui/Alert';
+import { PageLoading } from '@/components/ui/Spinner';
 import type { Aluno, Instrumento } from '@/lib/types';
 
 interface NotaValor {
@@ -339,68 +343,52 @@ export default function InstrumentoPage({
 
   if (erroCarregar) {
     return (
-      <div>
-        <TopNav />
-        <main className="mx-auto max-w-6xl px-6 py-8">
-          <Link href={voltarHref} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-            ← Voltar aos instrumentos
-          </Link>
-          <p className="text-sm text-red-600">{erroCarregar}</p>
-        </main>
-      </div>
+      <AppShell width="full">
+        <Link href={voltarHref} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+          <ArrowLeft className="h-4 w-4" /> Voltar aos instrumentos
+        </Link>
+        <Alert tone="danger">{erroCarregar}</Alert>
+      </AppShell>
     );
   }
 
   if (!instrumento) {
     return (
-      <div>
-        <TopNav />
-        <main className="mx-auto max-w-6xl px-6 py-8">
-          <p className="text-sm text-slate-500">A carregar…</p>
-        </main>
-      </div>
+      <AppShell width="full">
+        <PageLoading />
+      </AppShell>
     );
   }
 
   return (
-    <div>
-      <TopNav />
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <Link href={voltarHref} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-          ← Voltar aos instrumentos
+    <AppShell width="full">
+      <div className="mx-auto max-w-6xl">
+        <Link href={voltarHref} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+          <ArrowLeft className="h-4 w-4" /> Voltar aos instrumentos
         </Link>
         <div className="mb-1 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-slate-900">{instrumento.nome}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{instrumento.nome}</h1>
           {ditadoSuportado && (
-            <button
-              type="button"
-              onClick={() => (aDitar ? pararDitado() : iniciarDitado())}
-              className={`rounded-md px-4 py-2 text-sm font-medium ${
-                aDitar
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-brand-600 text-white hover:bg-brand-700'
-              }`}
-            >
-              {aDitar ? '⏹ Parar ditado' : '🎤 Ditar notas'}
-            </button>
+            <Button variant={aDitar ? 'danger' : 'primary'} onClick={() => (aDitar ? pararDitado() : iniciarDitado())}>
+              {aDitar ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {aDitar ? 'Parar ditado' : 'Ditar notas'}
+            </Button>
           )}
         </div>
-        <p className="mb-2 text-sm text-slate-500">
+        <p className="mb-4 text-sm text-slate-500">
           {instrumento.criterio?.nome} ·{' '}
           {instrumento.modo === 'PONTOS' ? 'pontos por pergunta' : `escala de 1 a ${instrumento.escalaMax}`}
         </p>
 
         {aDitar && (
-          <div className="mb-4 space-y-1">
-            <p className="rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-700">
+          <div className="mb-4 space-y-2">
+            <Alert tone="info">
               A ouvir… diga um número para preencher a célula selecionada e avançar. Diga "aluno número 3
               pergunta 2a" para saltar diretamente para essa célula, ou "seguinte", "anterior", "apagar",
               "parar" para navegar.
               {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: "{ultimoOuvido}"</span>}
-            </p>
-            {avisoDitado && (
-              <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">{avisoDitado}</p>
-            )}
+            </Alert>
+            {avisoDitado && <Alert tone="warning">{avisoDitado}</Alert>}
           </div>
         )}
         {!ditadoSuportado && (
@@ -411,27 +399,27 @@ export default function InstrumentoPage({
 
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="grelha min-w-full text-sm">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-3 py-2 text-left">Nº</th>
                 <th className="px-3 py-2 text-left">Nome</th>
                 {instrumento.perguntas.map((p) => (
                   <th key={p.id} className="px-2 py-2 text-center">
                     {p.codigo}
-                    <div className="text-xs font-normal text-slate-400">/{p.valorMax}</div>
+                    <div className="text-xs font-normal normal-case text-slate-400">/{p.valorMax}</div>
                   </th>
                 ))}
                 <th className="px-3 py-2 text-center">Total</th>
                 <th className="px-3 py-2 text-center">%</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {alunos.map((aluno) => {
                 const total = totais[aluno.id];
                 return (
-                  <tr key={aluno.id}>
-                    <td className="px-3 py-1.5">{aluno.numero}</td>
-                    <td className="whitespace-nowrap px-3 py-1.5">{aluno.nome}</td>
+                  <tr key={aluno.id} className="hover:bg-slate-50/70">
+                    <td className="px-3 py-1.5 tabular-nums text-slate-500">{aluno.numero}</td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">{aluno.nome}</td>
                     {instrumento.perguntas.map((p, pIdx) => {
                       const cellKey = `${aluno.id}:${p.id}`;
                       const cellIndex = alunos.indexOf(aluno) * instrumento.perguntas.length + pIdx;
@@ -449,17 +437,17 @@ export default function InstrumentoPage({
                             value={notas[aluno.id]?.[p.id] ?? ''}
                             onChange={(e) => atualizarNota(aluno.id, p.id, e.target.value)}
                             aria-label={`Nota de ${aluno.nome} na pergunta ${p.codigo}`}
-                            className={`w-16 rounded border px-1 py-0.5 text-center text-sm ${
+                            className={`w-16 rounded-md border px-1 py-1 text-center text-sm transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand-500/30 ${
                               ativa ? 'border-brand-500 ring-2 ring-brand-300' : 'border-slate-200'
                             }`}
                           />
                         </td>
                       );
                     })}
-                    <td className="px-3 py-1.5 text-center font-medium">
+                    <td className="px-3 py-1.5 text-center font-medium text-slate-900">
                       {total?.preenchido ? `${total.soma}/${total.max}` : '—'}
                     </td>
-                    <td className="px-3 py-1.5 text-center font-medium">
+                    <td className="px-3 py-1.5 text-center font-medium text-slate-900">
                       {total?.preenchido ? `${((total.soma / total.max) * 100).toFixed(0)}%` : '—'}
                     </td>
                   </tr>
@@ -470,18 +458,17 @@ export default function InstrumentoPage({
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <button
-            onClick={guardar}
-            disabled={aGuardar}
-            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-          >
+          <Button onClick={guardar} loading={aGuardar}>
             {aGuardar ? 'A guardar…' : 'Guardar notas'}
-          </button>
+          </Button>
           {guardadoEm && (
-            <span className="text-sm text-emerald-600">Guardado às {guardadoEm.toLocaleTimeString('pt-PT')}</span>
+            <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" />
+              Guardado às {guardadoEm.toLocaleTimeString('pt-PT')}
+            </span>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }

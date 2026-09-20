@@ -1,8 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import TopNav from '@/components/TopNav';
-import Sidebar from '@/components/Sidebar';
+import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import AppShell from '@/components/AppShell';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input, Select } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Alert } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { PageLoading } from '@/components/ui/Spinner';
 import { anoLetivoAtual, type AnoLetivo, type Disciplina, type GrupoAvaliacao } from '@/lib/types';
 
 const GRUPOS_SUGERIDOS = ['Atitudes', 'Conhecimentos e Capacidades'];
@@ -310,12 +317,13 @@ export default function CriteriosAvaliacaoPage() {
                   type="checkbox"
                   checked={marcada}
                   onChange={() => onChange(toggleDisciplinaForm(form, d.id))}
+                  className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500/40"
                 />
                 {d.nome}
               </label>
               {marcada && (
                 <>
-                  <input
+                  <Input
                     type="number"
                     min={0}
                     max={100}
@@ -324,7 +332,7 @@ export default function CriteriosAvaliacaoPage() {
                     onChange={(e) =>
                       onChange({ ...form, valores: { ...form.valores, [d.id]: e.target.value } })
                     }
-                    className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    className="w-20"
                   />
                   <span className="text-xs text-slate-400">%</span>
                   <span className={pct(previsto) === 100 ? 'text-xs text-emerald-600' : 'text-xs text-amber-600'}>
@@ -341,288 +349,233 @@ export default function CriteriosAvaliacaoPage() {
   }
 
   return (
-    <div>
-      <TopNav />
-      <div className="flex">
-        <Sidebar />
-        <main className="min-w-0 flex-1 px-6 py-8">
-          <div className="mx-auto max-w-4xl">
-            <h1 className="mb-6 text-2xl font-semibold text-slate-900">Critérios de Avaliação</h1>
+    <AppShell>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-slate-900">Critérios de Avaliação</h1>
 
-            <div className="mb-6 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700">Ano letivo</label>
-                <select
-                  value={anoLetivoId}
-                  onChange={(e) => setAnoLetivoId(e.target.value)}
-                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                >
-                  {anos.length === 0 && <option value="">Sem anos letivos</option>}
-                  {anos.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <form onSubmit={criarAnoLetivo} className="flex items-end gap-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-700">Novo ano letivo</label>
-                  <input
-                    placeholder="ex: 2026/2027"
-                    value={novoAno}
-                    onChange={(e) => setNovoAno(e.target.value)}
-                    className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={aCriarAno}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-                >
-                  Criar
-                </button>
-              </form>
-            </div>
-
-            {!anoLetivoId ? (
-              <p className="text-sm text-slate-500">Crie um ano letivo para configurar os critérios de avaliação.</p>
-            ) : (
-              <>
-                <form
-                  onSubmit={adicionarGrupo}
-                  className="mb-6 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4"
-                >
-                  <div className="flex-1">
-                    <label className="mb-1 block text-xs font-medium text-slate-700">Novo grupo</label>
-                    <input
-                      placeholder="ex: Atitudes"
-                      value={nomeGrupo}
-                      onChange={(e) => setNomeGrupo(e.target.value)}
-                      list="grupos-sugeridos"
-                      className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                    />
-                    <datalist id="grupos-sugeridos">
-                      {GRUPOS_SUGERIDOS.map((g) => (
-                        <option key={g} value={g} />
-                      ))}
-                    </datalist>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={aGravarGrupo || !nomeGrupo.trim()}
-                    className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-                  >
-                    {aGravarGrupo ? 'A criar…' : 'Adicionar grupo'}
-                  </button>
-                  {erroGrupo && <p className="w-full text-sm text-red-600">{erroGrupo}</p>}
-                </form>
-
-                {disciplinasComGrupos.length > 0 && (
-                  <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-                    <h2 className="mb-2 text-sm font-semibold text-slate-800">
-                      Peso total dos instrumentos por disciplina
-                    </h2>
-                    <ul className="flex flex-col gap-1 text-sm">
-                      {disciplinasComGrupos.map((d) => {
-                        const total = totalPorDisciplina.get(d.id) ?? 0;
-                        const completo = Math.round(total * 100) === 100;
-                        return (
-                          <li key={d.id} className="flex items-center gap-2">
-                            <span className="text-slate-700">{d.nome}:</span>
-                            <span className={completo ? 'text-emerald-600' : 'text-amber-600'}>
-                              {pct(total)}%{!completo && ' (deveria somar 100%)'}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-
-                {aCarregar ? (
-                  <p className="text-sm text-slate-500">A carregar…</p>
-                ) : grupos.length === 0 ? (
-                  <p className="text-sm text-slate-400">Ainda não tem grupos configurados para este ano letivo.</p>
-                ) : (
-                  <div className="flex flex-col gap-4">
-                    {grupos.map((g) => {
-                      const formNovoInst = novoInstrumento[g.id] ?? novoPesosForm();
-                      return (
-                        <div key={g.id} className="rounded-lg border border-slate-200 bg-white p-4">
-                          {editandoGrupoId === g.id ? (
-                            <div className="mb-3 flex flex-col gap-2 rounded-md bg-slate-50 p-3">
-                              <div className="flex flex-wrap items-end gap-2">
-                                <input
-                                  value={nomeGrupoEdit}
-                                  onChange={(e) => setNomeGrupoEdit(e.target.value)}
-                                  className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-                                />
-                                <button
-                                  onClick={() => guardarEdicaoGrupo(g.id)}
-                                  className="text-sm text-emerald-600 hover:underline"
-                                >
-                                  Guardar
-                                </button>
-                                <button
-                                  onClick={() => setEditandoGrupoId(null)}
-                                  className="text-sm text-slate-500 hover:underline"
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                              {erroGrupoEdit && <p className="text-sm text-red-600">{erroGrupoEdit}</p>}
-                            </div>
-                          ) : (
-                            <div className="mb-3 flex items-start justify-between">
-                              <h3 className="text-base font-semibold text-slate-900">{g.nome}</h3>
-                              <div className="flex gap-3">
-                                <button
-                                  onClick={() => iniciarEdicaoGrupo(g)}
-                                  className="text-sm text-brand-600 hover:underline"
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => removerGrupo(g)}
-                                  className="text-sm text-red-600 hover:underline"
-                                >
-                                  Remover
-                                </button>
-                              </div>
-                            </div>
-                          )}
-
-                          <table className="w-full overflow-hidden rounded-md border border-slate-100 text-sm">
-                            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-                              <tr>
-                                <th className="px-3 py-1.5">Instrumento</th>
-                                <th className="px-3 py-1.5">Disciplinas e pesos</th>
-                                <th className="px-3 py-1.5" />
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {g.instrumentos.map((inst) =>
-                                editandoInstrumentoId === inst.id ? (
-                                  <tr key={inst.id} className="border-t border-slate-100 bg-slate-50 align-top">
-                                    <td className="px-3 py-1.5">
-                                      <input
-                                        value={instrumentoEdit.nome}
-                                        onChange={(e) =>
-                                          setInstrumentoEdit((prev) => ({ ...prev, nome: e.target.value }))
-                                        }
-                                        className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-                                      />
-                                    </td>
-                                    <td className="px-3 py-1.5">
-                                      <SeletorPesos
-                                        form={instrumentoEdit}
-                                        onChange={setInstrumentoEdit}
-                                        excluirInstrumentoId={inst.id}
-                                      />
-                                      {erroInstrumentoEdit && (
-                                        <p className="mt-1 text-xs text-red-600">{erroInstrumentoEdit}</p>
-                                      )}
-                                    </td>
-                                    <td className="px-3 py-1.5 text-right">
-                                      <div className="flex justify-end gap-3">
-                                        <button
-                                          onClick={() => guardarEdicaoInstrumento(g.id, inst.id)}
-                                          className="text-emerald-600 hover:underline"
-                                        >
-                                          Guardar
-                                        </button>
-                                        <button
-                                          onClick={() => setEditandoInstrumentoId(null)}
-                                          className="text-slate-500 hover:underline"
-                                        >
-                                          Cancelar
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ) : (
-                                  <tr key={inst.id} className="border-t border-slate-100 align-top">
-                                    <td className="px-3 py-1.5 text-slate-800">{inst.nome}</td>
-                                    <td className="px-3 py-1.5">
-                                      {inst.pesos.length === 0 ? (
-                                        <span className="text-xs text-slate-400">Sem disciplinas associadas</span>
-                                      ) : (
-                                        <div className="flex flex-wrap gap-1.5">
-                                          {inst.pesos.map((p) => (
-                                            <span
-                                              key={p.disciplinaId}
-                                              className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
-                                            >
-                                              {nomeDisciplina(p.disciplinaId)}: {pct(p.peso)}%
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td className="px-3 py-1.5 text-right">
-                                      <div className="flex justify-end gap-3">
-                                        <button
-                                          onClick={() => iniciarEdicaoInstrumento(inst)}
-                                          className="text-brand-600 hover:underline"
-                                        >
-                                          Editar
-                                        </button>
-                                        <button
-                                          onClick={() => removerInstrumento(g.id, inst.id, inst.nome)}
-                                          className="text-red-600 hover:underline"
-                                        >
-                                          Remover
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )
-                              )}
-                              <tr className="border-t border-slate-100 align-top">
-                                <td className="px-3 py-1.5">
-                                  <input
-                                    placeholder="Nome do instrumento"
-                                    value={formNovoInst.nome}
-                                    onChange={(e) =>
-                                      setNovoInstrumento((prev) => ({
-                                        ...prev,
-                                        [g.id]: { ...formNovoInst, nome: e.target.value },
-                                      }))
-                                    }
-                                    className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-                                  />
-                                </td>
-                                <td className="px-3 py-1.5">
-                                  <SeletorPesos
-                                    form={formNovoInst}
-                                    onChange={(form) => setNovoInstrumento((prev) => ({ ...prev, [g.id]: form }))}
-                                  />
-                                </td>
-                                <td className="px-3 py-1.5 text-right">
-                                  <button
-                                    onClick={() => adicionarInstrumento(g.id)}
-                                    className="text-brand-600 hover:underline"
-                                  >
-                                    Adicionar
-                                  </button>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                          {erroInstrumento[g.id] && (
-                            <p className="mt-1 text-xs text-red-600">{erroInstrumento[g.id]}</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
+      <Card className="mb-6 flex flex-wrap items-end gap-3 p-4">
+        <div>
+          <Label htmlFor="ano-letivo">Ano letivo</Label>
+          <Select id="ano-letivo" value={anoLetivoId} onChange={(e) => setAnoLetivoId(e.target.value)}>
+            {anos.length === 0 && <option value="">Sem anos letivos</option>}
+            {anos.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.nome}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <form onSubmit={criarAnoLetivo} className="flex items-end gap-2">
+          <div>
+            <Label htmlFor="novo-ano">Novo ano letivo</Label>
+            <Input id="novo-ano" placeholder="ex: 2026/2027" value={novoAno} onChange={(e) => setNovoAno(e.target.value)} />
           </div>
-        </main>
-      </div>
-    </div>
+          <Button type="submit" variant="secondary" loading={aCriarAno}>
+            Criar
+          </Button>
+        </form>
+      </Card>
+
+      {!anoLetivoId ? (
+        <Card>
+          <div className="py-8 text-center text-sm text-slate-400">
+            Crie um ano letivo para configurar os critérios de avaliação.
+          </div>
+        </Card>
+      ) : (
+        <>
+          <Card as="form" onSubmit={adicionarGrupo} className="mb-6 flex flex-wrap items-end gap-3 p-4">
+            <div className="min-w-[220px] flex-1">
+              <Label htmlFor="novo-grupo">Novo grupo</Label>
+              <Input
+                id="novo-grupo"
+                placeholder="ex: Atitudes"
+                value={nomeGrupo}
+                onChange={(e) => setNomeGrupo(e.target.value)}
+                list="grupos-sugeridos"
+              />
+              <datalist id="grupos-sugeridos">
+                {GRUPOS_SUGERIDOS.map((g) => (
+                  <option key={g} value={g} />
+                ))}
+              </datalist>
+            </div>
+            <Button type="submit" loading={aGravarGrupo} disabled={!nomeGrupo.trim()}>
+              <Plus className="h-4 w-4" />
+              Adicionar grupo
+            </Button>
+            {erroGrupo && (
+              <div className="w-full">
+                <Alert tone="danger">{erroGrupo}</Alert>
+              </div>
+            )}
+          </Card>
+
+          {disciplinasComGrupos.length > 0 && (
+            <Card className="mb-6 p-4">
+              <h2 className="mb-2 text-sm font-semibold text-slate-800">Peso total dos instrumentos por disciplina</h2>
+              <ul className="flex flex-col gap-1 text-sm">
+                {disciplinasComGrupos.map((d) => {
+                  const total = totalPorDisciplina.get(d.id) ?? 0;
+                  const completo = Math.round(total * 100) === 100;
+                  return (
+                    <li key={d.id} className="flex items-center gap-2">
+                      <span className="text-slate-700">{d.nome}:</span>
+                      <Badge tone={completo ? 'success' : 'warning'}>
+                        {pct(total)}%{!completo && ' (deveria somar 100%)'}
+                      </Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          )}
+
+          {aCarregar ? (
+            <PageLoading />
+          ) : grupos.length === 0 ? (
+            <Card>
+              <div className="py-8 text-center text-sm text-slate-400">
+                Ainda não tem grupos configurados para este ano letivo.
+              </div>
+            </Card>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {grupos.map((g) => {
+                const formNovoInst = novoInstrumento[g.id] ?? novoPesosForm();
+                return (
+                  <Card key={g.id} className="p-4">
+                    {editandoGrupoId === g.id ? (
+                      <div className="mb-3 flex flex-col gap-2 rounded-md bg-slate-50 p-3">
+                        <div className="flex flex-wrap items-end gap-2">
+                          <Input value={nomeGrupoEdit} onChange={(e) => setNomeGrupoEdit(e.target.value)} className="w-48" />
+                          <Button size="sm" variant="ghost" onClick={() => guardarEdicaoGrupo(g.id)} aria-label="Guardar">
+                            <Check className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditandoGrupoId(null)} aria-label="Cancelar">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {erroGrupoEdit && <Alert tone="danger">{erroGrupoEdit}</Alert>}
+                      </div>
+                    ) : (
+                      <div className="mb-3 flex items-start justify-between">
+                        <h3 className="text-base font-semibold text-slate-900">{g.nome}</h3>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => iniciarEdicaoGrupo(g)} aria-label="Editar grupo">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => removerGrupo(g)} aria-label="Remover grupo">
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="overflow-x-auto rounded-md border border-slate-200">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
+                          <tr>
+                            <th className="px-3 py-2">Instrumento</th>
+                            <th className="px-3 py-2">Disciplinas e pesos</th>
+                            <th className="px-3 py-2" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {g.instrumentos.map((inst) =>
+                            editandoInstrumentoId === inst.id ? (
+                              <tr key={inst.id} className="bg-slate-50/70 align-top">
+                                <td className="px-3 py-2">
+                                  <Input
+                                    value={instrumentoEdit.nome}
+                                    onChange={(e) => setInstrumentoEdit((prev) => ({ ...prev, nome: e.target.value }))}
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <SeletorPesos form={instrumentoEdit} onChange={setInstrumentoEdit} excluirInstrumentoId={inst.id} />
+                                  {erroInstrumentoEdit && <p className="mt-1 text-xs text-red-600">{erroInstrumentoEdit}</p>}
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button size="sm" variant="ghost" onClick={() => guardarEdicaoInstrumento(g.id, inst.id)} aria-label="Guardar">
+                                      <Check className="h-4 w-4 text-emerald-600" />
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setEditandoInstrumentoId(null)} aria-label="Cancelar">
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ) : (
+                              <tr key={inst.id} className="align-top hover:bg-slate-50/70">
+                                <td className="px-3 py-2 text-slate-800">{inst.nome}</td>
+                                <td className="px-3 py-2">
+                                  {inst.pesos.length === 0 ? (
+                                    <span className="text-xs text-slate-400">Sem disciplinas associadas</span>
+                                  ) : (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {inst.pesos.map((p) => (
+                                        <Badge key={p.disciplinaId}>
+                                          {nomeDisciplina(p.disciplinaId)}: {pct(p.peso)}%
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button size="sm" variant="ghost" onClick={() => iniciarEdicaoInstrumento(inst)} aria-label="Editar">
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => removerInstrumento(g.id, inst.id, inst.nome)}
+                                      aria-label="Remover"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          )}
+                          <tr className="align-top">
+                            <td className="px-3 py-2">
+                              <Input
+                                placeholder="Nome do instrumento"
+                                value={formNovoInst.nome}
+                                onChange={(e) =>
+                                  setNovoInstrumento((prev) => ({
+                                    ...prev,
+                                    [g.id]: { ...formNovoInst, nome: e.target.value },
+                                  }))
+                                }
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <SeletorPesos form={formNovoInst} onChange={(form) => setNovoInstrumento((prev) => ({ ...prev, [g.id]: form }))} />
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <Button size="sm" variant="ghost" onClick={() => adicionarInstrumento(g.id)} aria-label="Adicionar instrumento">
+                                <Plus className="h-4 w-4 text-brand-600" />
+                              </Button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    {erroInstrumento[g.id] && (
+                      <div className="mt-2">
+                        <Alert tone="danger">{erroInstrumento[g.id]}</Alert>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </AppShell>
   );
 }

@@ -3,13 +3,24 @@
 @tailwind utilities;
 
 :root {
-  --background: #f7f8fb;
-  --foreground: #1a1d29;
+  --background: #f7f8fa;
+  --foreground: #0f172a;
+}
+
+* {
+  border-color: theme('colors.slate.200');
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: theme('colors.brand.100');
+  color: theme('colors.brand.800');
 }
 
 table.grelha input[type='number'] {

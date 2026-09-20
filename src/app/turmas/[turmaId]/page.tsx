@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import TopNav from '@/components/TopNav';
+import { ArrowLeft, Plus, Trash2, Users, BookOpen } from 'lucide-react';
+import AppShell from '@/components/AppShell';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Alert } from '@/components/ui/Alert';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PageLoading } from '@/components/ui/Spinner';
 import type { Disciplina, TurmaDetalhe } from '@/lib/types';
 
 export default function TurmaPage({ params }: { params: { turmaId: string } }) {
@@ -70,26 +78,20 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
 
   if (erro) {
     return (
-      <div>
-        <TopNav />
-        <main className="mx-auto max-w-5xl px-6 py-8">
-          <Link href="/dashboard" className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-            ← As minhas turmas
-          </Link>
-          <p className="text-sm text-red-600">{erro}</p>
-        </main>
-      </div>
+      <AppShell>
+        <Link href="/dashboard" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+          <ArrowLeft className="h-4 w-4" /> As minhas turmas
+        </Link>
+        <Alert tone="danger">{erro}</Alert>
+      </AppShell>
     );
   }
 
   if (!turma) {
     return (
-      <div>
-        <TopNav />
-        <main className="mx-auto max-w-5xl px-6 py-8">
-          <p className="text-sm text-slate-500">A carregar…</p>
-        </main>
-      </div>
+      <AppShell>
+        <PageLoading />
+      </AppShell>
     );
   }
 
@@ -98,96 +100,103 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
   );
 
   return (
-    <div>
-      <TopNav />
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <Link href="/dashboard" className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-          ← As minhas turmas
-        </Link>
-        <p className="text-sm text-slate-500">{turma.anoLetivo.nome}</p>
-        <h1 className="mb-6 text-2xl font-semibold text-slate-900">{turma.nome}</h1>
+    <AppShell>
+      <Link href="/dashboard" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+        <ArrowLeft className="h-4 w-4" /> As minhas turmas
+      </Link>
+      <p className="text-sm text-slate-500">{turma.anoLetivo.nome}</p>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-slate-900">{turma.nome}</h1>
 
-        <Link href={`/turmas/${turma.id}/alunos`} className={cardClass}>
-          <h2 className={titleClass}>Alunos</h2>
-          <p className={descClass}>{turma.alunos.length} alunos na turma</p>
-        </Link>
-
-        <div className="mt-8 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Disciplinas</h2>
-          <button
-            onClick={() => setMostrarForm((v) => !v)}
-            className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            {mostrarForm ? 'Cancelar' : '+ Associar disciplina'}
-          </button>
+      <Link
+        href={`/turmas/${turma.id}/alunos`}
+        className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+            <Users className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="font-semibold text-slate-900">Alunos</p>
+            <p className="text-sm text-slate-500">{turma.alunos.length} alunos na turma</p>
+          </div>
         </div>
+      </Link>
 
-        {mostrarForm && (
-          <form
-            onSubmit={adicionarDisciplina}
-            className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4"
-          >
-            <div className="flex-1">
-              <label className="mb-1 block text-xs font-medium text-slate-700">Disciplina</label>
-              <select
-                value={disciplinaId}
-                onChange={(e) => setDisciplinaId(e.target.value)}
-                className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-              >
-                <option value="">Selecionar…</option>
-                {disciplinasDisponiveis.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nome}
-                  </option>
-                ))}
-              </select>
-              {disciplinasDisponiveis.length === 0 && (
-                <p className="mt-1 text-xs text-slate-400">
-                  Todas as disciplinas do seu catálogo já estão associadas a esta turma, ou ainda não
-                  criou nenhuma em <Link href="/disciplinas" className="text-brand-600 hover:underline">Disciplinas</Link>.
-                </p>
-              )}
-            </div>
-            <button
-              type="submit"
-              disabled={aGravar}
-              className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-            >
-              {aGravar ? 'A associar…' : 'Associar'}
-            </button>
-            {erroAdicionar && <p className="w-full text-sm text-red-600">{erroAdicionar}</p>}
-          </form>
-        )}
+      <div className="mt-8 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-slate-900">Disciplinas</h2>
+        <Button size="sm" onClick={() => setMostrarForm((v) => !v)}>
+          <Plus className="h-4 w-4" />
+          Associar disciplina
+        </Button>
+      </div>
 
-        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {turma.disciplinas.map((td) => (
-            <div key={td.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between">
-                <Link href={`/turmas/${turma.id}/disciplinas/${td.id}`} className="font-semibold text-brand-700 hover:underline">
-                  {td.disciplina.nome}
+      {mostrarForm && (
+        <Card as="form" onSubmit={adicionarDisciplina} className="mt-3 flex flex-wrap items-end gap-3 p-4">
+          <div className="min-w-[220px] flex-1">
+            <Label htmlFor="disciplina">Disciplina</Label>
+            <Select id="disciplina" value={disciplinaId} onChange={(e) => setDisciplinaId(e.target.value)}>
+              <option value="">Selecionar…</option>
+              {disciplinasDisponiveis.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nome}
+                </option>
+              ))}
+            </Select>
+            {disciplinasDisponiveis.length === 0 && (
+              <p className="mt-1 text-xs text-slate-400">
+                Todas as disciplinas do seu catálogo já estão associadas a esta turma, ou ainda não
+                criou nenhuma em{' '}
+                <Link href="/disciplinas" className="text-brand-600 hover:underline">
+                  Disciplinas
                 </Link>
-                <button
-                  onClick={() => removerDisciplina(td.id, td.disciplina.nome)}
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Remover
-                </button>
-              </div>
-              <p className="mt-1 text-xs text-slate-400">{td.disciplina.ciclo ?? '—'}</p>
+                .
+              </p>
+            )}
+          </div>
+          <Button type="submit" loading={aGravar}>
+            {aGravar ? 'A associar…' : 'Associar'}
+          </Button>
+          {erroAdicionar && (
+            <div className="w-full">
+              <Alert tone="danger">{erroAdicionar}</Alert>
             </div>
-          ))}
-          {turma.disciplinas.length === 0 && (
-            <p className="text-sm text-slate-400">
-              Ainda não tem disciplinas associadas a esta turma. Associe a primeira acima.
-            </p>
           )}
-        </div>
-      </main>
-    </div>
+        </Card>
+      )}
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {turma.disciplinas.map((td) => (
+          <div key={td.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
+            <div className="flex items-start justify-between gap-2">
+              <Link
+                href={`/turmas/${turma.id}/disciplinas/${td.id}`}
+                className="font-semibold text-slate-900 hover:text-brand-700"
+              >
+                {td.disciplina.nome}
+              </Link>
+              <button
+                onClick={() => removerDisciplina(td.id, td.disciplina.nome)}
+                aria-label="Remover disciplina"
+                className="rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-slate-400">{td.disciplina.ciclo ?? '—'}</p>
+          </div>
+        ))}
+        {turma.disciplinas.length === 0 && (
+          <div className="sm:col-span-2 lg:col-span-3">
+            <Card>
+              <EmptyState
+                icon={BookOpen}
+                title="Sem disciplinas associadas"
+                description="Associe a primeira disciplina desta turma acima."
+              />
+            </Card>
+          </div>
+        )}
+      </div>
+    </AppShell>
   );
 }
-
-const cardClass =
-  'rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md block';
-const titleClass = 'font-semibold text-slate-900';
-const descClass = 'text-sm text-slate-500';

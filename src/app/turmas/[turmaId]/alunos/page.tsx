@@ -2,7 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import TopNav from '@/components/TopNav';
+import { ArrowLeft, Mic, Square, Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import AppShell from '@/components/AppShell';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Alert } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { PageLoading } from '@/components/ui/Spinner';
+import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
 import type { Aluno } from '@/lib/types';
 
 // A Web Speech API não está nos tipos padrão do TS DOM; usamos `any` para o objeto de reconhecimento.
@@ -274,176 +283,139 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   }
 
   return (
-    <div>
-      <TopNav />
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        <Link href={`/turmas/${params.turmaId}`} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-          ← Voltar à turma
-        </Link>
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-slate-900">Alunos</h1>
-          {ditadoSuportado && (
-            <button
-              type="button"
-              onClick={() => (aDitar ? pararDitado() : iniciarDitado())}
-              className={`rounded-md px-4 py-2 text-sm font-medium ${
-                aDitar
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-brand-600 text-white hover:bg-brand-700'
-              }`}
-            >
-              {aDitar ? '⏹ Parar ditado' : '🎤 Ditar alunos'}
-            </button>
-          )}
-        </div>
-
-        {aDitar && (
-          <div className="mb-4 space-y-1">
-            <p className="rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-700">
-              A ouvir… diga o nome do aluno para o adicionar com o número seguinte automático, ou
-              "número 5 Maria Silva" para indicar o número. Diga "apagar último" para desfazer ou
-              "parar" para terminar.
-              {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: "{ultimoOuvido}"</span>}
-            </p>
-            {ultimoAdicionado && (
-              <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                Adicionado: {ultimoAdicionado}
-              </p>
-            )}
-            {avisoDitado && (
-              <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">{avisoDitado}</p>
-            )}
-          </div>
-        )}
-
-        <form onSubmit={adicionar} className="mb-6 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Nº</label>
-            <input
-              type="number"
-              value={numero}
-              onChange={(e) => setNumero(e.target.value)}
-              className="w-20 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium text-slate-700">Nome</label>
-            <input
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium text-slate-700">
-              Medidas (Dec-Lei 54)
-            </label>
-            <input
-              value={medidas}
-              onChange={(e) => setMedidas(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
-          </div>
-          <button
-            type="submit"
-            className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+    <AppShell>
+      <Link href={`/turmas/${params.turmaId}`} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+        <ArrowLeft className="h-4 w-4" /> Voltar à turma
+      </Link>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Alunos</h1>
+        {ditadoSuportado && (
+          <Button
+            type="button"
+            variant={aDitar ? 'danger' : 'primary'}
+            onClick={() => (aDitar ? pararDitado() : iniciarDitado())}
           >
-            Adicionar
-          </button>
-          {erro && <p className="w-full text-sm text-red-600">{erro}</p>}
-        </form>
-
-        {erroCarregar ? (
-          <p className="text-sm text-red-600">{erroCarregar}</p>
-        ) : aCarregar ? (
-          <p className="text-sm text-slate-500">A carregar…</p>
-        ) : (
-        <table className="w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-            <tr>
-              <th className="px-3 py-2">Nº</th>
-              <th className="px-3 py-2">Nome</th>
-              <th className="px-3 py-2">Medidas</th>
-              <th className="px-3 py-2">Estado</th>
-              <th className="px-3 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {alunos.map((a) =>
-              editandoId === a.id ? (
-                <tr key={a.id} className="border-t border-slate-100 bg-slate-50">
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      value={numeroEdit}
-                      onChange={(e) => setNumeroEdit(e.target.value)}
-                      className="w-16 rounded-md border border-slate-300 px-2 py-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      value={nomeEdit}
-                      onChange={(e) => setNomeEdit(e.target.value)}
-                      className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      value={medidasEdit}
-                      onChange={(e) => setMedidasEdit(e.target.value)}
-                      className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-slate-400">{a.ativo ? 'Ativo' : 'Inativo'}</td>
-                  <td className="px-3 py-2 text-right">
-                    <div className="flex justify-end gap-3">
-                      <button
-                        onClick={() => guardarEdicao(a.id)}
-                        className="text-emerald-600 hover:underline"
-                      >
-                        Guardar
-                      </button>
-                      <button onClick={cancelarEdicao} className="text-slate-500 hover:underline">
-                        Cancelar
-                      </button>
-                    </div>
-                    {erroEdit && <p className="mt-1 text-xs text-red-600">{erroEdit}</p>}
-                  </td>
-                </tr>
-              ) : (
-                <tr key={a.id} className="border-t border-slate-100">
-                  <td className="px-3 py-2">{a.numero}</td>
-                  <td className="px-3 py-2">{a.nome}</td>
-                  <td className="px-3 py-2 text-slate-500">{a.medidas ?? '—'}</td>
-                  <td className="px-3 py-2">
-                    <button onClick={() => alternarAtivo(a)} className="text-brand-600 hover:underline">
-                      {a.ativo ? 'Ativo' : 'Inativo'}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <div className="flex justify-end gap-3">
-                      <button onClick={() => iniciarEdicao(a)} className="text-brand-600 hover:underline">
-                        Editar
-                      </button>
-                      <button onClick={() => remover(a.id)} className="text-red-600 hover:underline">
-                        Remover
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            )}
-            {alunos.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
-                  Ainda não tem alunos. Adicione o primeiro acima.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            {aDitar ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            {aDitar ? 'Parar ditado' : 'Ditar alunos'}
+          </Button>
         )}
-      </main>
-    </div>
+      </div>
+
+      {aDitar && (
+        <div className="mb-4 space-y-2">
+          <Alert tone="info">
+            A ouvir… diga o nome do aluno para o adicionar com o número seguinte automático, ou
+            "número 5 Maria Silva" para indicar o número. Diga "apagar último" para desfazer ou
+            "parar" para terminar.
+            {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: "{ultimoOuvido}"</span>}
+          </Alert>
+          {ultimoAdicionado && <Alert tone="success">Adicionado: {ultimoAdicionado}</Alert>}
+          {avisoDitado && <Alert tone="warning">{avisoDitado}</Alert>}
+        </div>
+      )}
+
+      <Card as="form" onSubmit={adicionar} className="mb-6 flex flex-wrap items-end gap-3 p-4">
+        <div>
+          <Label htmlFor="numero">Nº</Label>
+          <Input id="numero" type="number" value={numero} onChange={(e) => setNumero(e.target.value)} className="w-20" />
+        </div>
+        <div className="min-w-[160px] flex-1">
+          <Label htmlFor="nome-aluno">Nome</Label>
+          <Input id="nome-aluno" value={nome} onChange={(e) => setNome(e.target.value)} />
+        </div>
+        <div className="min-w-[160px] flex-1">
+          <Label htmlFor="medidas">Medidas (Dec-Lei 54)</Label>
+          <Input id="medidas" value={medidas} onChange={(e) => setMedidas(e.target.value)} />
+        </div>
+        <Button type="submit">
+          <Plus className="h-4 w-4" />
+          Adicionar
+        </Button>
+        {erro && (
+          <div className="w-full">
+            <Alert tone="danger">{erro}</Alert>
+          </div>
+        )}
+      </Card>
+
+      {erroCarregar ? (
+        <Alert tone="danger">{erroCarregar}</Alert>
+      ) : aCarregar ? (
+        <PageLoading />
+      ) : (
+        <TableContainer>
+          <Table>
+            <THead>
+              <Tr>
+                <Th className="w-16">Nº</Th>
+                <Th>Nome</Th>
+                <Th>Medidas</Th>
+                <Th>Estado</Th>
+                <Th className="text-right">Ações</Th>
+              </Tr>
+            </THead>
+            <TBody>
+              {alunos.map((a) =>
+                editandoId === a.id ? (
+                  <Tr key={a.id} className="bg-slate-50/70">
+                    <Td>
+                      <Input type="number" value={numeroEdit} onChange={(e) => setNumeroEdit(e.target.value)} className="w-16" />
+                    </Td>
+                    <Td>
+                      <Input value={nomeEdit} onChange={(e) => setNomeEdit(e.target.value)} />
+                      {erroEdit && <p className="mt-1 text-xs text-red-600">{erroEdit}</p>}
+                    </Td>
+                    <Td>
+                      <Input value={medidasEdit} onChange={(e) => setMedidasEdit(e.target.value)} />
+                    </Td>
+                    <Td className="text-slate-400">{a.ativo ? 'Ativo' : 'Inativo'}</Td>
+                    <Td className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => guardarEdicao(a.id)} aria-label="Guardar">
+                          <Check className="h-4 w-4 text-emerald-600" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={cancelarEdicao} aria-label="Cancelar">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </Td>
+                  </Tr>
+                ) : (
+                  <Tr key={a.id}>
+                    <Td className="tabular-nums text-slate-500">{a.numero}</Td>
+                    <Td className="font-medium text-slate-900">{a.nome}</Td>
+                    <Td className="text-slate-500">{a.medidas ?? '—'}</Td>
+                    <Td>
+                      <button onClick={() => alternarAtivo(a)}>
+                        <Badge tone={a.ativo ? 'success' : 'neutral'}>{a.ativo ? 'Ativo' : 'Inativo'}</Badge>
+                      </button>
+                    </Td>
+                    <Td className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => iniciarEdicao(a)} aria-label="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => remover(a.id)} aria-label="Remover">
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </Td>
+                  </Tr>
+                ),
+              )}
+              {alunos.length === 0 && (
+                <Tr>
+                  <Td colSpan={5}>
+                    <div className="py-6 text-center text-sm text-slate-400">
+                      Ainda não tem alunos. Adicione o primeiro acima.
+                    </div>
+                  </Td>
+                </Tr>
+              )}
+            </TBody>
+          </Table>
+        </TableContainer>
+      )}
+    </AppShell>
   );
 }

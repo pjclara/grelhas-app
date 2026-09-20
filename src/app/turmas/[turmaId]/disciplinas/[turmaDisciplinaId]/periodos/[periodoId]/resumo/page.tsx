@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import TopNav from '@/components/TopNav';
+import { ArrowLeft, FileText, FileSpreadsheet } from 'lucide-react';
+import AppShell from '@/components/AppShell';
+import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
+import { PageLoading } from '@/components/ui/Spinner';
 import type { ResumoPeriodoDTO } from '@/lib/types';
 
 export default function ResumoPage({
@@ -29,26 +33,18 @@ export default function ResumoPage({
 
   if (erro) {
     return (
-      <div>
-        <TopNav />
-        <main className="mx-auto max-w-6xl px-6 py-8">
-          <Link href={voltarHref} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-            ← Voltar à disciplina
-          </Link>
-          <p className="text-sm text-red-600">{erro}</p>
-        </main>
-      </div>
+      <AppShell width="full">
+        <BackLink href={voltarHref} />
+        <Alert tone="danger">{erro}</Alert>
+      </AppShell>
     );
   }
 
   if (!resumo) {
     return (
-      <div>
-        <TopNav />
-        <main className="mx-auto max-w-6xl px-6 py-8">
-          <p className="text-sm text-slate-500">A carregar…</p>
-        </main>
-      </div>
+      <AppShell width="full">
+        <PageLoading />
+      </AppShell>
     );
   }
 
@@ -73,28 +69,27 @@ export default function ResumoPage({
   }));
 
   return (
-    <div>
-      <TopNav />
-      <main className="mx-auto max-w-screen-2xl px-6 py-8">
-        <Link href={voltarHref} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-          ← Voltar à disciplina
-        </Link>
+    <AppShell width="full">
+      <div className="mx-auto max-w-screen-2xl">
+        <BackLink href={voltarHref} />
         <p className="text-sm text-slate-500">
           {resumo.turma.disciplina} · {resumo.turma.anoLetivo} · {resumo.turma.nome}
         </p>
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-slate-900">Resumo — {resumo.periodo.nome}</h1>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Resumo — {resumo.periodo.nome}</h1>
           <div className="flex gap-2">
             <a
               href={`${disciplinaBase}/periodos/${params.periodoId}/export/pdf`}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-xs transition-colors duration-150 hover:bg-slate-50"
             >
+              <FileText className="h-4 w-4" />
               Exportar PDF
             </a>
             <a
               href={`${disciplinaBase}/periodos/${params.periodoId}/export/xlsx`}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-xs transition-colors duration-150 hover:bg-slate-50"
             >
+              <FileSpreadsheet className="h-4 w-4" />
               Exportar Excel
             </a>
           </div>
@@ -102,7 +97,7 @@ export default function ResumoPage({
 
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left">
+            <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-3 py-2" rowSpan={2}>Nº</th>
                 <th className="px-3 py-2" rowSpan={2}>Nome</th>
@@ -110,12 +105,12 @@ export default function ResumoPage({
                   instrumentos.length > 0 ? (
                     <th key={c.id} className="px-2 py-2 text-center" colSpan={instrumentos.length + 1}>
                       {c.nome}
-                      <div className="text-xs font-normal text-slate-400">{Math.round(c.peso * 100)}%</div>
+                      <div className="text-xs font-normal normal-case text-slate-400">{Math.round(c.peso * 100)}%</div>
                     </th>
                   ) : (
                     <th key={c.id} className="px-3 py-2 text-center" rowSpan={2}>
                       {c.nome}
-                      <div className="text-xs font-normal text-slate-400">{Math.round(c.peso * 100)}%</div>
+                      <div className="text-xs font-normal normal-case text-slate-400">{Math.round(c.peso * 100)}%</div>
                     </th>
                   )
                 )}
@@ -127,11 +122,11 @@ export default function ResumoPage({
                   instrumentos.length > 0
                     ? [
                         ...instrumentos.map((i) => (
-                          <th key={i.id} className="whitespace-nowrap px-2 py-1 text-center text-xs font-normal text-slate-500">
+                          <th key={i.id} className="whitespace-nowrap px-2 py-1 text-center text-xs font-normal normal-case text-slate-500">
                             {i.nome}
                           </th>
                         )),
-                        <th key={`${c.id}-media`} className="px-2 py-1 text-center text-xs font-medium text-slate-600">
+                        <th key={`${c.id}-media`} className="px-2 py-1 text-center text-xs font-medium normal-case text-slate-600">
                           Média
                         </th>,
                       ]
@@ -139,18 +134,18 @@ export default function ResumoPage({
                 )}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {resumo.alunos.map((aluno) => {
                 const resultado = resumo.resultados.find((r) => r.alunoId === aluno.id)!;
                 return (
-                  <tr key={aluno.id} className="border-t border-slate-100">
-                    <td className="px-3 py-1.5">{aluno.numero}</td>
-                    <td className="whitespace-nowrap px-3 py-1.5">{aluno.nome}</td>
+                  <tr key={aluno.id} className="hover:bg-slate-50/70">
+                    <td className="px-3 py-1.5 tabular-nums text-slate-500">{aluno.numero}</td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">{aluno.nome}</td>
                     {instrumentosPorCriterio.flatMap(({ criterio: c, instrumentos }) => {
                       const media = resultado.porCriterio.find((x) => x.criterioId === c.id);
                       if (instrumentos.length === 0) {
                         return [
-                          <td key={c.id} className="px-3 py-1.5 text-center">
+                          <td key={c.id} className="px-3 py-1.5 text-center tabular-nums">
                             {media?.media != null ? `${media.media.toFixed(0)}%` : '—'}
                           </td>,
                         ];
@@ -159,21 +154,21 @@ export default function ResumoPage({
                         ...instrumentos.map((i) => {
                           const r = resultado.porInstrumento.find((x) => x.instrumentoId === i.id);
                           return (
-                            <td key={i.id} className="px-2 py-1.5 text-center text-slate-500">
+                            <td key={i.id} className="px-2 py-1.5 text-center tabular-nums text-slate-500">
                               {r?.percent != null ? `${r.percent.toFixed(0)}%` : '—'}
                             </td>
                           );
                         }),
-                        <td key={`${c.id}-media`} className="px-2 py-1.5 text-center font-medium">
+                        <td key={`${c.id}-media`} className="px-2 py-1.5 text-center tabular-nums font-medium text-slate-900">
                           {media?.media != null ? `${media.media.toFixed(0)}%` : '—'}
                         </td>,
                       ];
                     })}
-                    <td className="px-3 py-1.5 text-center font-medium">
+                    <td className="px-3 py-1.5 text-center tabular-nums font-semibold text-slate-900">
                       {resultado.notaFinal20 != null ? resultado.notaFinal20.toFixed(1) : '—'}
                     </td>
                     {mostrarNivel && (
-                      <td className="px-3 py-1.5 text-center font-medium">
+                      <td className="px-3 py-1.5 text-center tabular-nums font-medium text-slate-900">
                         {resultado.nivel ?? '—'}
                       </td>
                     )}
@@ -184,11 +179,8 @@ export default function ResumoPage({
           </table>
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <Estatistica
-            titulo="Média da turma (0-20)"
-            valor={resumo.estatisticas.mediaTurma20?.toFixed(2) ?? '—'}
-          />
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <Estatistica titulo="Média da turma (0-20)" valor={resumo.estatisticas.mediaTurma20?.toFixed(2) ?? '—'} />
           {mostrarNivel ? (
             <>
               <Estatistica
@@ -199,16 +191,16 @@ export default function ResumoPage({
                     : '—'
                 }
               />
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <p className="mb-2 text-xs font-medium uppercase text-slate-500">Alunos por nível</p>
+              <Card className="p-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Alunos por nível</p>
                 <div className="flex gap-3 text-sm">
                   {([1, 2, 3, 4, 5] as const).map((n) => (
-                    <span key={n}>
-                      N{n}: <strong>{resumo.estatisticas.contagemPorNivel[n]}</strong>
+                    <span key={n} className="text-slate-600">
+                      N{n}: <strong className="text-slate-900">{resumo.estatisticas.contagemPorNivel[n]}</strong>
                     </span>
                   ))}
                 </div>
-              </div>
+              </Card>
             </>
           ) : (
             <Estatistica
@@ -217,16 +209,24 @@ export default function ResumoPage({
             />
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
+  );
+}
+
+function BackLink({ href }: { href: string }) {
+  return (
+    <Link href={href} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+      <ArrowLeft className="h-4 w-4" /> Voltar à disciplina
+    </Link>
   );
 }
 
 function Estatistica({ titulo, valor }: { titulo: string; valor: string }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <p className="mb-1 text-xs font-medium uppercase text-slate-500">{titulo}</p>
-      <p className="text-2xl font-semibold text-slate-900">{valor}</p>
-    </div>
+    <Card className="p-4">
+      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">{titulo}</p>
+      <p className="text-2xl font-semibold tracking-tight text-slate-900">{valor}</p>
+    </Card>
   );
 }

@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import TopNav from '@/components/TopNav';
+import { ArrowLeft, Users, ClipboardList, FileBarChart } from 'lucide-react';
+import AppShell from '@/components/AppShell';
+import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
+import { PageLoading } from '@/components/ui/Spinner';
 import type { Aluno, Periodo, TurmaDisciplinaDetalhe } from '@/lib/types';
 
 interface Inscricao {
@@ -45,88 +49,83 @@ export default function TurmaDisciplinaPage({
 
   if (erro) {
     return (
-      <div>
-        <TopNav />
-        <main className="mx-auto max-w-5xl px-6 py-8">
-          <Link href={`/turmas/${params.turmaId}`} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-            ← Voltar à turma
-          </Link>
-          <p className="text-sm text-red-600">{erro}</p>
-        </main>
-      </div>
+      <AppShell>
+        <BackLink turmaId={params.turmaId} />
+        <Alert tone="danger">{erro}</Alert>
+      </AppShell>
     );
   }
 
   if (!turmaDisciplina) {
     return (
-      <div>
-        <TopNav />
-        <main className="mx-auto max-w-5xl px-6 py-8">
-          <p className="text-sm text-slate-500">A carregar…</p>
-        </main>
-      </div>
+      <AppShell>
+        <PageLoading />
+      </AppShell>
     );
   }
 
   return (
-    <div>
-      <TopNav />
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <Link href={`/turmas/${params.turmaId}`} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
-          ← Voltar à turma
-        </Link>
-        <h1 className="mb-6 text-2xl font-semibold text-slate-900">{turmaDisciplina.disciplina.nome}</h1>
+    <AppShell>
+      <BackLink turmaId={params.turmaId} />
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-slate-900">{turmaDisciplina.disciplina.nome}</h1>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-start justify-between">
-              <h2 className={titleClass}>Alunos inscritos</h2>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-slate-400" />
+              <h2 className="font-semibold text-slate-900">Alunos inscritos</h2>
+            </div>
+            <Link
+              href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/alunos`}
+              className="text-xs font-medium text-brand-600 hover:underline"
+            >
+              Gerir
+            </Link>
+          </div>
+          {alunosInscritos.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-500">Ainda não tem alunos inscritos nesta disciplina.</p>
+          ) : (
+            <ul className="mt-2 space-y-0.5 text-sm text-slate-700">
+              {alunosInscritos.map((a) => (
+                <li key={a.id}>
+                  {a.numero}. {a.nome}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        {periodos.map((periodo) => (
+          <Card key={periodo.id} className="p-4">
+            <h2 className="font-semibold text-slate-900">{periodo.nome}</h2>
+            <div className="mt-3 flex flex-col gap-2 text-sm">
               <Link
-                href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/alunos`}
-                className="text-xs text-brand-600 hover:underline"
+                href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${periodo.id}/instrumentos`}
+                className="flex items-center gap-1.5 text-brand-600 hover:underline"
               >
-                Gerir
+                <ClipboardList className="h-3.5 w-3.5" />
+                Instrumentos e lançamento de notas
+              </Link>
+              <Link
+                href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${periodo.id}/resumo`}
+                className="flex items-center gap-1.5 text-brand-600 hover:underline"
+              >
+                <FileBarChart className="h-3.5 w-3.5" />
+                Resumo e nota final
               </Link>
             </div>
-            {alunosInscritos.length === 0 ? (
-              <p className={`mt-1 ${descClass}`}>Ainda não tem alunos inscritos nesta disciplina.</p>
-            ) : (
-              <ul className="mt-2 space-y-0.5 text-sm text-slate-700">
-                {alunosInscritos.map((a) => (
-                  <li key={a.id}>
-                    {a.numero}. {a.nome}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {periodos.map((periodo) => (
-            <div key={periodo.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className={titleClass}>{periodo.nome}</h2>
-              <div className="mt-2 flex flex-col gap-1 text-sm">
-                <Link
-                  href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${periodo.id}/instrumentos`}
-                  className="text-brand-600 hover:underline"
-                >
-                  Instrumentos e lançamento de notas
-                </Link>
-                <Link
-                  href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${periodo.id}/resumo`}
-                  className="text-brand-600 hover:underline"
-                >
-                  Resumo e nota final
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      </main>
-    </div>
+          </Card>
+        ))}
+      </div>
+    </AppShell>
   );
 }
 
-const cardClass =
-  'rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md block';
-const titleClass = 'font-semibold text-slate-900';
-const descClass = 'text-sm text-slate-500';
+function BackLink({ turmaId }: { turmaId: string }) {
+  return (
+    <Link href={`/turmas/${turmaId}`} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+      <ArrowLeft className="h-4 w-4" /> Voltar à turma
+    </Link>
+  );
+}

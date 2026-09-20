@@ -4,6 +4,11 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { GraduationCap } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Alert } from '@/components/ui/Alert';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,42 +33,46 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-xl font-semibold text-slate-900">Grelhas de Avaliação</h1>
-        <p className="mb-6 text-sm text-slate-500">Entre com a sua conta de professor.</p>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Palavra-passe</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
-          {erro && <p className="text-sm text-red-600">{erro}</p>}
-          <button
-            type="submit"
-            disabled={carregando}
-            className="w-full rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-          >
-            {carregando ? 'A entrar…' : 'Entrar'}
-          </button>
-        </form>
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center gap-2 text-center">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-white">
+            <GraduationCap className="h-5 w-5" />
+          </span>
+          <h1 className="text-lg font-semibold text-slate-900">Grelhas de Avaliação</h1>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+          <p className="mb-6 text-sm text-slate-500">Entre com a sua conta de professor.</p>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="password">Palavra-passe</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            {erro && <Alert tone="danger">{erro}</Alert>}
+            <Button type="submit" loading={carregando} className="w-full">
+              {carregando ? 'A entrar…' : 'Entrar'}
+            </Button>
+          </form>
+        </div>
         <p className="mt-4 text-center text-sm text-slate-500">
           Ainda não tem conta?{' '}
-          <Link href="/register" className="text-brand-600 hover:underline">
+          <Link href="/register" className="font-medium text-brand-600 hover:underline">
             Criar conta
           </Link>
         </p>

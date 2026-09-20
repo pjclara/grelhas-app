@@ -47,13 +47,22 @@ export const grupoAvaliacaoSchema = z.object({
   anoLetivoId: z.string().min(1),
   nome: z.string().min(1),
   ordem: z.number().int().min(0).optional(),
-  disciplinaIds: z.array(z.string().min(1)).min(1),
+});
+
+export const instrumentoPesoSchema = z.object({
+  disciplinaId: z.string().min(1),
+  peso: z.number().min(0).max(1),
 });
 
 export const instrumentoAvaliacaoSchema = z.object({
   nome: z.string().min(1),
-  peso: z.number().min(0).max(1),
   ordem: z.number().int().min(0).optional(),
+  pesos: z
+    .array(instrumentoPesoSchema)
+    .refine(
+      (pesos) => new Set(pesos.map((p) => p.disciplinaId)).size === pesos.length,
+      'Cada disciplina só pode aparecer uma vez.'
+    ),
 });
 
 export const criterioSchema = z.object({

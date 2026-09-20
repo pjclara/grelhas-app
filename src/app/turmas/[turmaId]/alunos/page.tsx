@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import TopNav from '@/components/TopNav';
 import type { Aluno } from '@/lib/types';
 
@@ -28,6 +29,8 @@ function capitalizarNome(nome: string): string {
 
 export default function AlunosPage({ params }: { params: { turmaId: string } }) {
   const [alunos, setAlunos] = useState<Aluno[]>([]);
+  const [aCarregar, setACarregar] = useState(true);
+  const [erroCarregar, setErroCarregar] = useState<string | null>(null);
   const [numero, setNumero] = useState('');
   const [nome, setNome] = useState('');
   const [medidas, setMedidas] = useState('');
@@ -50,10 +53,18 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   const ultimoAdicionadoIdRef = useRef<string | null>(null);
 
   async function carregar() {
+    setACarregar(true);
     const r = await fetch(`/api/turmas/${params.turmaId}/alunos`);
+    if (!r.ok) {
+      setErroCarregar('Não foi possível carregar os alunos.');
+      setACarregar(false);
+      return [];
+    }
+    setErroCarregar(null);
     const lista: Aluno[] = await r.json();
     setAlunos(lista);
     alunosRef.current = lista;
+    setACarregar(false);
     return lista;
   }
 
@@ -266,6 +277,9 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     <div>
       <TopNav />
       <main className="mx-auto max-w-3xl px-6 py-8">
+        <Link href={`/turmas/${params.turmaId}`} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
+          ← Voltar à turma
+        </Link>
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-slate-900">Alunos</h1>
           {ditadoSuportado && (
@@ -339,6 +353,11 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
           {erro && <p className="w-full text-sm text-red-600">{erro}</p>}
         </form>
 
+        {erroCarregar ? (
+          <p className="text-sm text-red-600">{erroCarregar}</p>
+        ) : aCarregar ? (
+          <p className="text-sm text-slate-500">A carregar…</p>
+        ) : (
         <table className="w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
             <tr>
@@ -414,8 +433,16 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
                 </tr>
               )
             )}
+            {alunos.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
+                  Ainda não tem alunos. Adicione o primeiro acima.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+        )}
       </main>
     </div>
   );

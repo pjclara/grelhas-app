@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 import { UnauthorizedError, ForbiddenError } from '@/lib/auth';
 
 export function handleApiError(error: unknown) {
@@ -17,6 +18,9 @@ export function handleApiError(error: unknown) {
   }
   if (error instanceof NotFoundError) {
     return NextResponse.json({ error: error.message }, { status: 404 });
+  }
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    return NextResponse.json({ error: 'Já existe um registo com este nome.' }, { status: 409 });
   }
   // eslint-disable-next-line no-console
   console.error(error);

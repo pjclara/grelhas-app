@@ -18,6 +18,8 @@ export default function InstrumentosPage({
 }) {
   const [instrumentos, setInstrumentos] = useState<Instrumento[]>([]);
   const [criterios, setCriterios] = useState<Criterio[]>([]);
+  const [aCarregar, setACarregar] = useState(true);
+  const [erroCarregar, setErroCarregar] = useState<string | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
 
@@ -31,12 +33,20 @@ export default function InstrumentosPage({
   const [aGravar, setAGravar] = useState(false);
 
   async function carregar() {
+    setACarregar(true);
     const [ri, rc] = await Promise.all([
       fetch(`/api/turmas/${params.turmaId}/instrumentos?periodoId=${params.periodoId}`),
       fetch(`/api/turmas/${params.turmaId}/criterios`),
     ]);
+    if (!ri.ok || !rc.ok) {
+      setErroCarregar('Não foi possível carregar os instrumentos.');
+      setACarregar(false);
+      return;
+    }
+    setErroCarregar(null);
     setInstrumentos(await ri.json());
     setCriterios(await rc.json());
+    setACarregar(false);
   }
 
   useEffect(() => {
@@ -144,6 +154,9 @@ export default function InstrumentosPage({
     <div>
       <TopNav />
       <main className="mx-auto max-w-4xl px-6 py-8">
+        <Link href={`/turmas/${params.turmaId}`} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
+          ← Voltar à turma
+        </Link>
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-slate-900">Instrumentos de avaliação</h1>
           <button
@@ -263,6 +276,11 @@ export default function InstrumentosPage({
           </form>
         )}
 
+        {erroCarregar ? (
+          <p className="text-sm text-red-600">{erroCarregar}</p>
+        ) : aCarregar ? (
+          <p className="text-sm text-slate-500">A carregar…</p>
+        ) : (
         <div className="space-y-2">
           {instrumentos.map((i) => (
             <div
@@ -291,9 +309,10 @@ export default function InstrumentosPage({
             </div>
           ))}
           {instrumentos.length === 0 && (
-            <p className="text-sm text-slate-500">Ainda não há instrumentos neste período.</p>
+            <p className="text-sm text-slate-400">Ainda não há instrumentos neste período.</p>
           )}
         </div>
+        )}
       </main>
     </div>
   );

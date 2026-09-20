@@ -1,18 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import TopNav from '@/components/TopNav';
 import type { Criterio } from '@/lib/types';
 
 export default function CriteriosPage({ params }: { params: { turmaId: string } }) {
   const [criterios, setCriterios] = useState<Criterio[]>([]);
+  const [aCarregar, setACarregar] = useState(true);
+  const [erroCarregar, setErroCarregar] = useState<string | null>(null);
   const [grupo, setGrupo] = useState('');
   const [nome, setNome] = useState('');
   const [pesoPct, setPesoPct] = useState('');
 
   async function carregar() {
+    setACarregar(true);
     const r = await fetch(`/api/turmas/${params.turmaId}/criterios`);
+    if (!r.ok) {
+      setErroCarregar('Não foi possível carregar os critérios.');
+      setACarregar(false);
+      return;
+    }
+    setErroCarregar(null);
     setCriterios(await r.json());
+    setACarregar(false);
   }
 
   useEffect(() => {
@@ -64,13 +75,25 @@ export default function CriteriosPage({ params }: { params: { turmaId: string } 
     <div>
       <TopNav />
       <main className="mx-auto max-w-3xl px-6 py-8">
+        <Link href={`/turmas/${params.turmaId}`} className="mb-2 inline-block text-sm text-brand-600 hover:underline">
+          ← Voltar à turma
+        </Link>
         <h1 className="mb-2 text-2xl font-semibold text-slate-900">Critérios de avaliação</h1>
-        <p className={`mb-6 text-sm ${Math.abs(totalPeso - 1) < 0.001 ? 'text-emerald-600' : 'text-amber-600'}`}>
-          Soma dos pesos: {(totalPeso * 100).toFixed(0)}%{' '}
-          {Math.abs(totalPeso - 1) > 0.001 && '— deve somar 100% para a nota final ser calculada'}
-        </p>
+        {!aCarregar && !erroCarregar && (
+          <p className={`mb-6 text-sm ${Math.abs(totalPeso - 1) < 0.001 ? 'text-emerald-600' : 'text-amber-600'}`}>
+            Soma dos pesos: {(totalPeso * 100).toFixed(0)}%{' '}
+            {Math.abs(totalPeso - 1) > 0.001 && '— deve somar 100% para a nota final ser calculada'}
+          </p>
+        )}
 
-        {grupos.map((g) => (
+        {erroCarregar ? (
+          <p className="mb-6 text-sm text-red-600">{erroCarregar}</p>
+        ) : aCarregar ? (
+          <p className="mb-6 text-sm text-slate-500">A carregar…</p>
+        ) : grupos.length === 0 ? (
+          <p className="mb-6 text-sm text-slate-400">Ainda não tem critérios configurados. Adicione o primeiro abaixo.</p>
+        ) : (
+        grupos.map((g) => (
           <div key={g} className="mb-6">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">{g}</h2>
             <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
@@ -93,7 +116,7 @@ export default function CriteriosPage({ params }: { params: { turmaId: string } 
                 ))}
             </div>
           </div>
-        ))}
+        )))}
 
         <form onSubmit={adicionar} className="mt-8 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4">
           <div>

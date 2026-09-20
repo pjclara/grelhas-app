@@ -13,13 +13,25 @@ export async function POST(req: NextRequest, { params }: { params: { grupoId: st
     if (!grupo) throw new NotFoundError('Grupo de avaliação não encontrado');
 
     const data = instrumentoAvaliacaoSchema.parse(await req.json());
+
+    if (data.pesos.length > 0) {
+      const disciplinas = await prisma.disciplina.findMany({
+        where: { id: { in: data.pesos.map((p) => p.disciplinaId) }, userId },
+        select: { id: true },
+      });
+      if (disciplinas.length !== data.pesos.length) {
+        throw new NotFoundError('Uma ou mais disciplinas não foram encontradas');
+      }
+    }
+
     const instrumento = await prisma.instrumentoAvaliacao.create({
       data: {
         grupoId: params.grupoId,
         nome: data.nome,
-        peso: data.peso,
         ordem: data.ordem ?? 0,
+        pesos: { create: data.pesos },
       },
+      include: { pesos: true },
     });
     return NextResponse.json(instrumento, { status: 201 });
   } catch (error) {

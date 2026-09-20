@@ -1,0 +1,746 @@
+# PROMPT MESTRE — CONFIGURAÇÃO PROFISSIONAL DO CLAUDE
+
+Quero que você prepare este repositório para ser trabalhado de forma profissional, consistente e segura com Claude.
+
+Este prompt é UNIVERSAL.
+
+Não assuma nenhuma linguagem, framework, arquitetura, banco de dados, sistema de testes ou ferramenta antes de analisar o repositório.
+
+Seu primeiro trabalho é descobrir como este projeto realmente funciona.
+
+---
+
+# REGRA FUNDAMENTAL
+
+Antes de modificar qualquer arquivo:
+
+1. Analise o repositório.
+2. Identifique a stack real.
+3. Identifique a arquitetura real.
+4. Identifique as convenções existentes.
+5. Identifique os comandos existentes.
+6. Identifique testes e ferramentas de qualidade.
+7. Identifique infraestrutura e CI/CD.
+8. Identifique regras existentes para agentes ou desenvolvedores.
+
+Não invente informações.
+
+Se algo não puder ser determinado pelo código ou documentação existente, marque como:
+
+"Não identificado."
+
+Não transforme suposições em regras.
+
+---
+
+# OBJETIVO
+
+Depois da análise, crie uma infraestrutura de contexto para o Claude composta por:
+
+* CLAUDE.md
+* regras por domínio, quando justificadas;
+* prompts reutilizáveis;
+* documentação dos comandos;
+* regras de Git;
+* regras de testes;
+* regras de segurança;
+* processo de desenvolvimento;
+* checklist de revisão;
+* Definition of Done.
+
+A infraestrutura criada deve ser específica para ESTE projeto.
+
+---
+
+# RESTRIÇÕES IMPORTANTES
+
+Durante esta tarefa:
+
+* NÃO implemente funcionalidades;
+* NÃO corrija bugs da aplicação;
+* NÃO faça refatorações;
+* NÃO atualize dependências;
+* NÃO altere comportamento da aplicação;
+* NÃO altere banco de dados;
+* NÃO execute migrations;
+* NÃO execute seeds;
+* NÃO faça deploy;
+* NÃO faça push;
+* NÃO crie commits automaticamente;
+* NÃO remova código existente.
+
+Seu objetivo é apenas preparar o projeto para futuros trabalhos com Claude.
+
+---
+
+# ETAPA 1 — DESCOBRIR A STACK
+
+Analise os arquivos relevantes do projeto.
+
+Identifique, quando aplicável:
+
+## Linguagens
+
+* linguagem principal;
+* linguagens secundárias;
+* versões.
+
+## Frameworks
+
+Identifique frameworks e suas versões.
+
+## Gerenciamento
+
+Identifique:
+
+* package manager;
+* build system;
+* dependency manager;
+* ferramentas de desenvolvimento.
+
+## Banco de dados
+
+Identifique:
+
+* banco;
+* ORM;
+* query builder;
+* migrations;
+* seeds;
+* schema.
+
+## API
+
+Identifique:
+
+* REST;
+* GraphQL;
+* RPC;
+* Server Actions;
+* Route Handlers;
+* controllers;
+* services;
+* outros padrões.
+
+## Frontend
+
+Se existir:
+
+* framework;
+* biblioteca de componentes;
+* sistema de estilos;
+* gerenciamento de estado;
+* data fetching;
+* formulários.
+
+## Backend
+
+Se existir:
+
+* arquitetura;
+* controllers;
+* services;
+* repositories;
+* middleware;
+* validação;
+* tratamento de erros.
+
+## Autenticação
+
+Identifique:
+
+* mecanismo;
+* provider;
+* sessão;
+* autorização;
+* roles;
+* permissions.
+
+## Testes
+
+Identifique:
+
+* unit;
+* integration;
+* E2E;
+* ferramentas;
+* localização;
+* configuração.
+
+## Qualidade
+
+Identifique:
+
+* lint;
+* formatter;
+* type-check;
+* static analysis;
+* coverage;
+* quality gates.
+
+## Infraestrutura
+
+Identifique, quando existir:
+
+* Docker;
+* Kubernetes;
+* Terraform;
+* CI/CD;
+* GitHub Actions;
+* GitLab CI;
+* cloud provider;
+* deploy.
+
+---
+
+# ETAPA 2 — MAPEAR A ARQUITETURA
+
+Entenda a arquitetura real do projeto.
+
+Identifique:
+
+* entry points;
+* principais módulos;
+* dependências entre módulos;
+* fronteiras entre frontend/backend;
+* camada de dados;
+* camada de negócio;
+* autenticação;
+* componentes compartilhados;
+* utilitários;
+* configuração.
+
+Crie um resumo arquitetural simples.
+
+Não tente redesenhar a arquitetura.
+
+Documente a arquitetura EXISTENTE.
+
+---
+
+# ETAPA 3 — DESCOBRIR CONVENÇÕES
+
+Procure padrões reais no código.
+
+Identifique:
+
+## Naming
+
+* arquivos;
+* classes;
+* funções;
+* componentes;
+* variáveis;
+* constantes.
+
+## Estrutura
+
+* organização de diretórios;
+* módulos;
+* features;
+* componentes.
+
+## Erros
+
+* exceptions;
+* Result types;
+* error handlers;
+* logging.
+
+## Validação
+
+* schemas;
+* DTOs;
+* validators;
+* regras.
+
+## Dados
+
+* queries;
+* repositories;
+* services;
+* transactions.
+
+## Testes
+
+Observe como testes existentes são escritos.
+
+Não crie uma nova convenção se o projeto já possuir uma.
+
+---
+
+# ETAPA 4 — DESCOBRIR OS COMANDOS
+
+Leia:
+
+* package.json;
+* Makefile;
+* scripts;
+* README;
+* Dockerfile;
+* compose;
+* CI;
+* configurações;
+* documentação.
+
+Descubra os comandos reais para:
+
+* desenvolvimento;
+* build;
+* testes;
+* lint;
+* type-check;
+* format;
+* E2E;
+* banco;
+* migrations;
+* seed;
+* geração de código;
+* deploy;
+* outros comandos importantes.
+
+NÃO INVENTE comandos.
+
+Documente apenas comandos que realmente existam ou que possam ser determinados com segurança.
+
+---
+
+# ETAPA 5 — CRIAR CLAUDE.md
+
+Crie:
+
+CLAUDE.md
+
+na raiz do projeto.
+
+O CLAUDE.md deve ser o documento principal de instruções para futuros trabalhos.
+
+Ele deve conter:
+
+## 1. Visão geral
+
+* objetivo do projeto;
+* stack;
+* arquitetura;
+* principais diretórios.
+
+## 2. Regras gerais
+
+Inclua:
+
+* entender antes de modificar;
+* procurar código existente;
+* reutilizar soluções;
+* evitar duplicação;
+* não fazer alterações fora do escopo;
+* não adicionar dependências sem necessidade;
+* não inventar abstrações;
+* preservar comportamento existente.
+
+## 3. Workflow
+
+Defina:
+
+ANALISAR
+↓
+PLANEJAR
+↓
+IMPLEMENTAR
+↓
+TESTAR
+↓
+REVISAR
+↓
+REPORTAR
+
+Permita simplificação para tarefas triviais.
+
+Exija planejamento antes de alterações complexas.
+
+## 4. Arquitetura
+
+Documente a arquitetura REAL encontrada.
+
+## 5. Convenções
+
+Documente as convenções reais do projeto.
+
+## 6. Testes
+
+Documente:
+
+* ferramentas;
+* localização;
+* comandos;
+* padrões;
+* cobertura, se houver.
+
+## 7. Git
+
+Documente:
+
+* workflow;
+* commits;
+* branches;
+* PRs;
+* arquivos proibidos;
+* regras existentes.
+
+## 8. Segurança
+
+Inclua regras sobre:
+
+* secrets;
+* credenciais;
+* autenticação;
+* autorização;
+* input validation;
+* dados sensíveis;
+* logs;
+* exposição de informações;
+* dependências.
+
+## 9. Performance
+
+Inclua somente regras relevantes para a arquitetura encontrada.
+
+## 10. Definition of Done
+
+Crie uma checklist objetiva.
+
+---
+
+# ETAPA 6 — REGRAS POR DOMÍNIO
+
+Crie regras adicionais SOMENTE quando houver necessidade.
+
+Utilize:
+
+.claude/rules/
+
+Exemplos possíveis:
+
+.claude/rules/frontend.md
+.claude/rules/backend.md
+.claude/rules/database.md
+.claude/rules/authentication.md
+.claude/rules/testing.md
+.claude/rules/infrastructure.md
+.claude/rules/security.md
+
+Não crie todos automaticamente.
+
+Crie somente aqueles que correspondem a domínios reais do projeto.
+
+As regras devem complementar o CLAUDE.md.
+
+Evite duplicação.
+
+---
+
+# ETAPA 7 — PROMPTS REUTILIZÁVEIS
+
+Crie:
+
+.claude/prompts/
+
+Crie prompts úteis para o tipo de projeto encontrado.
+
+Considere:
+
+* feature;
+* bug;
+* refactor;
+* investigation;
+* code review;
+* tests;
+* security review;
+* performance;
+* documentation.
+
+Não crie prompts irrelevantes.
+
+Cada prompt deve:
+
+* respeitar CLAUDE.md;
+* analisar antes de modificar;
+* limitar o escopo;
+* validar alterações;
+* revisar o resultado;
+* reportar problemas.
+
+---
+
+# ETAPA 8 — SEGURANÇA
+
+Crie regras específicas para evitar:
+
+* secrets no código;
+* exposição de credenciais;
+* commits acidentais de `.env`;
+* dados pessoais em logs;
+* bypass de autenticação;
+* bypass de autorização;
+* validação insuficiente;
+* SQL injection;
+* XSS;
+* command injection;
+* path traversal;
+* SSRF;
+* vulnerabilidades específicas da stack encontrada.
+
+IMPORTANTE:
+
+Não force regras de vulnerabilidades que não sejam relevantes para a tecnologia utilizada.
+
+---
+
+# ETAPA 9 — GIT
+
+Analise o Git do projeto.
+
+Descubra:
+
+* branch principal;
+* convenção de commits;
+* branches;
+* hooks;
+* PR templates;
+* arquivos ignorados;
+* workflows.
+
+Documente o que realmente existe.
+
+Se não houver convenção, documente apenas boas práticas gerais sem fingir que são regras existentes.
+
+Estabeleça como regra para Claude:
+
+* não fazer commit sem autorização;
+* não fazer push sem autorização;
+* não alterar histórico sem autorização;
+* revisar `git diff`;
+* revisar `git status`;
+* não incluir secrets;
+* não alterar arquivos não relacionados.
+
+---
+
+# ETAPA 10 — TESTES
+
+Documente a estratégia de testes existente.
+
+Estabeleça:
+
+Para feature:
+
+IMPLEMENTAÇÃO
+→ TESTES
+→ VALIDAÇÃO
+→ REVIEW
+
+Para bug:
+
+REPRODUÇÃO
+→ TESTE DO BUG
+→ CORREÇÃO
+→ TESTE PASSANDO
+→ REVIEW
+
+Não exigir testes inexistentes se o projeto não possuir infraestrutura adequada.
+
+Quando apropriado, sugerir testes sem alterar a infraestrutura automaticamente.
+
+---
+
+# ETAPA 11 — CHECKLIST DE REVIEW
+
+Crie uma checklist adaptada à stack.
+
+Avalie:
+
+## Arquitetura
+
+* respeita arquitetura?
+* duplicou lógica?
+* criou abstração desnecessária?
+* alterou responsabilidades?
+
+## Código
+
+* existe código desnecessário?
+* existe complexidade evitável?
+* existem efeitos colaterais?
+
+## Segurança
+
+* input é validado?
+* autenticação está correta?
+* autorização está correta?
+* existem secrets expostos?
+
+## Performance
+
+* existem operações desnecessárias?
+* queries excessivas?
+* processamento desnecessário?
+* problemas de cache?
+
+## Testes
+
+* comportamento novo está coberto?
+* casos de erro?
+* casos extremos?
+* regressões?
+
+## Git
+
+* somente arquivos necessários foram alterados?
+* existem arquivos sensíveis?
+* existem alterações acidentais?
+
+---
+
+# ETAPA 12 — DEFINITION OF DONE
+
+Defina uma checklist final adaptada ao projeto.
+
+Uma tarefa só deve ser considerada concluída quando:
+
+* objetivo foi implementado;
+* escopo foi respeitado;
+* código segue arquitetura;
+* testes relevantes foram executados;
+* lint foi executado, quando existir;
+* type-check foi executado, quando existir;
+* build foi validado, quando apropriado;
+* diff foi revisado;
+* nenhum secret foi exposto;
+* nenhuma alteração não relacionada foi introduzida.
+
+Se algum item não puder ser executado, informe claramente o motivo.
+
+---
+
+# ETAPA 13 — AUDITORIA
+
+Depois de criar os arquivos:
+
+Faça uma segunda análise.
+
+Verifique:
+
+1. Existem regras duplicadas?
+2. Existem regras conflitantes?
+3. Alguma regra não corresponde ao projeto?
+4. Alguma tecnologia foi presumida incorretamente?
+5. Algum comando foi inventado?
+6. Existem regras genéricas demais?
+7. Existem regras desnecessárias?
+8. Existem lacunas importantes?
+9. O CLAUDE.md está suficientemente curto para ser útil?
+10. As regras por domínio realmente complementam o CLAUDE.md?
+
+Corrija os arquivos de configuração/documentação caso encontre problemas.
+
+NÃO altere o código da aplicação.
+
+---
+
+# ETAPA 14 — VALIDAÇÃO FINAL
+
+Verifique o Git.
+
+Execute somente comandos seguros e não destrutivos.
+
+Confirme:
+
+* arquivos criados;
+* arquivos modificados;
+* arquivos removidos;
+* alterações no código da aplicação.
+
+O objetivo é que:
+
+APLICAÇÃO = sem alterações
+
+DOCUMENTAÇÃO/CONFIGURAÇÃO DO CLAUDE = alterações esperadas
+
+---
+
+# ETAPA 15 — RELATÓRIO FINAL
+
+Apresente:
+
+## Stack detectada
+
+Liste tecnologias e versões quando disponíveis.
+
+## Arquitetura detectada
+
+Resumo da arquitetura.
+
+## Arquivos criados
+
+Liste:
+
+* CLAUDE.md
+* .claude/rules/*
+* .claude/prompts/*
+
+## Comandos detectados
+
+Liste os comandos reais.
+
+## Regras criadas
+
+Resumo das principais regras.
+
+## Testes e qualidade
+
+Liste ferramentas encontradas.
+
+## Git
+
+Resumo do workflow encontrado.
+
+## Arquivos da aplicação alterados
+
+Informe explicitamente.
+
+O resultado esperado é:
+
+"Nenhum"
+
+caso nenhum arquivo da aplicação tenha sido modificado.
+
+## Pontos não identificados
+
+Liste informações que não puderam ser determinadas.
+
+## Recomendações
+
+Liste melhorias futuras que NÃO foram executadas.
+
+---
+
+# REGRA FINAL
+
+Não invente.
+
+Não assuma.
+
+Não altere a aplicação.
+
+Primeiro compreenda o projeto.
+
+Depois documente o projeto.
+
+As regras criadas devem refletir o código REAL existente e não uma arquitetura idealizada.
+
+O objetivo é transformar este repositório em um ambiente no qual futuros trabalhos com Claude sejam:
+
+* previsíveis;
+* seguros;
+* consistentes;
+* fáceis de revisar;
+* alinhados com a arquitetura existente.

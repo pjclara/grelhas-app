@@ -5,8 +5,7 @@ import { grupoAvaliacaoSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
 const INCLUDE = {
-  disciplinas: true,
-  instrumentos: { orderBy: { ordem: 'asc' as const } },
+  instrumentos: { orderBy: { ordem: 'asc' as const }, include: { pesos: true } },
 };
 
 export async function PATCH(req: NextRequest, { params }: { params: { grupoId: string } }) {
@@ -19,24 +18,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { grupoId: s
     });
     if (!existente) throw new NotFoundError('Grupo de avaliação não encontrado');
 
-    if (data.disciplinaIds) {
-      const disciplinas = await prisma.disciplina.findMany({
-        where: { id: { in: data.disciplinaIds }, userId },
-        select: { id: true },
-      });
-      if (disciplinas.length !== data.disciplinaIds.length) {
-        throw new NotFoundError('Uma ou mais disciplinas não foram encontradas');
-      }
-    }
-
     const grupo = await prisma.grupoAvaliacao.update({
       where: { id: params.grupoId },
       data: {
         nome: data.nome,
         ordem: data.ordem,
-        ...(data.disciplinaIds
-          ? { disciplinas: { set: data.disciplinaIds.map((id) => ({ id })) } }
-          : {}),
       },
       include: INCLUDE,
     });

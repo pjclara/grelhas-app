@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import TopNav from '@/components/TopNav';
 import type { Aluno, Instrumento } from '@/lib/types';
 
@@ -64,6 +65,7 @@ export default function InstrumentoPage({
   const [notas, setNotas] = useState<Record<string, NotaValor>>({});
   const [aGuardar, setAGuardar] = useState(false);
   const [guardadoEm, setGuardadoEm] = useState<Date | null>(null);
+  const [erroCarregar, setErroCarregar] = useState<string | null>(null);
 
   const [aDitar, setADitar] = useState(false);
   const [ultimoOuvido, setUltimoOuvido] = useState<string | null>(null);
@@ -81,6 +83,10 @@ export default function InstrumentoPage({
       fetch(`/api/turmas/${params.turmaId}/instrumentos/${params.instrumentoId}`),
       fetch(`/api/turmas/${params.turmaId}/alunos`),
     ]);
+    if (!ri.ok || !ra.ok) {
+      setErroCarregar('Não foi possível carregar o instrumento.');
+      return;
+    }
     const inst = await ri.json();
     const listaAlunos: Aluno[] = (await ra.json()).filter((a: Aluno) => a.ativo);
     setInstrumento(inst);
@@ -317,11 +323,30 @@ export default function InstrumentoPage({
     if (res.ok) setGuardadoEm(new Date());
   }
 
+  if (erroCarregar) {
+    return (
+      <div>
+        <TopNav />
+        <main className="mx-auto max-w-6xl px-6 py-8">
+          <Link
+            href={`/turmas/${params.turmaId}/periodos/${params.periodoId}/instrumentos`}
+            className="mb-2 inline-block text-sm text-brand-600 hover:underline"
+          >
+            ← Voltar aos instrumentos
+          </Link>
+          <p className="text-sm text-red-600">{erroCarregar}</p>
+        </main>
+      </div>
+    );
+  }
+
   if (!instrumento) {
     return (
       <div>
         <TopNav />
-        <p className="p-6 text-sm text-slate-500">A carregar…</p>
+        <main className="mx-auto max-w-6xl px-6 py-8">
+          <p className="text-sm text-slate-500">A carregar…</p>
+        </main>
       </div>
     );
   }
@@ -330,6 +355,12 @@ export default function InstrumentoPage({
     <div>
       <TopNav />
       <main className="mx-auto max-w-6xl px-6 py-8">
+        <Link
+          href={`/turmas/${params.turmaId}/periodos/${params.periodoId}/instrumentos`}
+          className="mb-2 inline-block text-sm text-brand-600 hover:underline"
+        >
+          ← Voltar aos instrumentos
+        </Link>
         <div className="mb-1 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-slate-900">{instrumento.nome}</h1>
           {ditadoSuportado && (
@@ -409,6 +440,7 @@ export default function InstrumentoPage({
                             step="0.5"
                             value={notas[aluno.id]?.[p.id] ?? ''}
                             onChange={(e) => atualizarNota(aluno.id, p.id, e.target.value)}
+                            aria-label={`Nota de ${aluno.nome} na pergunta ${p.codigo}`}
                             className={`w-16 rounded border px-1 py-0.5 text-center text-sm ${
                               ativa ? 'border-brand-500 ring-2 ring-brand-300' : 'border-slate-200'
                             }`}

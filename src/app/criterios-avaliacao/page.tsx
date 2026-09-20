@@ -11,6 +11,16 @@ function pct(v: number) {
   return Math.round(v * 1000) / 10;
 }
 
+interface PesosForm {
+  nome: string;
+  selecionadas: string[];
+  valores: Record<string, string>;
+}
+
+function novoPesosForm(): PesosForm {
+  return { nome: '', selecionadas: [], valores: {} };
+}
+
 export default function CriteriosAvaliacaoPage() {
   const [anos, setAnos] = useState<AnoLetivo[]>([]);
   const [anoLetivoId, setAnoLetivoId] = useState('');
@@ -22,20 +32,18 @@ export default function CriteriosAvaliacaoPage() {
   const [aCarregar, setACarregar] = useState(true);
 
   const [nomeGrupo, setNomeGrupo] = useState('');
-  const [disciplinaIds, setDisciplinaIds] = useState<string[]>([]);
   const [erroGrupo, setErroGrupo] = useState<string | null>(null);
   const [aGravarGrupo, setAGravarGrupo] = useState(false);
 
   const [editandoGrupoId, setEditandoGrupoId] = useState<string | null>(null);
   const [nomeGrupoEdit, setNomeGrupoEdit] = useState('');
-  const [disciplinaIdsEdit, setDisciplinaIdsEdit] = useState<string[]>([]);
   const [erroGrupoEdit, setErroGrupoEdit] = useState<string | null>(null);
 
-  const [novoInstrumento, setNovoInstrumento] = useState<Record<string, { nome: string; peso: string }>>({});
+  const [novoInstrumento, setNovoInstrumento] = useState<Record<string, PesosForm>>({});
   const [erroInstrumento, setErroInstrumento] = useState<Record<string, string>>({});
   const [editandoInstrumentoId, setEditandoInstrumentoId] = useState<string | null>(null);
-  const [nomeInstrumentoEdit, setNomeInstrumentoEdit] = useState('');
-  const [pesoInstrumentoEdit, setPesoInstrumentoEdit] = useState('');
+  const [instrumentoEdit, setInstrumentoEdit] = useState<PesosForm>(novoPesosForm());
+  const [erroInstrumentoEdit, setErroInstrumentoEdit] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -79,10 +87,6 @@ export default function CriteriosAvaliacaoPage() {
     setNovoAno('');
   }
 
-  function toggleDisciplina(id: string, lista: string[], setLista: (v: string[]) => void) {
-    setLista(lista.includes(id) ? lista.filter((d) => d !== id) : [...lista, id]);
-  }
-
   async function adicionarGrupo(e: React.FormEvent) {
     e.preventDefault();
     setErroGrupo(null);
@@ -90,8 +94,8 @@ export default function CriteriosAvaliacaoPage() {
       setErroGrupo('Indique o nome do grupo.');
       return;
     }
-    if (disciplinaIds.length === 0) {
-      setErroGrupo('Selecione pelo menos uma disciplina.');
+    if (grupos.some((g) => g.nome.trim().toLowerCase() === nomeGrupo.trim().toLowerCase())) {
+      setErroGrupo('Já existe um grupo com este nome neste ano letivo.');
       return;
     }
     setAGravarGrupo(true);
@@ -101,7 +105,6 @@ export default function CriteriosAvaliacaoPage() {
       body: JSON.stringify({
         anoLetivoId,
         nome: nomeGrupo.trim(),
-        disciplinaIds,
         ordem: grupos.length,
       }),
     });
@@ -112,30 +115,31 @@ export default function CriteriosAvaliacaoPage() {
       return;
     }
     setNomeGrupo('');
-    setDisciplinaIds([]);
     carregarGrupos(anoLetivoId);
   }
 
   function iniciarEdicaoGrupo(g: GrupoAvaliacao) {
     setEditandoGrupoId(g.id);
     setNomeGrupoEdit(g.nome);
-    setDisciplinaIdsEdit(g.disciplinas.map((d) => d.id));
     setErroGrupoEdit(null);
   }
 
   async function guardarEdicaoGrupo(id: string) {
     setErroGrupoEdit(null);
-    if (!nomeGrupoEdit.trim() || disciplinaIdsEdit.length === 0) {
-      setErroGrupoEdit('Verifique o nome e as disciplinas.');
+    if (!nomeGrupoEdit.trim()) {
+      setErroGrupoEdit('Indique o nome do grupo.');
+      return;
+    }
+    if (
+      grupos.some((g) => g.id !== id && g.nome.trim().toLowerCase() === nomeGrupoEdit.trim().toLowerCase())
+    ) {
+      setErroGrupoEdit('Já existe um grupo com este nome neste ano letivo.');
       return;
     }
     const res = await fetch(`/api/grupos-avaliacao/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nome: nomeGrupoEdit.trim(),
-        disciplinaIds: disciplinaIdsEdit,
-      }),
+      body: JSON.stringify({ nome: nomeGrupoEdit.trim() }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -152,47 +156,112 @@ export default function CriteriosAvaliacaoPage() {
     carregarGrupos(anoLetivoId);
   }
 
+  // Soma, para uma disciplina, os pesos já atribuídos em todos os grupos,
+  // opcionalmente ignorando um instrumento (o que está a ser editado) para
+  // permitir uma pré-visualização em tempo real do total ao alterar o peso.
+  function totalAtribuido(disciplinaId: string, excluirInstrumentoId?: string) {
+    let total = 0;
+    for (const g of grupos) {
+      for (const inst of g.instrumentos) {
+        if (inst.id === excluirInstrumentoId) continue;
+        const p = inst.pesos.find((pp) => pp.disciplinaId === disciplinaId);
+        if (p) total += p.peso;
+      }
+    }
+    return total;
+  }
+
+  function toggleDisciplinaForm(form: PesosForm, disciplinaId: string): PesosForm {
+    const selecionada = form.selecionadas.includes(disciplinaId);
+    return {
+      ...form,
+      selecionadas: selecionada
+        ? form.selecionadas.filter((id) => id !== disciplinaId)
+        : [...form.selecionadas, disciplinaId],
+    };
+  }
+
+  function pesosFormParaPayload(form: PesosForm): { disciplinaId: string; peso: number }[] | null {
+    const pesos: { disciplinaId: string; peso: number }[] = [];
+    for (const disciplinaId of form.selecionadas) {
+      const valor = Number((form.valores[disciplinaId] ?? '').replace(',', '.'));
+      if (Number.isNaN(valor) || valor < 0 || valor > 100) return null;
+      pesos.push({ disciplinaId, peso: valor / 100 });
+    }
+    return pesos;
+  }
+
   async function adicionarInstrumento(grupoId: string) {
-    const dados = novoInstrumento[grupoId] ?? { nome: '', peso: '' };
-    const pesoNum = Number(dados.peso.replace(',', '.'));
-    if (!dados.nome.trim() || !dados.peso || Number.isNaN(pesoNum) || pesoNum < 0 || pesoNum > 100) {
-      setErroInstrumento((prev) => ({ ...prev, [grupoId]: 'Indique nome e peso (0-100).' }));
+    const form = novoInstrumento[grupoId] ?? novoPesosForm();
+    if (!form.nome.trim()) {
+      setErroInstrumento((prev) => ({ ...prev, [grupoId]: 'Indique o nome do instrumento.' }));
+      return;
+    }
+    const grupo = grupos.find((g) => g.id === grupoId);
+    if (grupo?.instrumentos.some((i) => i.nome.trim().toLowerCase() === form.nome.trim().toLowerCase())) {
+      setErroInstrumento((prev) => ({ ...prev, [grupoId]: 'Já existe um instrumento com este nome neste grupo.' }));
+      return;
+    }
+    const pesos = pesosFormParaPayload(form);
+    if (pesos === null) {
+      setErroInstrumento((prev) => ({ ...prev, [grupoId]: 'Indique um peso válido (0-100) para cada disciplina selecionada.' }));
       return;
     }
     setErroInstrumento((prev) => ({ ...prev, [grupoId]: '' }));
-    const grupo = grupos.find((g) => g.id === grupoId);
     const res = await fetch(`/api/grupos-avaliacao/${grupoId}/instrumentos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nome: dados.nome.trim(),
-        peso: pesoNum / 100,
-        ordem: grupo?.instrumentos.length ?? 0,
-      }),
+      body: JSON.stringify({ nome: form.nome.trim(), ordem: grupo?.instrumentos.length ?? 0, pesos }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setErroInstrumento((prev) => ({ ...prev, [grupoId]: body.error ?? 'Nome já usado neste grupo.' }));
+      setErroInstrumento((prev) => ({ ...prev, [grupoId]: body.error ?? 'Não foi possível criar o instrumento.' }));
       return;
     }
-    setNovoInstrumento((prev) => ({ ...prev, [grupoId]: { nome: '', peso: '' } }));
+    setNovoInstrumento((prev) => ({ ...prev, [grupoId]: novoPesosForm() }));
     carregarGrupos(anoLetivoId);
   }
 
-  function iniciarEdicaoInstrumento(instId: string, nome: string, peso: number) {
-    setEditandoInstrumentoId(instId);
-    setNomeInstrumentoEdit(nome);
-    setPesoInstrumentoEdit(String(pct(peso)));
+  function iniciarEdicaoInstrumento(inst: GrupoAvaliacao['instrumentos'][number]) {
+    setEditandoInstrumentoId(inst.id);
+    setInstrumentoEdit({
+      nome: inst.nome,
+      selecionadas: inst.pesos.map((p) => p.disciplinaId),
+      valores: Object.fromEntries(inst.pesos.map((p) => [p.disciplinaId, String(pct(p.peso))])),
+    });
+    setErroInstrumentoEdit(null);
   }
 
   async function guardarEdicaoInstrumento(grupoId: string, instId: string) {
-    const pesoNum = Number(pesoInstrumentoEdit.replace(',', '.'));
-    if (!nomeInstrumentoEdit.trim() || Number.isNaN(pesoNum) || pesoNum < 0 || pesoNum > 100) return;
-    await fetch(`/api/grupos-avaliacao/${grupoId}/instrumentos/${instId}`, {
+    setErroInstrumentoEdit(null);
+    if (!instrumentoEdit.nome.trim()) {
+      setErroInstrumentoEdit('Indique o nome do instrumento.');
+      return;
+    }
+    const grupo = grupos.find((g) => g.id === grupoId);
+    if (
+      grupo?.instrumentos.some(
+        (i) => i.id !== instId && i.nome.trim().toLowerCase() === instrumentoEdit.nome.trim().toLowerCase()
+      )
+    ) {
+      setErroInstrumentoEdit('Já existe um instrumento com este nome neste grupo.');
+      return;
+    }
+    const pesos = pesosFormParaPayload(instrumentoEdit);
+    if (pesos === null) {
+      setErroInstrumentoEdit('Indique um peso válido (0-100) para cada disciplina selecionada.');
+      return;
+    }
+    const res = await fetch(`/api/grupos-avaliacao/${grupoId}/instrumentos/${instId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome: nomeInstrumentoEdit.trim(), peso: pesoNum / 100 }),
+      body: JSON.stringify({ nome: instrumentoEdit.nome.trim(), pesos }),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setErroInstrumentoEdit(body.error ?? 'Não foi possível guardar.');
+      return;
+    }
     setEditandoInstrumentoId(null);
     carregarGrupos(anoLetivoId);
   }
@@ -203,17 +272,73 @@ export default function CriteriosAvaliacaoPage() {
     carregarGrupos(anoLetivoId);
   }
 
-  // O peso é definido ao nível do instrumento; os grupos são apenas categorias.
-  // Uma disciplina pode aparecer em vários grupos, por isso o total de 100% tem
-  // de ser verificado somando os instrumentos de todos os grupos que a incluem.
+  function nomeDisciplina(id: string) {
+    return disciplinasAll.find((d) => d.id === id)?.nome ?? '—';
+  }
+
   const totalPorDisciplina = new Map<string, number>();
   for (const g of grupos) {
-    const somaInstrumentosGrupo = g.instrumentos.reduce((s, i) => s + i.peso, 0);
-    for (const d of g.disciplinas) {
-      totalPorDisciplina.set(d.id, (totalPorDisciplina.get(d.id) ?? 0) + somaInstrumentosGrupo);
+    for (const inst of g.instrumentos) {
+      for (const p of inst.pesos) {
+        totalPorDisciplina.set(p.disciplinaId, (totalPorDisciplina.get(p.disciplinaId) ?? 0) + p.peso);
+      }
     }
   }
   const disciplinasComGrupos = disciplinasAll.filter((d) => totalPorDisciplina.has(d.id));
+
+  function SeletorPesos({
+    form,
+    onChange,
+    excluirInstrumentoId,
+  }: {
+    form: PesosForm;
+    onChange: (form: PesosForm) => void;
+    excluirInstrumentoId?: string;
+  }) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        {disciplinasAll.map((d) => {
+          const marcada = form.selecionadas.includes(d.id);
+          const jaAtribuido = totalAtribuido(d.id, excluirInstrumentoId);
+          const valor = form.valores[d.id] ?? '';
+          const valorNum = Number(valor.replace(',', '.'));
+          const previsto = jaAtribuido + (marcada && !Number.isNaN(valorNum) ? valorNum / 100 : 0);
+          return (
+            <div key={d.id} className="flex items-center gap-2 text-sm">
+              <label className="flex w-40 shrink-0 items-center gap-1.5 text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={marcada}
+                  onChange={() => onChange(toggleDisciplinaForm(form, d.id))}
+                />
+                {d.nome}
+              </label>
+              {marcada && (
+                <>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    placeholder="%"
+                    value={valor}
+                    onChange={(e) =>
+                      onChange({ ...form, valores: { ...form.valores, [d.id]: e.target.value } })
+                    }
+                    className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                  />
+                  <span className="text-xs text-slate-400">%</span>
+                  <span className={pct(previsto) === 100 ? 'text-xs text-emerald-600' : 'text-xs text-amber-600'}>
+                    total nesta disciplina: {pct(previsto)}%
+                  </span>
+                </>
+              )}
+            </div>
+          );
+        })}
+        {disciplinasAll.length === 0 && <span className="text-sm text-slate-400">Crie disciplinas primeiro.</span>}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -266,52 +391,31 @@ export default function CriteriosAvaliacaoPage() {
               <>
                 <form
                   onSubmit={adicionarGrupo}
-                  className="mb-6 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4"
+                  className="mb-6 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4"
                 >
-                  <h2 className="text-sm font-semibold text-slate-800">Novo grupo</h2>
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div className="flex-1">
-                      <label className="mb-1 block text-xs font-medium text-slate-700">Nome do grupo</label>
-                      <input
-                        placeholder="ex: Atitudes"
-                        value={nomeGrupo}
-                        onChange={(e) => setNomeGrupo(e.target.value)}
-                        list="grupos-sugeridos"
-                        className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                      />
-                      <datalist id="grupos-sugeridos">
-                        {GRUPOS_SUGERIDOS.map((g) => (
-                          <option key={g} value={g} />
-                        ))}
-                      </datalist>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={aGravarGrupo}
-                      className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-                    >
-                      {aGravarGrupo ? 'A criar…' : 'Adicionar grupo'}
-                    </button>
-                  </div>
-                  <div>
-                    <span className="mb-1 block text-xs font-medium text-slate-700">Disciplinas</span>
-                    <div className="flex flex-wrap gap-3">
-                      {disciplinasAll.map((d) => (
-                        <label key={d.id} className="flex items-center gap-1 text-sm text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={disciplinaIds.includes(d.id)}
-                            onChange={() => toggleDisciplina(d.id, disciplinaIds, setDisciplinaIds)}
-                          />
-                          {d.nome}
-                        </label>
+                  <div className="flex-1">
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Novo grupo</label>
+                    <input
+                      placeholder="ex: Atitudes"
+                      value={nomeGrupo}
+                      onChange={(e) => setNomeGrupo(e.target.value)}
+                      list="grupos-sugeridos"
+                      className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                    />
+                    <datalist id="grupos-sugeridos">
+                      {GRUPOS_SUGERIDOS.map((g) => (
+                        <option key={g} value={g} />
                       ))}
-                      {disciplinasAll.length === 0 && (
-                        <span className="text-sm text-slate-400">Crie disciplinas primeiro.</span>
-                      )}
-                    </div>
+                    </datalist>
                   </div>
-                  {erroGrupo && <p className="text-sm text-red-600">{erroGrupo}</p>}
+                  <button
+                    type="submit"
+                    disabled={aGravarGrupo || !nomeGrupo.trim()}
+                    className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+                  >
+                    {aGravarGrupo ? 'A criar…' : 'Adicionar grupo'}
+                  </button>
+                  {erroGrupo && <p className="w-full text-sm text-red-600">{erroGrupo}</p>}
                 </form>
 
                 {disciplinasComGrupos.length > 0 && (
@@ -343,7 +447,7 @@ export default function CriteriosAvaliacaoPage() {
                 ) : (
                   <div className="flex flex-col gap-4">
                     {grupos.map((g) => {
-                      const dadosNovoInst = novoInstrumento[g.id] ?? { nome: '', peso: '' };
+                      const formNovoInst = novoInstrumento[g.id] ?? novoPesosForm();
                       return (
                         <div key={g.id} className="rounded-lg border border-slate-200 bg-white p-4">
                           {editandoGrupoId === g.id ? (
@@ -367,28 +471,11 @@ export default function CriteriosAvaliacaoPage() {
                                   Cancelar
                                 </button>
                               </div>
-                              <div className="flex flex-wrap gap-3">
-                                {disciplinasAll.map((d) => (
-                                  <label key={d.id} className="flex items-center gap-1 text-sm text-slate-700">
-                                    <input
-                                      type="checkbox"
-                                      checked={disciplinaIdsEdit.includes(d.id)}
-                                      onChange={() => toggleDisciplina(d.id, disciplinaIdsEdit, setDisciplinaIdsEdit)}
-                                    />
-                                    {d.nome}
-                                  </label>
-                                ))}
-                              </div>
                               {erroGrupoEdit && <p className="text-sm text-red-600">{erroGrupoEdit}</p>}
                             </div>
                           ) : (
                             <div className="mb-3 flex items-start justify-between">
-                              <div>
-                                <h3 className="text-base font-semibold text-slate-900">{g.nome}</h3>
-                                <p className="text-xs text-slate-500">
-                                  {g.disciplinas.map((d) => d.nome).join(', ') || 'Sem disciplinas'}
-                                </p>
-                              </div>
+                              <h3 className="text-base font-semibold text-slate-900">{g.nome}</h3>
                               <div className="flex gap-3">
                                 <button
                                   onClick={() => iniciarEdicaoGrupo(g)}
@@ -410,31 +497,32 @@ export default function CriteriosAvaliacaoPage() {
                             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                               <tr>
                                 <th className="px-3 py-1.5">Instrumento</th>
-                                <th className="px-3 py-1.5">Peso</th>
+                                <th className="px-3 py-1.5">Disciplinas e pesos</th>
                                 <th className="px-3 py-1.5" />
                               </tr>
                             </thead>
                             <tbody>
                               {g.instrumentos.map((inst) =>
                                 editandoInstrumentoId === inst.id ? (
-                                  <tr key={inst.id} className="border-t border-slate-100 bg-slate-50">
+                                  <tr key={inst.id} className="border-t border-slate-100 bg-slate-50 align-top">
                                     <td className="px-3 py-1.5">
                                       <input
-                                        value={nomeInstrumentoEdit}
-                                        onChange={(e) => setNomeInstrumentoEdit(e.target.value)}
+                                        value={instrumentoEdit.nome}
+                                        onChange={(e) =>
+                                          setInstrumentoEdit((prev) => ({ ...prev, nome: e.target.value }))
+                                        }
                                         className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
                                       />
                                     </td>
                                     <td className="px-3 py-1.5">
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        max={100}
-                                        value={pesoInstrumentoEdit}
-                                        onChange={(e) => setPesoInstrumentoEdit(e.target.value)}
-                                        className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                                      <SeletorPesos
+                                        form={instrumentoEdit}
+                                        onChange={setInstrumentoEdit}
+                                        excluirInstrumentoId={inst.id}
                                       />
-                                      %
+                                      {erroInstrumentoEdit && (
+                                        <p className="mt-1 text-xs text-red-600">{erroInstrumentoEdit}</p>
+                                      )}
                                     </td>
                                     <td className="px-3 py-1.5 text-right">
                                       <div className="flex justify-end gap-3">
@@ -454,13 +542,28 @@ export default function CriteriosAvaliacaoPage() {
                                     </td>
                                   </tr>
                                 ) : (
-                                  <tr key={inst.id} className="border-t border-slate-100">
+                                  <tr key={inst.id} className="border-t border-slate-100 align-top">
                                     <td className="px-3 py-1.5 text-slate-800">{inst.nome}</td>
-                                    <td className="px-3 py-1.5 text-slate-500">{pct(inst.peso)}%</td>
+                                    <td className="px-3 py-1.5">
+                                      {inst.pesos.length === 0 ? (
+                                        <span className="text-xs text-slate-400">Sem disciplinas associadas</span>
+                                      ) : (
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {inst.pesos.map((p) => (
+                                            <span
+                                              key={p.disciplinaId}
+                                              className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+                                            >
+                                              {nomeDisciplina(p.disciplinaId)}: {pct(p.peso)}%
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </td>
                                     <td className="px-3 py-1.5 text-right">
                                       <div className="flex justify-end gap-3">
                                         <button
-                                          onClick={() => iniciarEdicaoInstrumento(inst.id, inst.nome, inst.peso)}
+                                          onClick={() => iniciarEdicaoInstrumento(inst)}
                                           className="text-brand-600 hover:underline"
                                         >
                                           Editar
@@ -476,34 +579,24 @@ export default function CriteriosAvaliacaoPage() {
                                   </tr>
                                 )
                               )}
-                              <tr className="border-t border-slate-100">
+                              <tr className="border-t border-slate-100 align-top">
                                 <td className="px-3 py-1.5">
                                   <input
                                     placeholder="Nome do instrumento"
-                                    value={dadosNovoInst.nome}
+                                    value={formNovoInst.nome}
                                     onChange={(e) =>
                                       setNovoInstrumento((prev) => ({
                                         ...prev,
-                                        [g.id]: { ...dadosNovoInst, nome: e.target.value },
+                                        [g.id]: { ...formNovoInst, nome: e.target.value },
                                       }))
                                     }
                                     className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
                                   />
                                 </td>
                                 <td className="px-3 py-1.5">
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    placeholder="%"
-                                    value={dadosNovoInst.peso}
-                                    onChange={(e) =>
-                                      setNovoInstrumento((prev) => ({
-                                        ...prev,
-                                        [g.id]: { ...dadosNovoInst, peso: e.target.value },
-                                      }))
-                                    }
-                                    className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                                  <SeletorPesos
+                                    form={formNovoInst}
+                                    onChange={(form) => setNovoInstrumento((prev) => ({ ...prev, [g.id]: form }))}
                                   />
                                 </td>
                                 <td className="px-3 py-1.5 text-right">

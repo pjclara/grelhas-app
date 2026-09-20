@@ -8,6 +8,7 @@ import { NIVEIS_ENSINO, type Disciplina } from '@/lib/types';
 export default function DisciplinasPage() {
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);
   const [aCarregar, setACarregar] = useState(true);
+  const [erroCarregar, setErroCarregar] = useState<string | null>(null);
 
   const [nome, setNome] = useState('');
   const [ciclo, setCiclo] = useState('');
@@ -22,6 +23,12 @@ export default function DisciplinasPage() {
   async function carregar() {
     setACarregar(true);
     const r = await fetch('/api/disciplinas?comContagem=1');
+    if (!r.ok) {
+      setErroCarregar('Não foi possível carregar as disciplinas.');
+      setACarregar(false);
+      return;
+    }
+    setErroCarregar(null);
     setDisciplinas(await r.json());
     setACarregar(false);
   }
@@ -144,7 +151,9 @@ export default function DisciplinasPage() {
               {erro && <p className="w-full text-sm text-red-600">{erro}</p>}
             </form>
 
-            {aCarregar ? (
+            {erroCarregar ? (
+              <p className="text-sm text-red-600">{erroCarregar}</p>
+            ) : aCarregar ? (
               <p className="text-sm text-slate-500">A carregar…</p>
             ) : (
               <table className="w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-sm">

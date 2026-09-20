@@ -7,18 +7,39 @@ import type { TurmaDetalhe } from '@/lib/types';
 
 export default function TurmaPage({ params }: { params: { turmaId: string } }) {
   const [turma, setTurma] = useState<TurmaDetalhe | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/turmas/${params.turmaId}`)
-      .then((r) => r.json())
-      .then(setTurma);
+    fetch(`/api/turmas/${params.turmaId}`).then((r) => {
+      if (!r.ok) {
+        setErro(r.status === 404 ? 'Turma não encontrada.' : 'Não foi possível carregar a turma.');
+        return;
+      }
+      r.json().then(setTurma);
+    });
   }, [params.turmaId]);
+
+  if (erro) {
+    return (
+      <div>
+        <TopNav />
+        <main className="mx-auto max-w-5xl px-6 py-8">
+          <Link href="/dashboard" className="mb-2 inline-block text-sm text-brand-600 hover:underline">
+            ← As minhas turmas
+          </Link>
+          <p className="text-sm text-red-600">{erro}</p>
+        </main>
+      </div>
+    );
+  }
 
   if (!turma) {
     return (
       <div>
         <TopNav />
-        <p className="p-6 text-sm text-slate-500">A carregar…</p>
+        <main className="mx-auto max-w-5xl px-6 py-8">
+          <p className="text-sm text-slate-500">A carregar…</p>
+        </main>
       </div>
     );
   }
@@ -27,6 +48,9 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
     <div>
       <TopNav />
       <main className="mx-auto max-w-5xl px-6 py-8">
+        <Link href="/dashboard" className="mb-2 inline-block text-sm text-brand-600 hover:underline">
+          ← As minhas turmas
+        </Link>
         <p className="text-sm text-slate-500">
           {turma.disciplina.nome} · {turma.anoLetivo.nome}
         </p>

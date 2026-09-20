@@ -5,8 +5,7 @@ import { grupoAvaliacaoSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
 const INCLUDE = {
-  disciplinas: true,
-  instrumentos: { orderBy: { ordem: 'asc' as const } },
+  instrumentos: { orderBy: { ordem: 'asc' as const }, include: { pesos: true } },
 };
 
 export async function GET(req: NextRequest) {
@@ -37,21 +36,12 @@ export async function POST(req: NextRequest) {
     });
     if (!anoLetivo) throw new NotFoundError('Ano letivo não encontrado');
 
-    const disciplinas = await prisma.disciplina.findMany({
-      where: { id: { in: data.disciplinaIds }, userId },
-      select: { id: true },
-    });
-    if (disciplinas.length !== data.disciplinaIds.length) {
-      throw new NotFoundError('Uma ou mais disciplinas não foram encontradas');
-    }
-
     const grupo = await prisma.grupoAvaliacao.create({
       data: {
         userId,
         anoLetivoId: data.anoLetivoId,
         nome: data.nome,
         ordem: data.ordem ?? 0,
-        disciplinas: { connect: data.disciplinaIds.map((id) => ({ id })) },
       },
       include: INCLUDE,
     });

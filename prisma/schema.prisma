@@ -36,9 +36,9 @@ model Disciplina {
   nome   String
   ciclo  String? // ex: "2.º ciclo", "3.º ciclo", "Secundário"
 
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  turmas          Turma[]
-  gruposAvaliacao GrupoAvaliacao[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turmas           Turma[]
+  instrumentoPesos InstrumentoPeso[]
 
   @@unique([userId, nome])
 }
@@ -66,7 +66,6 @@ model GrupoAvaliacao {
 
   user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   anoLetivo    AnoLetivo              @relation(fields: [anoLetivoId], references: [id], onDelete: Cascade)
-  disciplinas  Disciplina[]
   instrumentos InstrumentoAvaliacao[]
 
   @@unique([userId, anoLetivoId, nome])
@@ -76,12 +75,26 @@ model InstrumentoAvaliacao {
   id      String @id @default(cuid())
   grupoId String
   nome    String // ex: "Testes", "Trabalhos de grupo"
-  peso    Float // peso relativo do instrumento dentro do grupo (0 a 1)
   ordem   Int    @default(0)
 
-  grupo GrupoAvaliacao @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  grupo GrupoAvaliacao    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  pesos InstrumentoPeso[]
 
   @@unique([grupoId, nome])
+}
+
+// Peso do instrumento numa disciplina concreta — o mesmo instrumento pode
+// estar ativo em várias disciplinas, cada uma com o seu próprio peso.
+model InstrumentoPeso {
+  id            String @id @default(cuid())
+  instrumentoId String
+  disciplinaId  String
+  peso          Float // 0 a 1
+
+  instrumento InstrumentoAvaliacao @relation(fields: [instrumentoId], references: [id], onDelete: Cascade)
+  disciplina  Disciplina           @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+
+  @@unique([instrumentoId, disciplinaId])
 }
 
 model Turma {

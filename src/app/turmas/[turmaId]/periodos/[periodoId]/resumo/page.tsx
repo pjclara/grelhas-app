@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import TopNav from '@/components/TopNav';
 import type { ResumoPeriodoDTO } from '@/lib/types';
 
@@ -10,18 +11,42 @@ export default function ResumoPage({
   params: { turmaId: string; periodoId: string };
 }) {
   const [resumo, setResumo] = useState<ResumoPeriodoDTO | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/turmas/${params.turmaId}/periodos/${params.periodoId}/resumo`)
-      .then((r) => r.json())
-      .then(setResumo);
+    fetch(`/api/turmas/${params.turmaId}/periodos/${params.periodoId}/resumo`).then((r) => {
+      if (!r.ok) {
+        setErro('Não foi possível carregar o resumo.');
+        return;
+      }
+      r.json().then(setResumo);
+    });
   }, [params.turmaId, params.periodoId]);
+
+  if (erro) {
+    return (
+      <div>
+        <TopNav />
+        <main className="mx-auto max-w-6xl px-6 py-8">
+          <Link
+            href={`/turmas/${params.turmaId}`}
+            className="mb-2 inline-block text-sm text-brand-600 hover:underline"
+          >
+            ← Voltar à turma
+          </Link>
+          <p className="text-sm text-red-600">{erro}</p>
+        </main>
+      </div>
+    );
+  }
 
   if (!resumo) {
     return (
       <div>
         <TopNav />
-        <p className="p-6 text-sm text-slate-500">A carregar…</p>
+        <main className="mx-auto max-w-6xl px-6 py-8">
+          <p className="text-sm text-slate-500">A carregar…</p>
+        </main>
       </div>
     );
   }
@@ -39,6 +64,12 @@ export default function ResumoPage({
     <div>
       <TopNav />
       <main className="mx-auto max-w-6xl px-6 py-8">
+        <Link
+          href={`/turmas/${params.turmaId}`}
+          className="mb-2 inline-block text-sm text-brand-600 hover:underline"
+        >
+          ← Voltar à turma
+        </Link>
         <p className="text-sm text-slate-500">
           {resumo.turma.disciplina} · {resumo.turma.anoLetivo} · {resumo.turma.nome}
         </p>

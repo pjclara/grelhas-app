@@ -33,14 +33,85 @@ model User {
 // (ver requireAdminId em src/lib/auth.ts); qualquer professor pode
 // associá-las às suas turmas.
 model Disciplina {
-  id    String  @id @default(cuid())
-  nome  String
-  ciclo String? // ex: "2.º ciclo", "3.º ciclo", "Secundário"
+  id                 String   @id @default(cuid())
+  nome               String
+  grupoDisciplinarId String? // nullable: disciplinas antigas podem não ter grupo atribuído
+  ativo              Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
+  grupoDisciplinar GrupoDisciplinar?           @relation(fields: [grupoDisciplinarId], references: [id])
+  ciclos           DisciplinaCiclo[]
+  anosEscolaridade DisciplinaAnoEscolaridade[]
   turmaDisciplinas TurmaDisciplina[]
   instrumentoPesos InstrumentoPeso[]
 
   @@unique([nome])
+}
+
+// Catálogo global de grupos disciplinares (ex.: Línguas, Matemática e
+// Ciências). Só ADMIN pode criar (mesmo padrão de Disciplina).
+model GrupoDisciplinar {
+  id        String   @id @default(cuid())
+  nome      String
+  descricao String?
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  disciplinas Disciplina[]
+
+  @@unique([nome])
+}
+
+// Catálogo global de ciclos de ensino (ex.: 2.º ciclo, 3.º ciclo, Secundário).
+model Ciclo {
+  id        String   @id @default(cuid())
+  nome      String
+  descricao String?
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  disciplinas DisciplinaCiclo[]
+
+  @@unique([nome])
+}
+
+// Catálogo global de anos de escolaridade (ex.: 7.º ano .. 12.º ano).
+model AnoEscolaridade {
+  id        String   @id @default(cuid())
+  nome      String
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  disciplinas DisciplinaAnoEscolaridade[]
+
+  @@unique([nome])
+}
+
+model DisciplinaCiclo {
+  id           String @id @default(cuid())
+  disciplinaId String
+  cicloId      String
+
+  disciplina Disciplina @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  ciclo      Ciclo      @relation(fields: [cicloId], references: [id], onDelete: Cascade)
+
+  @@unique([disciplinaId, cicloId])
+}
+
+model DisciplinaAnoEscolaridade {
+  id                String @id @default(cuid())
+  disciplinaId      String
+  anoEscolaridadeId String
+
+  disciplina      Disciplina      @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  anoEscolaridade AnoEscolaridade @relation(fields: [anoEscolaridadeId], references: [id], onDelete: Cascade)
+
+  @@unique([disciplinaId, anoEscolaridadeId])
 }
 
 // Catálogo global de anos letivos, partilhado por todos os utilizadores.

@@ -9,7 +9,25 @@ export const registerSchema = z.object({
 
 export const disciplinaSchema = z.object({
   nome: z.string().min(2),
-  ciclo: z.enum(NIVEIS_ENSINO).optional().nullable(),
+  grupoDisciplinarId: z.string().min(1),
+  cicloIds: z.array(z.string()).min(1),
+  anoEscolaridadeIds: z.array(z.string()).min(1),
+  ativo: z.boolean().optional(),
+});
+
+export const grupoDisciplinarSchema = z.object({
+  nome: z.string().min(2),
+  descricao: z.string().optional().nullable(),
+});
+
+export const cicloSchema = z.object({
+  nome: z.string().min(2),
+  descricao: z.string().optional().nullable(),
+});
+
+export const anoEscolaridadeSchema = z.object({
+  nome: z.string().min(2),
+  ordem: z.number().int().optional(),
 });
 
 export const anoLetivoSchema = z.object({

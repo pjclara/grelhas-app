@@ -18,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: { turmaId: st
           include: { aluno: { include: { medidas: { include: { medida: true } } } } },
         },
         periodos: { orderBy: { ordem: 'asc' } },
-        disciplinas: { include: { disciplina: true } },
+        disciplinas: { include: { disciplina: { include: { ciclos: { include: { ciclo: true } } } } } },
       },
     });
     if (!turma) return NextResponse.json(turma);

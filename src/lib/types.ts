@@ -12,10 +12,45 @@ export function anoLetivoAtual(hoje: Date = new Date()): string {
   return mes >= 9 ? `${ano}/${ano + 1}` : `${ano - 1}/${ano}`;
 }
 
+export interface GrupoDisciplinar {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  ativo: boolean;
+}
+
+export interface Ciclo {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  ativo: boolean;
+}
+
+export interface AnoEscolaridade {
+  id: string;
+  nome: string;
+  ordem: number;
+  ativo: boolean;
+}
+
+export interface DisciplinaCiclo {
+  id: string;
+  ciclo: Ciclo;
+}
+
+export interface DisciplinaAnoEscolaridade {
+  id: string;
+  anoEscolaridade: AnoEscolaridade;
+}
+
 export interface Disciplina {
   id: string;
   nome: string;
-  ciclo: string | null;
+  ativo: boolean;
+  grupoDisciplinarId: string | null;
+  grupoDisciplinar: GrupoDisciplinar | null;
+  ciclos: DisciplinaCiclo[];
+  anosEscolaridade: DisciplinaAnoEscolaridade[];
   _count?: { turmaDisciplinas: number };
 }
 

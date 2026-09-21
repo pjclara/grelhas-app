@@ -4,22 +4,43 @@ import { requireAdminId } from '@/lib/auth';
 import { disciplinaSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
+const INCLUDE = {
+  grupoDisciplinar: true,
+  ciclos: { include: { ciclo: true as const } },
+  anosEscolaridade: { include: { anoEscolaridade: true as const } },
+};
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { disciplinaId: string } }
 ) {
   try {
     await requireAdminId();
-    const data = disciplinaSchema.partial().parse(await req.json());
+    const { cicloIds, anoEscolaridadeIds, ...data } = disciplinaSchema.partial().parse(await req.json());
 
     const existente = await prisma.disciplina.findFirst({
       where: { id: params.disciplinaId },
     });
     if (!existente) throw new NotFoundError('Disciplina não encontrada');
 
-    const disciplina = await prisma.disciplina.update({
-      where: { id: params.disciplinaId },
-      data,
+    const disciplina = await prisma.$transaction(async (tx) => {
+      if (cicloIds) {
+        await tx.disciplinaCiclo.deleteMany({ where: { disciplinaId: params.disciplinaId } });
+      }
+      if (anoEscolaridadeIds) {
+        await tx.disciplinaAnoEscolaridade.deleteMany({ where: { disciplinaId: params.disciplinaId } });
+      }
+      return tx.disciplina.update({
+        where: { id: params.disciplinaId },
+        data: {
+          ...data,
+          ...(cicloIds ? { ciclos: { create: cicloIds.map((cicloId) => ({ cicloId })) } } : {}),
+          ...(anoEscolaridadeIds
+            ? { anosEscolaridade: { create: anoEscolaridadeIds.map((anoEscolaridadeId) => ({ anoEscolaridadeId })) } }
+            : {}),
+        },
+        include: INCLUDE,
+      });
     });
     return NextResponse.json(disciplina);
   } catch (error) {

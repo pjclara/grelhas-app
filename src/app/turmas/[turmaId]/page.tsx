@@ -182,7 +182,9 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-1 text-xs text-slate-400">{td.disciplina.ciclo ?? '—'}</p>
+            <p className="mt-1 text-xs text-slate-400">
+              {td.disciplina.ciclos.length > 0 ? td.disciplina.ciclos.map((dc) => dc.ciclo.nome).join(', ') : '—'}
+            </p>
           </div>
         ))}
         {turma.disciplinas.length === 0 && (

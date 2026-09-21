@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireUserId } from '@/lib/auth';
+import { requireAdminId } from '@/lib/auth';
 import { instrumentoAvaliacaoSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
-async function assertOwnership(grupoId: string, instrumentoId: string, userId: string) {
+async function assertExists(grupoId: string, instrumentoId: string) {
   const instrumento = await prisma.instrumentoAvaliacao.findFirst({
-    where: { id: instrumentoId, grupoId, grupo: { userId } },
+    where: { id: instrumentoId, grupoId },
   });
   if (!instrumento) throw new NotFoundError('Instrumento não encontrado');
   return instrumento;
@@ -17,13 +17,13 @@ export async function PATCH(
   { params }: { params: { grupoId: string; instrumentoId: string } }
 ) {
   try {
-    const userId = await requireUserId();
-    await assertOwnership(params.grupoId, params.instrumentoId, userId);
+    await requireAdminId();
+    await assertExists(params.grupoId, params.instrumentoId);
     const data = instrumentoAvaliacaoSchema.partial().parse(await req.json());
 
     if (data.pesos) {
       const disciplinas = await prisma.disciplina.findMany({
-        where: { id: { in: data.pesos.map((p) => p.disciplinaId) }, userId },
+        where: { id: { in: data.pesos.map((p) => p.disciplinaId) } },
         select: { id: true },
       });
       if (disciplinas.length !== data.pesos.length) {
@@ -56,8 +56,8 @@ export async function DELETE(
   { params }: { params: { grupoId: string; instrumentoId: string } }
 ) {
   try {
-    const userId = await requireUserId();
-    await assertOwnership(params.grupoId, params.instrumentoId, userId);
+    await requireAdminId();
+    await assertExists(params.grupoId, params.instrumentoId);
     await prisma.instrumentoAvaliacao.delete({ where: { id: params.instrumentoId } });
     return NextResponse.json({ ok: true });
   } catch (error) {

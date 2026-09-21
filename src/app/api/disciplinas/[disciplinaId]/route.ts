@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireUserId } from '@/lib/auth';
+import { requireAdminId } from '@/lib/auth';
 import { disciplinaSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
@@ -9,11 +9,11 @@ export async function PATCH(
   { params }: { params: { disciplinaId: string } }
 ) {
   try {
-    const userId = await requireUserId();
+    await requireAdminId();
     const data = disciplinaSchema.partial().parse(await req.json());
 
     const existente = await prisma.disciplina.findFirst({
-      where: { id: params.disciplinaId, userId },
+      where: { id: params.disciplinaId },
     });
     if (!existente) throw new NotFoundError('Disciplina não encontrada');
 
@@ -32,9 +32,9 @@ export async function DELETE(
   { params }: { params: { disciplinaId: string } }
 ) {
   try {
-    const userId = await requireUserId();
+    await requireAdminId();
     const existente = await prisma.disciplina.findFirst({
-      where: { id: params.disciplinaId, userId },
+      where: { id: params.disciplinaId },
     });
     if (!existente) throw new NotFoundError('Disciplina não encontrada');
 

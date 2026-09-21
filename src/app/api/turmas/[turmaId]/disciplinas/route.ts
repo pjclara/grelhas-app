@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: { turmaId: st
 }
 
 /**
- * Associa uma disciplina (do catálogo do professor) a esta turma, já com os
+ * Associa uma disciplina (do catálogo global) a esta turma, já com os
  * critérios de avaliação "padrão" (réplica dos pesos da grelha original).
  * A mesma disciplina não pode ser associada duas vezes à mesma turma
  * (garantido por @@unique([turmaId, disciplinaId]) no schema — um pedido
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest, { params }: { params: { turmaId: st
     const data = turmaDisciplinaSchema.parse(await req.json());
 
     const disciplina = await prisma.disciplina.findFirst({
-      where: { id: data.disciplinaId, userId },
+      where: { id: data.disciplinaId },
     });
     if (!disciplina) throw new NotFoundError('Disciplina não encontrada');
 

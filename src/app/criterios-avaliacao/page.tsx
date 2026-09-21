@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Card } from '@/components/ui/Card';
@@ -29,6 +30,9 @@ function novoPesosForm(): PesosForm {
 }
 
 export default function CriteriosAvaliacaoPage() {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'ADMIN';
+
   const [anos, setAnos] = useState<AnoLetivo[]>([]);
   const [anoLetivoId, setAnoLetivoId] = useState('');
   const [novoAno, setNovoAno] = useState('');
@@ -350,7 +354,13 @@ export default function CriteriosAvaliacaoPage() {
 
   return (
     <AppShell>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-slate-900">Critérios de Avaliação</h1>
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Critérios de Avaliação</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Catálogo global de critérios, partilhado por todos os professores.
+          {!isAdmin && ' Apenas administradores podem criar, editar ou remover critérios.'}
+        </p>
+      </div>
 
       <Card className="mb-6 flex flex-wrap items-end gap-3 p-4">
         <div>
@@ -364,15 +374,17 @@ export default function CriteriosAvaliacaoPage() {
             ))}
           </Select>
         </div>
-        <form onSubmit={criarAnoLetivo} className="flex items-end gap-2">
-          <div>
-            <Label htmlFor="novo-ano">Novo ano letivo</Label>
-            <Input id="novo-ano" placeholder="ex: 2026/2027" value={novoAno} onChange={(e) => setNovoAno(e.target.value)} />
-          </div>
-          <Button type="submit" variant="secondary" loading={aCriarAno}>
-            Criar
-          </Button>
-        </form>
+        {isAdmin && (
+          <form onSubmit={criarAnoLetivo} className="flex items-end gap-2">
+            <div>
+              <Label htmlFor="novo-ano">Novo ano letivo</Label>
+              <Input id="novo-ano" placeholder="ex: 2026/2027" value={novoAno} onChange={(e) => setNovoAno(e.target.value)} />
+            </div>
+            <Button type="submit" variant="secondary" loading={aCriarAno}>
+              Criar
+            </Button>
+          </form>
+        )}
       </Card>
 
       {!anoLetivoId ? (
@@ -383,32 +395,34 @@ export default function CriteriosAvaliacaoPage() {
         </Card>
       ) : (
         <>
-          <Card as="form" onSubmit={adicionarGrupo} className="mb-6 flex flex-wrap items-end gap-3 p-4">
-            <div className="min-w-[220px] flex-1">
-              <Label htmlFor="novo-grupo">Novo grupo</Label>
-              <Input
-                id="novo-grupo"
-                placeholder="ex: Atitudes"
-                value={nomeGrupo}
-                onChange={(e) => setNomeGrupo(e.target.value)}
-                list="grupos-sugeridos"
-              />
-              <datalist id="grupos-sugeridos">
-                {GRUPOS_SUGERIDOS.map((g) => (
-                  <option key={g} value={g} />
-                ))}
-              </datalist>
-            </div>
-            <Button type="submit" loading={aGravarGrupo} disabled={!nomeGrupo.trim()}>
-              <Plus className="h-4 w-4" />
-              Adicionar grupo
-            </Button>
-            {erroGrupo && (
-              <div className="w-full">
-                <Alert tone="danger">{erroGrupo}</Alert>
+          {isAdmin && (
+            <Card as="form" onSubmit={adicionarGrupo} className="mb-6 flex flex-wrap items-end gap-3 p-4">
+              <div className="min-w-[220px] flex-1">
+                <Label htmlFor="novo-grupo">Novo grupo</Label>
+                <Input
+                  id="novo-grupo"
+                  placeholder="ex: Atitudes"
+                  value={nomeGrupo}
+                  onChange={(e) => setNomeGrupo(e.target.value)}
+                  list="grupos-sugeridos"
+                />
+                <datalist id="grupos-sugeridos">
+                  {GRUPOS_SUGERIDOS.map((g) => (
+                    <option key={g} value={g} />
+                  ))}
+                </datalist>
               </div>
-            )}
-          </Card>
+              <Button type="submit" loading={aGravarGrupo} disabled={!nomeGrupo.trim()}>
+                <Plus className="h-4 w-4" />
+                Adicionar grupo
+              </Button>
+              {erroGrupo && (
+                <div className="w-full">
+                  <Alert tone="danger">{erroGrupo}</Alert>
+                </div>
+              )}
+            </Card>
+          )}
 
           {disciplinasComGrupos.length > 0 && (
             <Card className="mb-6 p-4">
@@ -444,7 +458,7 @@ export default function CriteriosAvaliacaoPage() {
                 const formNovoInst = novoInstrumento[g.id] ?? novoPesosForm();
                 return (
                   <Card key={g.id} className="p-4">
-                    {editandoGrupoId === g.id ? (
+                    {isAdmin && editandoGrupoId === g.id ? (
                       <div className="mb-3 flex flex-col gap-2 rounded-md bg-slate-50 p-3">
                         <div className="flex flex-wrap items-end gap-2">
                           <Input value={nomeGrupoEdit} onChange={(e) => setNomeGrupoEdit(e.target.value)} className="w-48" />
@@ -460,14 +474,16 @@ export default function CriteriosAvaliacaoPage() {
                     ) : (
                       <div className="mb-3 flex items-start justify-between">
                         <h3 className="text-base font-semibold text-slate-900">{g.nome}</h3>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => iniciarEdicaoGrupo(g)} aria-label="Editar grupo">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => removerGrupo(g)} aria-label="Remover grupo">
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
+                        {isAdmin && (
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => iniciarEdicaoGrupo(g)} aria-label="Editar grupo">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => removerGrupo(g)} aria-label="Remover grupo">
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -477,12 +493,12 @@ export default function CriteriosAvaliacaoPage() {
                           <tr>
                             <th className="px-3 py-2">Instrumento</th>
                             <th className="px-3 py-2">Disciplinas e pesos</th>
-                            <th className="px-3 py-2" />
+                            {isAdmin && <th className="px-3 py-2" />}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {g.instrumentos.map((inst) =>
-                            editandoInstrumentoId === inst.id ? (
+                            isAdmin && editandoInstrumentoId === inst.id ? (
                               <tr key={inst.id} className="bg-slate-50/70 align-top">
                                 <td className="px-3 py-2">
                                   <Input
@@ -521,46 +537,50 @@ export default function CriteriosAvaliacaoPage() {
                                     </div>
                                   )}
                                 </td>
-                                <td className="px-3 py-2 text-right">
-                                  <div className="flex justify-end gap-1">
-                                    <Button size="sm" variant="ghost" onClick={() => iniciarEdicaoInstrumento(inst)} aria-label="Editar">
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => removerInstrumento(g.id, inst.id, inst.nome)}
-                                      aria-label="Remover"
-                                    >
-                                      <Trash2 className="h-4 w-4 text-red-500" />
-                                    </Button>
-                                  </div>
-                                </td>
+                                {isAdmin && (
+                                  <td className="px-3 py-2 text-right">
+                                    <div className="flex justify-end gap-1">
+                                      <Button size="sm" variant="ghost" onClick={() => iniciarEdicaoInstrumento(inst)} aria-label="Editar">
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => removerInstrumento(g.id, inst.id, inst.nome)}
+                                        aria-label="Remover"
+                                      >
+                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                )}
                               </tr>
                             )
                           )}
-                          <tr className="align-top">
-                            <td className="px-3 py-2">
-                              <Input
-                                placeholder="Nome do instrumento"
-                                value={formNovoInst.nome}
-                                onChange={(e) =>
-                                  setNovoInstrumento((prev) => ({
-                                    ...prev,
-                                    [g.id]: { ...formNovoInst, nome: e.target.value },
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td className="px-3 py-2">
-                              <SeletorPesos form={formNovoInst} onChange={(form) => setNovoInstrumento((prev) => ({ ...prev, [g.id]: form }))} />
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <Button size="sm" variant="ghost" onClick={() => adicionarInstrumento(g.id)} aria-label="Adicionar instrumento">
-                                <Plus className="h-4 w-4 text-brand-600" />
-                              </Button>
-                            </td>
-                          </tr>
+                          {isAdmin && (
+                            <tr className="align-top">
+                              <td className="px-3 py-2">
+                                <Input
+                                  placeholder="Nome do instrumento"
+                                  value={formNovoInst.nome}
+                                  onChange={(e) =>
+                                    setNovoInstrumento((prev) => ({
+                                      ...prev,
+                                      [g.id]: { ...formNovoInst, nome: e.target.value },
+                                    }))
+                                  }
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <SeletorPesos form={formNovoInst} onChange={(form) => setNovoInstrumento((prev) => ({ ...prev, [g.id]: form }))} />
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <Button size="sm" variant="ghost" onClick={() => adicionarInstrumento(g.id)} aria-label="Adicionar instrumento">
+                                  <Plus className="h-4 w-4 text-brand-600" />
+                                </Button>
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>

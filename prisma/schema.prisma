@@ -22,53 +22,52 @@ model User {
   role         Role     @default(PROFESSOR)
   createdAt    DateTime @default(now())
 
-  disciplinas     Disciplina[]
-  anosLetivos     AnoLetivo[]
   turmas          Turma[]
-  gruposAvaliacao GrupoAvaliacao[]
 }
 
 // ---------- Estrutura académica ----------
 
+// Catálogo global de disciplinas, partilhado por todos os utilizadores
+// (não pertence a nenhum professor). Só ADMIN pode criar/editar/apagar
+// (ver requireAdminId em src/lib/auth.ts); qualquer professor pode
+// associá-las às suas turmas.
 model Disciplina {
-  id     String  @id @default(cuid())
-  userId String
-  nome   String
-  ciclo  String? // ex: "2.º ciclo", "3.º ciclo", "Secundário"
+  id    String  @id @default(cuid())
+  nome  String
+  ciclo String? // ex: "2.º ciclo", "3.º ciclo", "Secundário"
 
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   turmaDisciplinas TurmaDisciplina[]
   instrumentoPesos InstrumentoPeso[]
 
-  @@unique([userId, nome])
+  @@unique([nome])
 }
 
+// Catálogo global de anos letivos, partilhado por todos os utilizadores.
+// Só ADMIN pode criar/editar/apagar.
 model AnoLetivo {
   id   String @id @default(cuid())
-  userId String
   nome String // ex: "2025/2026"
 
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   turmas          Turma[]
   gruposAvaliacao GrupoAvaliacao[]
 
-  @@unique([userId, nome])
+  @@unique([nome])
 }
 
-// ---------- Critérios de avaliação (configuração por ano letivo/disciplina) ----------
+// ---------- Critérios de avaliação (configuração global por ano letivo) ----------
 
+// Catálogo global de critérios de avaliação (grupos/instrumentos), não
+// associado a nenhum utilizador. Só ADMIN pode criar/editar/apagar.
 model GrupoAvaliacao {
   id          String @id @default(cuid())
-  userId      String
   anoLetivoId String
   nome        String // ex: "Atitudes", "Conhecimentos e Capacidades"
   ordem       Int    @default(0)
 
-  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   anoLetivo    AnoLetivo              @relation(fields: [anoLetivoId], references: [id], onDelete: Cascade)
   instrumentos InstrumentoAvaliacao[]
 
-  @@unique([userId, anoLetivoId, nome])
+  @@unique([anoLetivoId, nome])
 }
 
 model InstrumentoAvaliacao {

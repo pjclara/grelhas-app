@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireUserId } from '@/lib/auth';
+import { requireAdminId } from '@/lib/auth';
 import { grupoAvaliacaoSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
@@ -10,11 +10,11 @@ const INCLUDE = {
 
 export async function PATCH(req: NextRequest, { params }: { params: { grupoId: string } }) {
   try {
-    const userId = await requireUserId();
+    await requireAdminId();
     const data = grupoAvaliacaoSchema.partial().parse(await req.json());
 
     const existente = await prisma.grupoAvaliacao.findFirst({
-      where: { id: params.grupoId, userId },
+      where: { id: params.grupoId },
     });
     if (!existente) throw new NotFoundError('Grupo de avaliação não encontrado');
 
@@ -34,9 +34,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { grupoId: s
 
 export async function DELETE(_req: NextRequest, { params }: { params: { grupoId: string } }) {
   try {
-    const userId = await requireUserId();
+    await requireAdminId();
     const existente = await prisma.grupoAvaliacao.findFirst({
-      where: { id: params.grupoId, userId },
+      where: { id: params.grupoId },
     });
     if (!existente) throw new NotFoundError('Grupo de avaliação não encontrado');
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireUserId } from '@/lib/auth';
+import { requireUserId, requireAdminId } from '@/lib/auth';
 import { grupoAvaliacaoSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
@@ -10,13 +10,13 @@ const INCLUDE = {
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    await requireUserId();
     const anoLetivoId = req.nextUrl.searchParams.get('anoLetivoId');
     if (!anoLetivoId) {
       return NextResponse.json({ error: 'anoLetivoId é obrigatório' }, { status: 400 });
     }
     const grupos = await prisma.grupoAvaliacao.findMany({
-      where: { userId, anoLetivoId },
+      where: { anoLetivoId },
       orderBy: { ordem: 'asc' },
       include: INCLUDE,
     });
@@ -28,17 +28,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    await requireAdminId();
     const data = grupoAvaliacaoSchema.parse(await req.json());
 
     const anoLetivo = await prisma.anoLetivo.findFirst({
-      where: { id: data.anoLetivoId, userId },
+      where: { id: data.anoLetivoId },
     });
     if (!anoLetivo) throw new NotFoundError('Ano letivo não encontrado');
 
     const grupo = await prisma.grupoAvaliacao.create({
       data: {
-        userId,
         anoLetivoId: data.anoLetivoId,
         nome: data.nome,
         ordem: data.ordem ?? 0,

@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireUserId } from '@/lib/auth';
+import { requireUserId, requireAdminId } from '@/lib/auth';
 import { disciplinaSchema } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-helpers';
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    await requireUserId();
     const comContagem = req.nextUrl.searchParams.get('comContagem') === '1';
     const disciplinas = await prisma.disciplina.findMany({
-      where: { userId },
       orderBy: { nome: 'asc' },
       ...(comContagem ? { include: { _count: { select: { turmaDisciplinas: true } } } } : {}),
     });
@@ -21,10 +20,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUserId();
+    await requireAdminId();
     const data = disciplinaSchema.parse(await req.json());
     const disciplina = await prisma.disciplina.create({
-      data: { userId, nome: data.nome, ciclo: data.ciclo ?? null },
+      data: { nome: data.nome, ciclo: data.ciclo ?? null },
     });
     return NextResponse.json(disciplina, { status: 201 });
   } catch (error) {

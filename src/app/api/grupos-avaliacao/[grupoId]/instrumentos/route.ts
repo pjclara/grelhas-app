@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireUserId } from '@/lib/auth';
+import { requireAdminId } from '@/lib/auth';
 import { instrumentoAvaliacaoSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
 export async function POST(req: NextRequest, { params }: { params: { grupoId: string } }) {
   try {
-    const userId = await requireUserId();
+    await requireAdminId();
     const grupo = await prisma.grupoAvaliacao.findFirst({
-      where: { id: params.grupoId, userId },
+      where: { id: params.grupoId },
     });
     if (!grupo) throw new NotFoundError('Grupo de avaliação não encontrado');
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: { grupoId: st
 
     if (data.pesos.length > 0) {
       const disciplinas = await prisma.disciplina.findMany({
-        where: { id: { in: data.pesos.map((p) => p.disciplinaId) }, userId },
+        where: { id: { in: data.pesos.map((p) => p.disciplinaId) } },
         select: { id: true },
       });
       if (disciplinas.length !== data.pesos.length) {

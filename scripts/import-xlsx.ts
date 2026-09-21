@@ -74,16 +74,16 @@ async function main() {
     peso: Number(cell(wsCriterios, 'E', row) ?? 0.05),
   }));
 
-  // ---------- Criar disciplina / ano letivo / turma ----------
+  // ---------- Criar disciplina / ano letivo (catálogo global, não por utilizador) / turma ----------
   const disciplina = await prisma.disciplina.upsert({
-    where: { userId_nome: { userId: user.id, nome: disciplinaNome } },
+    where: { nome: disciplinaNome },
     update: {},
-    create: { userId: user.id, nome: disciplinaNome },
+    create: { nome: disciplinaNome },
   });
   const anoLetivo = await prisma.anoLetivo.upsert({
-    where: { userId_nome: { userId: user.id, nome: anoLetivoNome } },
+    where: { nome: anoLetivoNome },
     update: {},
-    create: { userId: user.id, nome: anoLetivoNome },
+    create: { nome: anoLetivoNome },
   });
 
   const turma = await prisma.turma.create({

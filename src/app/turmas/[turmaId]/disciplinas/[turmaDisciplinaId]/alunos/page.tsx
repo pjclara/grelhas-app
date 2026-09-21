@@ -6,6 +6,7 @@ import { ArrowLeft, UserPlus, UserMinus } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
 import type { Aluno, AlunoTurma } from '@/lib/types';
@@ -26,6 +27,7 @@ export default function AlunosDisciplinaPage({
   const [inscricoes, setInscricoes] = useState<Inscricao[]>([]);
   const [aCarregar, setACarregar] = useState(true);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
+  const [aProcessarTodos, setAProcessarTodos] = useState(false);
 
   async function carregar() {
     setACarregar(true);
@@ -69,6 +71,39 @@ export default function AlunosDisciplinaPage({
     carregar();
   }
 
+  async function inscreverTodos() {
+    const porInscrever = alunosTurma.filter((a) => !inscricaoAtiva(a.id));
+    if (porInscrever.length === 0) return;
+    setAProcessarTodos(true);
+    await Promise.all(
+      porInscrever.map((a) =>
+        fetch(`/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/alunos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ alunoId: a.id }),
+        })
+      )
+    );
+    setAProcessarTodos(false);
+    carregar();
+  }
+
+  async function desinscreverTodos() {
+    const inscritos = alunosTurma.filter((a) => inscricaoAtiva(a.id));
+    if (inscritos.length === 0) return;
+    if (!confirm(`Terminar a inscrição de ${inscritos.length} aluno(s) nesta disciplina?`)) return;
+    setAProcessarTodos(true);
+    await Promise.all(
+      inscritos.map((a) =>
+        fetch(`/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/alunos/${a.id}`, {
+          method: 'DELETE',
+        })
+      )
+    );
+    setAProcessarTodos(false);
+    carregar();
+  }
+
   return (
     <AppShell>
       <Link
@@ -77,7 +112,35 @@ export default function AlunosDisciplinaPage({
       >
         <ArrowLeft className="h-4 w-4" /> Voltar à disciplina
       </Link>
-      <h1 className="mb-2 text-2xl font-semibold tracking-tight text-slate-900">Alunos inscritos</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Alunos inscritos</h1>
+        {!aCarregar && alunosTurma.length > 0 && (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              loading={aProcessarTodos}
+              disabled={alunosTurma.every((a) => inscricaoAtiva(a.id))}
+              onClick={inscreverTodos}
+            >
+              <UserPlus className="h-4 w-4" />
+              Inscrever todos
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              loading={aProcessarTodos}
+              disabled={alunosTurma.every((a) => !inscricaoAtiva(a.id))}
+              onClick={desinscreverTodos}
+            >
+              <UserMinus className="h-4 w-4" />
+              Desinscrever todos
+            </Button>
+          </div>
+        )}
+      </div>
       <p className="mb-6 text-sm text-slate-500">
         Só os alunos inscritos aqui recebem notas e aparecem no resumo desta disciplina. Um aluno
         pode estar inscrito em disciplinas diferentes dentro da mesma turma.

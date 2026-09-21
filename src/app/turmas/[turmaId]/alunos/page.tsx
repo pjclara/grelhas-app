@@ -12,7 +12,60 @@ import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
-import type { Aluno } from '@/lib/types';
+import type { Aluno, Medida, TipoMedida } from '@/lib/types';
+
+const GRUPOS_MEDIDAS: Array<{ tipo: TipoMedida; label: string }> = [
+  { tipo: 'UNIVERSAL', label: 'Universais' },
+  { tipo: 'SELETIVA', label: 'Seletivas' },
+  { tipo: 'ADICIONAL', label: 'Adicionais' },
+];
+
+const PREFIXO_TIPO: Record<TipoMedida, string> = { UNIVERSAL: 'Un', SELETIVA: 'Sel', ADICIONAL: 'Ad' };
+const TOM_TIPO: Record<TipoMedida, 'brand' | 'warning' | 'danger'> = {
+  UNIVERSAL: 'brand',
+  SELETIVA: 'warning',
+  ADICIONAL: 'danger',
+};
+
+function SeletorMedidas({
+  catalogo,
+  selecionadas,
+  onChange,
+}: {
+  catalogo: Medida[];
+  selecionadas: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  function alternar(id: string) {
+    onChange(selecionadas.includes(id) ? selecionadas.filter((m) => m !== id) : [...selecionadas, id]);
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      {GRUPOS_MEDIDAS.map(({ tipo, label }) => (
+        <div key={tipo}>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+          <div className="flex flex-col gap-1">
+            {catalogo
+              .filter((m) => m.tipo === tipo)
+              .map((m) => (
+                <label key={m.id} className="flex items-start gap-1.5 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500/40"
+                    checked={selecionadas.includes(m.id)}
+                    onChange={() => alternar(m.id)}
+                  />
+                  <span>
+                    {m.codigo}) {m.titulo}
+                  </span>
+                </label>
+              ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // A Web Speech API não está nos tipos padrão do TS DOM; usamos `any` para o objeto de reconhecimento.
 type SpeechRecognitionInstance = any;
@@ -42,13 +95,15 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
   const [numero, setNumero] = useState('');
   const [nome, setNome] = useState('');
-  const [medidas, setMedidas] = useState('');
+  const [medidaIds, setMedidaIds] = useState<string[]>([]);
   const [erro, setErro] = useState<string | null>(null);
+
+  const [medidasCatalogo, setMedidasCatalogo] = useState<Medida[]>([]);
 
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [numeroEdit, setNumeroEdit] = useState('');
   const [nomeEdit, setNomeEdit] = useState('');
-  const [medidasEdit, setMedidasEdit] = useState('');
+  const [medidaIdsEdit, setMedidaIdsEdit] = useState<string[]>([]);
   const [erroEdit, setErroEdit] = useState<string | null>(null);
 
   const [aDitar, setADitar] = useState(false);
@@ -82,6 +137,12 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   }, [params.turmaId]);
 
   useEffect(() => {
+    fetch('/api/medidas')
+      .then((r) => r.json())
+      .then(setMedidasCatalogo);
+  }, []);
+
+  useEffect(() => {
     const SpeechRecognitionCtor =
       (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
     setDitadoSuportado(Boolean(SpeechRecognitionCtor));
@@ -104,7 +165,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     const res = await fetch(`/api/turmas/${params.turmaId}/alunos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero: Number(numero), nome, medidas: medidas || null }),
+      body: JSON.stringify({ numero: Number(numero), nome, medidaIds }),
     });
     if (!res.ok) {
       setErro('Não foi possível adicionar (número já usado?).');
@@ -112,7 +173,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     }
     setNumero('');
     setNome('');
-    setMedidas('');
+    setMedidaIds([]);
     carregar();
   }
 
@@ -129,7 +190,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     const res = await fetch(`/api/turmas/${params.turmaId}/alunos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero: numeroFinal, nome: nomeFinal, medidas: null }),
+      body: JSON.stringify({ numero: numeroFinal, nome: nomeFinal }),
     });
     if (!res.ok) {
       setAvisoDitado(`Não foi possível adicionar "${nomeFinal}" (nº ${numeroFinal} já usado?).`);
@@ -250,7 +311,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     setEditandoId(aluno.id);
     setNumeroEdit(String(aluno.numero));
     setNomeEdit(aluno.nome);
-    setMedidasEdit(aluno.medidas ?? '');
+    setMedidaIdsEdit(aluno.medidas.map((am) => am.medida.id));
     setErroEdit(null);
   }
 
@@ -271,7 +332,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
       body: JSON.stringify({
         numero: Number(numeroEdit),
         nome: nomeEdit,
-        medidas: medidasEdit || null,
+        medidaIds: medidaIdsEdit,
       }),
     });
     if (!res.ok) {
@@ -314,28 +375,26 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
         </div>
       )}
 
-      <Card as="form" onSubmit={adicionar} className="mb-6 flex flex-wrap items-end gap-3 p-4">
-        <div>
-          <Label htmlFor="numero">Nº</Label>
-          <Input id="numero" type="number" value={numero} onChange={(e) => setNumero(e.target.value)} className="w-20" />
-        </div>
-        <div className="min-w-[160px] flex-1">
-          <Label htmlFor="nome-aluno">Nome</Label>
-          <Input id="nome-aluno" value={nome} onChange={(e) => setNome(e.target.value)} />
-        </div>
-        <div className="min-w-[160px] flex-1">
-          <Label htmlFor="medidas">Medidas (Dec-Lei 54)</Label>
-          <Input id="medidas" value={medidas} onChange={(e) => setMedidas(e.target.value)} />
-        </div>
-        <Button type="submit">
-          <Plus className="h-4 w-4" />
-          Adicionar
-        </Button>
-        {erro && (
-          <div className="w-full">
-            <Alert tone="danger">{erro}</Alert>
+      <Card as="form" onSubmit={adicionar} className="mb-6 flex flex-col gap-4 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label htmlFor="numero">Nº</Label>
+            <Input id="numero" type="number" value={numero} onChange={(e) => setNumero(e.target.value)} className="w-20" />
           </div>
-        )}
+          <div className="min-w-[160px] flex-1">
+            <Label htmlFor="nome-aluno">Nome</Label>
+            <Input id="nome-aluno" value={nome} onChange={(e) => setNome(e.target.value)} />
+          </div>
+          <Button type="submit">
+            <Plus className="h-4 w-4" />
+            Adicionar
+          </Button>
+        </div>
+        <div>
+          <Label>Medidas (Dec-Lei 54)</Label>
+          <SeletorMedidas catalogo={medidasCatalogo} selecionadas={medidaIds} onChange={setMedidaIds} />
+        </div>
+        {erro && <Alert tone="danger">{erro}</Alert>}
       </Card>
 
       {erroCarregar ? (
@@ -366,7 +425,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
                       {erroEdit && <p className="mt-1 text-xs text-red-600">{erroEdit}</p>}
                     </Td>
                     <Td>
-                      <Input value={medidasEdit} onChange={(e) => setMedidasEdit(e.target.value)} />
+                      <SeletorMedidas catalogo={medidasCatalogo} selecionadas={medidaIdsEdit} onChange={setMedidaIdsEdit} />
                     </Td>
                     <Td className="text-slate-400">{a.ativo ? 'Ativo' : 'Inativo'}</Td>
                     <Td className="text-right">
@@ -384,7 +443,19 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
                   <Tr key={a.id}>
                     <Td className="tabular-nums text-slate-500">{a.numero}</Td>
                     <Td className="font-medium text-slate-900">{a.nome}</Td>
-                    <Td className="text-slate-500">{a.medidas ?? '—'}</Td>
+                    <Td className="text-slate-500">
+                      {a.medidas.length === 0 ? (
+                        '—'
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {a.medidas.map((am) => (
+                            <Badge key={am.id} tone={TOM_TIPO[am.medida.tipo]}>
+                              {PREFIXO_TIPO[am.medida.tipo]}-{am.medida.codigo}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </Td>
                     <Td>
                       <button onClick={() => alternarAtivo(a)}>
                         <Badge tone={a.ativo ? 'success' : 'neutral'}>{a.ativo ? 'Ativo' : 'Inativo'}</Badge>

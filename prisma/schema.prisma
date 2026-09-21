@@ -148,15 +148,46 @@ model Aluno {
   turmaId String
   numero  Int
   nome    String
-  medidas String? // Dec-Lei 54, ex: "Medidas seletivas;Medidas adicionais"
-  aliena  String?
   ativo   Boolean @default(true)
 
   turma       Turma             @relation(fields: [turmaId], references: [id], onDelete: Cascade)
   notas       Nota[]
   disciplinas AlunoDisciplina[]
+  medidas     AlunoMedida[]
 
   @@unique([turmaId, numero])
+}
+
+// ---------- Medidas de suporte à aprendizagem (Dec-Lei 54/2018) ----------
+
+enum TipoMedida {
+  UNIVERSAL
+  SELETIVA
+  ADICIONAL
+}
+
+// Catálogo fixo (definido por lei), semeado na migração — sem UI de gestão.
+model Medida {
+  id     String     @id @default(cuid())
+  tipo   TipoMedida
+  codigo String // "a".."e"
+  titulo String
+
+  alunos AlunoMedida[]
+
+  @@unique([tipo, codigo])
+}
+
+// Medidas atribuídas a um aluno (0 ou mais)
+model AlunoMedida {
+  id       String @id @default(cuid())
+  alunoId  String
+  medidaId String
+
+  aluno  Aluno  @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  medida Medida @relation(fields: [medidaId], references: [id], onDelete: Cascade)
+
+  @@unique([alunoId, medidaId])
 }
 
 // Inscrição individual do aluno numa disciplina da turma. Liga-se a

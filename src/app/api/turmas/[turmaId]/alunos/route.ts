@@ -5,6 +5,10 @@ import { assertTurmaOwnership } from '@/lib/turma-access';
 import { alunoSchema } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-helpers';
 
+const INCLUDE = {
+  medidas: { include: { medida: true as const } },
+};
+
 export async function GET(_req: NextRequest, { params }: { params: { turmaId: string } }) {
   try {
     const userId = await requireUserId();
@@ -12,6 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: { turmaId: st
     const alunos = await prisma.aluno.findMany({
       where: { turmaId: params.turmaId },
       orderBy: { numero: 'asc' },
+      include: INCLUDE,
     });
     return NextResponse.json(alunos);
   } catch (error) {
@@ -23,9 +28,14 @@ export async function POST(req: NextRequest, { params }: { params: { turmaId: st
   try {
     const userId = await requireUserId();
     await assertTurmaOwnership(params.turmaId, userId);
-    const data = alunoSchema.parse(await req.json());
+    const { medidaIds, ...data } = alunoSchema.parse(await req.json());
     const aluno = await prisma.aluno.create({
-      data: { turmaId: params.turmaId, ...data },
+      data: {
+        turmaId: params.turmaId,
+        ...data,
+        medidas: { create: (medidaIds ?? []).map((medidaId) => ({ medidaId })) },
+      },
+      include: INCLUDE,
     });
     return NextResponse.json(aluno, { status: 201 });
   } catch (error) {

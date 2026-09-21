@@ -44,12 +44,25 @@ export interface TurmaDisciplina {
   limiarNivel5: number;
 }
 
+export type TipoMedida = 'UNIVERSAL' | 'SELETIVA' | 'ADICIONAL';
+
+export interface Medida {
+  id: string;
+  tipo: TipoMedida;
+  codigo: string;
+  titulo: string;
+}
+
+export interface AlunoMedida {
+  id: string;
+  medida: Medida;
+}
+
 export interface Aluno {
   id: string;
   numero: number;
   nome: string;
-  medidas: string | null;
-  aliena: string | null;
+  medidas: AlunoMedida[];
   ativo: boolean;
 }
 

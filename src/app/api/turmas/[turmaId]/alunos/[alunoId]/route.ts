@@ -5,6 +5,10 @@ import { assertTurmaOwnership } from '@/lib/turma-access';
 import { alunoSchema } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-helpers';
 
+const INCLUDE = {
+  medidas: { include: { medida: true as const } },
+};
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { turmaId: string; alunoId: string } }
@@ -12,10 +16,20 @@ export async function PATCH(
   try {
     const userId = await requireUserId();
     await assertTurmaOwnership(params.turmaId, userId);
-    const data = alunoSchema.partial().parse(await req.json());
-    const aluno = await prisma.aluno.update({
-      where: { id: params.alunoId },
-      data,
+    const { medidaIds, ...data } = alunoSchema.partial().parse(await req.json());
+
+    const aluno = await prisma.$transaction(async (tx) => {
+      if (medidaIds) {
+        await tx.alunoMedida.deleteMany({ where: { alunoId: params.alunoId } });
+      }
+      return tx.aluno.update({
+        where: { id: params.alunoId },
+        data: {
+          ...data,
+          ...(medidaIds ? { medidas: { create: medidaIds.map((medidaId) => ({ medidaId })) } } : {}),
+        },
+        include: INCLUDE,
+      });
     });
     return NextResponse.json(aluno);
   } catch (error) {

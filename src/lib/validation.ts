@@ -40,8 +40,7 @@ export const alunoDisciplinaSchema = z.object({
 export const alunoSchema = z.object({
   numero: z.number().int().positive(),
   nome: z.string().min(1),
-  medidas: z.string().optional().nullable(),
-  aliena: z.string().optional().nullable(),
+  medidaIds: z.array(z.string()).optional(),
   ativo: z.boolean().optional(),
 });
 

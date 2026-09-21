@@ -51,17 +51,17 @@ async function main() {
   const nivelEnsino = cell(wsAlunos, 'H', 9) as string | undefined;
   const disciplinaNome = String(cell(wsAlunos, 'H', 11) ?? 'Disciplina');
 
-  const alunosOrigem: Array<{ numero: number; nome: string; medidas?: string; aliena?: string }> = [];
+  // As medidas de suporte à aprendizagem (Dec-Lei 54) já não são texto livre
+  // (colunas D/E da folha original) — passaram a um catálogo fixo de opções,
+  // sem correspondência automática possível a partir do texto do Excel. A
+  // importação cria os alunos sem medidas atribuídas; o professor associa-as
+  // depois na página de Alunos.
+  const alunosOrigem: Array<{ numero: number; nome: string }> = [];
   for (let row = 6; row <= 200; row++) {
     const numero = cell(wsAlunos, 'B', row);
     const nome = cell(wsAlunos, 'C', row);
     if (numero === undefined || nome === undefined || String(nome).trim() === '') continue;
-    alunosOrigem.push({
-      numero: Number(numero),
-      nome: String(nome).trim(),
-      medidas: (cell(wsAlunos, 'D', row) as string | undefined) ?? undefined,
-      aliena: (cell(wsAlunos, 'E', row) as string | undefined) ?? undefined,
-    });
+    alunosOrigem.push({ numero: Number(numero), nome: String(nome).trim() });
   }
   console.log(`Alunos encontrados: ${alunosOrigem.length}`);
 
@@ -103,7 +103,7 @@ async function main() {
   const alunosCriados = await Promise.all(
     alunosOrigem.map((a) =>
       prisma.aluno.create({
-        data: { turmaId: turma.id, numero: a.numero, nome: a.nome, medidas: a.medidas, aliena: a.aliena },
+        data: { turmaId: turma.id, numero: a.numero, nome: a.nome },
       })
     )
   );

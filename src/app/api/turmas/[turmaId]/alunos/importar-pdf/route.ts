@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PDFParse } from 'pdf-parse';
+import { extractText, getDocumentProxy } from 'unpdf';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireUserId } from '@/lib/auth';
@@ -25,17 +25,11 @@ export async function POST(req: NextRequest, { params }: { params: { turmaId: st
       return NextResponse.json({ error: 'Envie um ficheiro PDF.' }, { status: 400 });
     }
 
-    const buffer = Buffer.from(await ficheiro.arrayBuffer());
-    const parser = new PDFParse({ data: buffer });
-    let texto: string;
-    try {
-      const resultado = await parser.getText();
-      texto = resultado.text;
-    } finally {
-      await parser.destroy();
-    }
+    const buffer = new Uint8Array(await ficheiro.arrayBuffer());
+    const pdf = await getDocumentProxy(buffer);
+    const { text } = await extractText(pdf, { mergePages: true });
 
-    const linhas = parsearAlunosPdf(texto);
+    const linhas = parsearAlunosPdf(text);
     if (linhas.length === 0) {
       return NextResponse.json(
         { error: 'Não foi possível encontrar no PDF uma tabela com as colunas Nº Turma, Nº Processo e Nome.' },

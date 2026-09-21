@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
-import type { Aluno } from '@/lib/types';
+import type { Aluno, AlunoTurma } from '@/lib/types';
 
 interface Inscricao {
   id: string;
@@ -22,7 +22,7 @@ export default function AlunosDisciplinaPage({
 }: {
   params: { turmaId: string; turmaDisciplinaId: string };
 }) {
-  const [alunosTurma, setAlunosTurma] = useState<Aluno[]>([]);
+  const [alunosTurma, setAlunosTurma] = useState<AlunoTurma[]>([]);
   const [inscricoes, setInscricoes] = useState<Inscricao[]>([]);
   const [aCarregar, setACarregar] = useState(true);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export default function AlunosDisciplinaPage({
       return;
     }
     setErroCarregar(null);
-    setAlunosTurma((await ra.json()).filter((a: Aluno) => a.ativo));
+    setAlunosTurma((await ra.json()).filter((a: AlunoTurma) => a.ativo));
     setInscricoes(await ri.json());
     setACarregar(false);
   }

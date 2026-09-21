@@ -17,7 +17,7 @@ export async function GET() {
       include: {
         anoLetivo: true,
         disciplinas: { include: { disciplina: true } },
-        _count: { select: { alunos: true } },
+        _count: { select: { matriculas: { where: { ativa: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });

@@ -38,10 +38,16 @@ export const alunoDisciplinaSchema = z.object({
 });
 
 export const alunoSchema = z.object({
+  numeroProcesso: z.string().min(1),
   numero: z.number().int().positive(),
   nome: z.string().min(1),
   medidaIds: z.array(z.string()).optional(),
   ativo: z.boolean().optional(),
+});
+
+export const transferenciaAlunoSchema = z.object({
+  turmaDestinoId: z.string().min(1),
+  numero: z.number().int().positive(),
 });
 
 export const periodoSchema = z.object({

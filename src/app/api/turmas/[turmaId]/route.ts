@@ -12,12 +12,19 @@ export async function GET(_req: NextRequest, { params }: { params: { turmaId: st
       where: { id: params.turmaId },
       include: {
         anoLetivo: true,
-        alunos: { orderBy: { numero: 'asc' } },
+        matriculas: {
+          where: { ativa: true },
+          orderBy: { numero: 'asc' },
+          include: { aluno: { include: { medidas: { include: { medida: true } } } } },
+        },
         periodos: { orderBy: { ordem: 'asc' } },
         disciplinas: { include: { disciplina: true } },
       },
     });
-    return NextResponse.json(turma);
+    if (!turma) return NextResponse.json(turma);
+    const { matriculas, ...turmaSemMatriculas } = turma;
+    const alunos = matriculas.map((m) => ({ ...m.aluno, numero: m.numero }));
+    return NextResponse.json({ ...turmaSemMatriculas, alunos });
   } catch (error) {
     return handleApiError(error);
   }

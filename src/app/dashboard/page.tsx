@@ -108,7 +108,7 @@ export default function DashboardPage() {
                 <span>{t.anoLetivo.nome}</span>
                 <span className="flex items-center gap-1">
                   <Users className="h-3.5 w-3.5" />
-                  {t._count?.alunos ?? 0} alunos
+                  {t._count?.matriculas ?? 0} alunos
                 </span>
               </div>
             </Link>

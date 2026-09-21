@@ -7,7 +7,7 @@ import AppShell from '@/components/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
-import type { Aluno, Instrumento } from '@/lib/types';
+import type { AlunoTurma, Instrumento } from '@/lib/types';
 
 interface NotaValor {
   [perguntaId: string]: string; // string para permitir campo vazio no input
@@ -21,7 +21,7 @@ interface CelulaGrelha {
 interface Inscricao {
   alunoId: string;
   ativo: boolean;
-  aluno: Aluno;
+  aluno: AlunoTurma;
 }
 
 // A Web Speech API não está nos tipos padrão do TS DOM; usamos `any` para o objeto de reconhecimento.
@@ -71,7 +71,7 @@ export default function InstrumentoPage({
   params: { turmaId: string; turmaDisciplinaId: string; periodoId: string; instrumentoId: string };
 }) {
   const [instrumento, setInstrumento] = useState<Instrumento | null>(null);
-  const [alunos, setAlunos] = useState<Aluno[]>([]);
+  const [alunos, setAlunos] = useState<AlunoTurma[]>([]);
   const [notas, setNotas] = useState<Record<string, NotaValor>>({});
   const [aGuardar, setAGuardar] = useState(false);
   const [guardadoEm, setGuardadoEm] = useState<Date | null>(null);
@@ -101,7 +101,7 @@ export default function InstrumentoPage({
     }
     const inst = await ri.json();
     const inscricoes: Inscricao[] = await ra.json();
-    const listaAlunos: Aluno[] = inscricoes
+    const listaAlunos: AlunoTurma[] = inscricoes
       .filter((ins) => ins.ativo && ins.aluno.ativo)
       .map((ins) => ins.aluno)
       .sort((a, b) => a.numero - b.numero);

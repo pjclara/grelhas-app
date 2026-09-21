@@ -7,13 +7,13 @@ import AppShell from '@/components/AppShell';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
-import type { Aluno, Periodo, TurmaDisciplinaDetalhe } from '@/lib/types';
+import type { AlunoTurma, Periodo, TurmaDisciplinaDetalhe } from '@/lib/types';
 
 interface Inscricao {
   id: string;
   alunoId: string;
   ativo: boolean;
-  aluno: Aluno;
+  aluno: AlunoTurma;
 }
 
 export default function TurmaDisciplinaPage({

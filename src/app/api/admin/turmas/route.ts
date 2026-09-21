@@ -12,7 +12,7 @@ export async function GET() {
         disciplinas: { include: { disciplina: { select: { nome: true } } } },
         anoLetivo: { select: { nome: true } },
         user: { select: { id: true, name: true, email: true } },
-        _count: { select: { alunos: true } },
+        _count: { select: { matriculas: { where: { ativa: true } } } },
       },
     });
     return NextResponse.json(turmas);

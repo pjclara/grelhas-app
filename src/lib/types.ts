@@ -29,7 +29,7 @@ export interface Turma {
   nome: string;
   nivelEnsino: string | null;
   anoLetivo: AnoLetivo;
-  _count?: { alunos: number };
+  _count?: { matriculas: number };
   disciplinas?: TurmaDisciplina[];
 }
 
@@ -60,10 +60,15 @@ export interface AlunoMedida {
 
 export interface Aluno {
   id: string;
-  numero: number;
+  numeroProcesso: string;
   nome: string;
   medidas: AlunoMedida[];
   ativo: boolean;
+}
+
+/** Aluno tal como devolvido por endpoints que o listam numa turma concreta — inclui o nº dessa matrícula. */
+export interface AlunoTurma extends Aluno {
+  numero: number;
 }
 
 export interface Periodo {
@@ -129,7 +134,7 @@ export interface Instrumento {
 }
 
 export interface TurmaDetalhe extends Turma {
-  alunos: Aluno[];
+  alunos: AlunoTurma[];
   periodos: Periodo[];
   disciplinas: TurmaDisciplina[];
 }

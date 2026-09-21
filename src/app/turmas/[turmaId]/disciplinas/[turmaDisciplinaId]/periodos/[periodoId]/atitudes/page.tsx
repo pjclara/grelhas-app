@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
-import type { Aluno, Instrumento } from '@/lib/types';
+import type { AlunoTurma, Instrumento } from '@/lib/types';
 
 interface Inscricao {
   alunoId: string;
   ativo: boolean;
-  aluno: Aluno;
+  aluno: AlunoTurma;
 }
 
 /** notas[alunoId][instrumentoId] = valor (string para permitir campo vazio no input) */
@@ -25,7 +25,7 @@ export default function AtitudesPage({
   params: { turmaId: string; turmaDisciplinaId: string; periodoId: string };
 }) {
   const [instrumentos, setInstrumentos] = useState<Instrumento[]>([]);
-  const [alunos, setAlunos] = useState<Aluno[]>([]);
+  const [alunos, setAlunos] = useState<AlunoTurma[]>([]);
   const [notas, setNotas] = useState<NotasGrelha>({});
   const [aCarregar, setACarregar] = useState(true);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export default function AtitudesPage({
     const atitudes: Instrumento[] = await Promise.all(respostasDetalhe.map((r) => r.json()));
 
     const inscricoes: Inscricao[] = await ra.json();
-    const listaAlunos: Aluno[] = inscricoes
+    const listaAlunos: AlunoTurma[] = inscricoes
       .filter((ins) => ins.ativo && ins.aluno.ativo)
       .map((ins) => ins.aluno)
       .sort((a, b) => a.numero - b.numero);

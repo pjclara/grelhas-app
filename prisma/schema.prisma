@@ -22,7 +22,8 @@ model User {
   role         Role     @default(PROFESSOR)
   createdAt    DateTime @default(now())
 
-  turmas          Turma[]
+  turmas Turma[]
+  alunos Aluno[]
 }
 
 // ---------- Estrutura académica ----------
@@ -110,7 +111,7 @@ model Turma {
 
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   anoLetivo   AnoLetivo         @relation(fields: [anoLetivoId], references: [id], onDelete: Cascade)
-  alunos      Aluno[]
+  matriculas  Matricula[]
   periodos    Periodo[]
   disciplinas TurmaDisciplina[]
 
@@ -144,16 +145,35 @@ model TurmaDisciplina {
 }
 
 model Aluno {
-  id      String  @id @default(cuid())
-  turmaId String
-  numero  Int
-  nome    String
-  ativo   Boolean @default(true)
+  id             String  @id @default(cuid())
+  userId         String
+  numeroProcesso String // identidade fixa do aluno, não muda ao transferir de turma
+  nome           String
+  ativo          Boolean @default(true)
 
-  turma       Turma             @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matriculas  Matricula[]
   notas       Nota[]
   disciplinas AlunoDisciplina[]
   medidas     AlunoMedida[]
+
+  @@unique([userId, numeroProcesso])
+}
+
+// Histórico de inscrição do aluno numa turma. Transferir fecha a
+// matrícula atual (ativa=false, terminadaEm preenchido) e cria uma nova —
+// mantém o histórico de por onde o aluno passou, sem apagar nada.
+model Matricula {
+  id          String    @id @default(cuid())
+  alunoId     String
+  turmaId     String
+  numero      Int // nº de turma nesta matrícula
+  ativa       Boolean   @default(true)
+  criadaEm    DateTime  @default(now())
+  terminadaEm DateTime?
+
+  aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  turma Turma @relation(fields: [turmaId], references: [id], onDelete: Cascade)
 
   @@unique([turmaId, numero])
 }

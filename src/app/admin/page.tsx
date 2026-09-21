@@ -30,7 +30,7 @@ interface AdminTurma {
   disciplinas: Array<{ disciplina: { nome: string } }>;
   anoLetivo: { nome: string };
   user: { id: string; name: string; email: string };
-  _count: { alunos: number };
+  _count: { matriculas: number };
 }
 
 export default function AdminPage() {
@@ -211,7 +211,7 @@ export default function AdminPage() {
                     <Td className="font-medium text-slate-900">{t.nome}</Td>
                     <Td>{t.disciplinas.length > 0 ? t.disciplinas.map((td) => td.disciplina.nome).join(', ') : '—'}</Td>
                     <Td>{t.anoLetivo.nome}</Td>
-                    <Td>{t._count.alunos}</Td>
+                    <Td>{t._count.matriculas}</Td>
                     <Td className="text-slate-500">
                       {t.user.name} ({t.user.email})
                     </Td>

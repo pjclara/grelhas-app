@@ -103,11 +103,16 @@ async function main() {
   const alunosCriados = await Promise.all(
     alunosOrigem.map((a) =>
       prisma.aluno.create({
-        data: { turmaId: turma.id, numero: a.numero, nome: a.nome },
+        data: {
+          userId: user.id,
+          numeroProcesso: String(a.numero),
+          nome: a.nome,
+          matriculas: { create: { turmaId: turma.id, numero: a.numero } },
+        },
       })
     )
   );
-  const alunoIdPorNumero = new Map(alunosCriados.map((a) => [a.numero, a.id]));
+  const alunoIdPorNumero = new Map(alunosOrigem.map((a, i) => [a.numero, alunosCriados[i].id]));
 
   // A importação assume que todos os alunos da turma estão inscritos na
   // disciplina importada (era essa a premissa da grelha de Excel original).

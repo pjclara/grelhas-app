@@ -13,12 +13,21 @@ export async function GET(
   try {
     const userId = await requireUserId();
     await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
-    const inscricoes = await prisma.alunoDisciplina.findMany({
-      where: { turmaDisciplinaId: params.turmaDisciplinaId },
-      include: { aluno: true },
-      orderBy: { aluno: { numero: 'asc' } },
-    });
-    return NextResponse.json(inscricoes);
+    const [inscricoes, matriculas] = await Promise.all([
+      prisma.alunoDisciplina.findMany({
+        where: { turmaDisciplinaId: params.turmaDisciplinaId },
+        include: { aluno: true },
+      }),
+      prisma.matricula.findMany({
+        where: { turmaId: params.turmaId, ativa: true },
+        select: { alunoId: true, numero: true },
+      }),
+    ]);
+    const numeroPorAluno = new Map(matriculas.map((m) => [m.alunoId, m.numero]));
+    const comNumero = inscricoes
+      .map((i) => ({ ...i, aluno: { ...i.aluno, numero: numeroPorAluno.get(i.alunoId) ?? 0 } }))
+      .sort((a, b) => a.aluno.numero - b.aluno.numero);
+    return NextResponse.json(comNumero);
   } catch (error) {
     return handleApiError(error);
   }
@@ -39,10 +48,10 @@ export async function POST(
     await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
     const data = alunoDisciplinaSchema.parse(await req.json());
 
-    const aluno = await prisma.aluno.findFirst({
-      where: { id: data.alunoId, turmaId: params.turmaId },
+    const matricula = await prisma.matricula.findFirst({
+      where: { alunoId: data.alunoId, turmaId: params.turmaId, ativa: true },
     });
-    if (!aluno) throw new NotFoundError('Aluno não encontrado nesta turma');
+    if (!matricula) throw new NotFoundError('Aluno não encontrado nesta turma');
 
     const inscricao = await prisma.alunoDisciplina.upsert({
       where: {
@@ -60,7 +69,10 @@ export async function POST(
       include: { aluno: true },
     });
 
-    return NextResponse.json(inscricao, { status: 201 });
+    return NextResponse.json(
+      { ...inscricao, aluno: { ...inscricao.aluno, numero: matricula.numero } },
+      { status: 201 }
+    );
   } catch (error) {
     return handleApiError(error);
   }

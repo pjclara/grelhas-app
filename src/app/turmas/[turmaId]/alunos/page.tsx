@@ -2,17 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Mic, Square, Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Mic, Square, Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Input, Select } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
-import type { Aluno, Medida, TipoMedida } from '@/lib/types';
+import type { AlunoTurma, Medida, TipoMedida, Turma } from '@/lib/types';
 
 const GRUPOS_MEDIDAS: Array<{ tipo: TipoMedida; label: string }> = [
   { tipo: 'UNIVERSAL', label: 'Universais' },
@@ -90,10 +91,11 @@ function capitalizarNome(nome: string): string {
 }
 
 export default function AlunosPage({ params }: { params: { turmaId: string } }) {
-  const [alunos, setAlunos] = useState<Aluno[]>([]);
+  const [alunos, setAlunos] = useState<AlunoTurma[]>([]);
   const [aCarregar, setACarregar] = useState(true);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
   const [numero, setNumero] = useState('');
+  const [numeroProcesso, setNumeroProcesso] = useState('');
   const [nome, setNome] = useState('');
   const [medidaIds, setMedidaIds] = useState<string[]>([]);
   const [erro, setErro] = useState<string | null>(null);
@@ -102,9 +104,17 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
 
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [numeroEdit, setNumeroEdit] = useState('');
+  const [numeroProcessoEdit, setNumeroProcessoEdit] = useState('');
   const [nomeEdit, setNomeEdit] = useState('');
   const [medidaIdsEdit, setMedidaIdsEdit] = useState<string[]>([]);
   const [erroEdit, setErroEdit] = useState<string | null>(null);
+
+  const [outrasTurmas, setOutrasTurmas] = useState<Turma[]>([]);
+  const [transferindo, setTransferindo] = useState<AlunoTurma | null>(null);
+  const [turmaDestinoId, setTurmaDestinoId] = useState('');
+  const [numeroDestino, setNumeroDestino] = useState('');
+  const [erroTransferencia, setErroTransferencia] = useState<string | null>(null);
+  const [aTransferir, setATransferir] = useState(false);
 
   const [aDitar, setADitar] = useState(false);
   const [ultimoOuvido, setUltimoOuvido] = useState<string | null>(null);
@@ -113,7 +123,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   const [ditadoSuportado, setDitadoSuportado] = useState(true);
   const ditandoRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionInstance>(null);
-  const alunosRef = useRef<Aluno[]>([]);
+  const alunosRef = useRef<AlunoTurma[]>([]);
   const ultimoAdicionadoIdRef = useRef<string | null>(null);
 
   async function carregar() {
@@ -125,7 +135,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
       return [];
     }
     setErroCarregar(null);
-    const lista: Aluno[] = await r.json();
+    const lista: AlunoTurma[] = await r.json();
     setAlunos(lista);
     alunosRef.current = lista;
     setACarregar(false);
@@ -143,6 +153,12 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   }, []);
 
   useEffect(() => {
+    fetch('/api/turmas')
+      .then((r) => r.json())
+      .then((lista: Turma[]) => setOutrasTurmas(lista.filter((t) => t.id !== params.turmaId)));
+  }, [params.turmaId]);
+
+  useEffect(() => {
     const SpeechRecognitionCtor =
       (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
     setDitadoSuportado(Boolean(SpeechRecognitionCtor));
@@ -158,20 +174,21 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   async function adicionar(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
-    if (!numero || !nome) {
-      setErro('Indique número e nome.');
+    if (!numero || !numeroProcesso.trim() || !nome) {
+      setErro('Indique número, nº de processo e nome.');
       return;
     }
     const res = await fetch(`/api/turmas/${params.turmaId}/alunos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero: Number(numero), nome, medidaIds }),
+      body: JSON.stringify({ numero: Number(numero), numeroProcesso: numeroProcesso.trim(), nome, medidaIds }),
     });
     if (!res.ok) {
-      setErro('Não foi possível adicionar (número já usado?).');
+      setErro('Não foi possível adicionar (número ou nº de processo já usado?).');
       return;
     }
     setNumero('');
+    setNumeroProcesso('');
     setNome('');
     setMedidaIds([]);
     carregar();
@@ -186,11 +203,14 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     const nomeFinal = capitalizarNome(nomeTexto.trim());
     if (!nomeFinal) return;
     const numeroFinal = numeroExplicito ?? proximoNumero();
+    // O ditado não permite indicar o nº de processo — gera-se um provisório
+    // (único), a corrigir depois na edição inline.
+    const numeroProcessoProvisorio = `AUTO-${Date.now()}`;
 
     const res = await fetch(`/api/turmas/${params.turmaId}/alunos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero: numeroFinal, nome: nomeFinal }),
+      body: JSON.stringify({ numero: numeroFinal, numeroProcesso: numeroProcessoProvisorio, nome: nomeFinal }),
     });
     if (!res.ok) {
       setAvisoDitado(`Não foi possível adicionar "${nomeFinal}" (nº ${numeroFinal} já usado?).`);
@@ -298,7 +318,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     carregar();
   }
 
-  async function alternarAtivo(aluno: Aluno) {
+  async function alternarAtivo(aluno: AlunoTurma) {
     await fetch(`/api/turmas/${params.turmaId}/alunos/${aluno.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -307,9 +327,10 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     carregar();
   }
 
-  function iniciarEdicao(aluno: Aluno) {
+  function iniciarEdicao(aluno: AlunoTurma) {
     setEditandoId(aluno.id);
     setNumeroEdit(String(aluno.numero));
+    setNumeroProcessoEdit(aluno.numeroProcesso);
     setNomeEdit(aluno.nome);
     setMedidaIdsEdit(aluno.medidas.map((am) => am.medida.id));
     setErroEdit(null);
@@ -322,8 +343,8 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
 
   async function guardarEdicao(id: string) {
     setErroEdit(null);
-    if (!numeroEdit || !nomeEdit) {
-      setErroEdit('Indique número e nome.');
+    if (!numeroEdit || !numeroProcessoEdit.trim() || !nomeEdit) {
+      setErroEdit('Indique número, nº de processo e nome.');
       return;
     }
     const res = await fetch(`/api/turmas/${params.turmaId}/alunos/${id}`, {
@@ -331,15 +352,57 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         numero: Number(numeroEdit),
+        numeroProcesso: numeroProcessoEdit.trim(),
         nome: nomeEdit,
         medidaIds: medidaIdsEdit,
       }),
     });
     if (!res.ok) {
-      setErroEdit('Não foi possível guardar (número já usado?).');
+      setErroEdit('Não foi possível guardar (número ou nº de processo já usado?).');
       return;
     }
     setEditandoId(null);
+    carregar();
+  }
+
+  function iniciarTransferencia(aluno: AlunoTurma) {
+    setTransferindo(aluno);
+    setTurmaDestinoId('');
+    setNumeroDestino('');
+    setErroTransferencia(null);
+  }
+
+  async function selecionarTurmaDestino(id: string) {
+    setTurmaDestinoId(id);
+    setNumeroDestino('');
+    if (!id) return;
+    const r = await fetch(`/api/turmas/${id}/alunos`);
+    if (!r.ok) return;
+    const alunosDestino: AlunoTurma[] = await r.json();
+    const maior = alunosDestino.reduce((max, a) => Math.max(max, a.numero), 0);
+    setNumeroDestino(String(maior + 1));
+  }
+
+  async function confirmarTransferencia() {
+    if (!transferindo) return;
+    setErroTransferencia(null);
+    if (!turmaDestinoId || !numeroDestino) {
+      setErroTransferencia('Escolha a turma de destino e o novo número.');
+      return;
+    }
+    setATransferir(true);
+    const res = await fetch(`/api/turmas/${params.turmaId}/alunos/${transferindo.id}/transferir`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ turmaDestinoId, numero: Number(numeroDestino) }),
+    });
+    setATransferir(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setErroTransferencia(body.error ?? 'Não foi possível transferir (número já usado na turma destino?).');
+      return;
+    }
+    setTransferindo(null);
     carregar();
   }
 
@@ -381,6 +444,15 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
             <Label htmlFor="numero">Nº</Label>
             <Input id="numero" type="number" value={numero} onChange={(e) => setNumero(e.target.value)} className="w-20" />
           </div>
+          <div>
+            <Label htmlFor="numero-processo">Nº processo</Label>
+            <Input
+              id="numero-processo"
+              value={numeroProcesso}
+              onChange={(e) => setNumeroProcesso(e.target.value)}
+              className="w-28"
+            />
+          </div>
           <div className="min-w-[160px] flex-1">
             <Label htmlFor="nome-aluno">Nome</Label>
             <Input id="nome-aluno" value={nome} onChange={(e) => setNome(e.target.value)} />
@@ -407,6 +479,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
             <THead>
               <Tr>
                 <Th className="w-16">Nº</Th>
+                <Th>Nº processo</Th>
                 <Th>Nome</Th>
                 <Th>Medidas</Th>
                 <Th>Estado</Th>
@@ -419,6 +492,9 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
                   <Tr key={a.id} className="bg-slate-50/70">
                     <Td>
                       <Input type="number" value={numeroEdit} onChange={(e) => setNumeroEdit(e.target.value)} className="w-16" />
+                    </Td>
+                    <Td>
+                      <Input value={numeroProcessoEdit} onChange={(e) => setNumeroProcessoEdit(e.target.value)} className="w-28" />
                     </Td>
                     <Td>
                       <Input value={nomeEdit} onChange={(e) => setNomeEdit(e.target.value)} />
@@ -442,6 +518,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
                 ) : (
                   <Tr key={a.id}>
                     <Td className="tabular-nums text-slate-500">{a.numero}</Td>
+                    <Td className="tabular-nums text-slate-500">{a.numeroProcesso}</Td>
                     <Td className="font-medium text-slate-900">{a.nome}</Td>
                     <Td className="text-slate-500">
                       {a.medidas.length === 0 ? (
@@ -463,6 +540,9 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
                     </Td>
                     <Td className="text-right">
                       <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => iniciarTransferencia(a)} aria-label="Transferir">
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </Button>
                         <Button size="sm" variant="ghost" onClick={() => iniciarEdicao(a)} aria-label="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -476,7 +556,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
               )}
               {alunos.length === 0 && (
                 <Tr>
-                  <Td colSpan={5}>
+                  <Td colSpan={6}>
                     <div className="py-6 text-center text-sm text-slate-400">
                       Ainda não tem alunos. Adicione o primeiro acima.
                     </div>
@@ -487,6 +567,52 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
           </Table>
         </TableContainer>
       )}
+
+      <Modal
+        open={transferindo !== null}
+        onClose={() => setTransferindo(null)}
+        title={transferindo ? `Transferir ${transferindo.nome}` : undefined}
+        description="Escolha a turma de destino e o número que o aluno vai ter lá. O histórico e as notas já lançadas mantêm-se."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setTransferindo(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarTransferencia} loading={aTransferir}>
+              Transferir
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <div>
+            <Label htmlFor="turma-destino">Turma de destino</Label>
+            <Select
+              id="turma-destino"
+              value={turmaDestinoId}
+              onChange={(e) => selecionarTurmaDestino(e.target.value)}
+            >
+              <option value="">Selecionar…</option>
+              {outrasTurmas.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nome} ({t.anoLetivo.nome})
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="numero-destino">Nº nessa turma</Label>
+            <Input
+              id="numero-destino"
+              type="number"
+              value={numeroDestino}
+              onChange={(e) => setNumeroDestino(e.target.value)}
+              className="w-24"
+            />
+          </div>
+          {erroTransferencia && <Alert tone="danger">{erroTransferencia}</Alert>}
+        </div>
+      </Modal>
     </AppShell>
   );
 }

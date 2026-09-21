@@ -54,9 +54,15 @@ export async function construirResumoPeriodo(
   const periodo = await prisma.periodo.findFirst({ where: { id: periodoId, turmaId } });
   if (!periodo) throw new NotFoundError('Período não encontrado');
 
+  const matriculas = await prisma.matricula.findMany({
+    where: { turmaId, ativa: true },
+    select: { alunoId: true, numero: true },
+  });
+  const numeroPorAluno = new Map(matriculas.map((m) => [m.alunoId, m.numero]));
+
   const alunos = turmaDisciplina.alunos
     .map((ad) => ad.aluno)
-    .sort((a, b) => a.numero - b.numero);
+    .sort((a, b) => (numeroPorAluno.get(a.id) ?? 0) - (numeroPorAluno.get(b.id) ?? 0));
 
   const instrumentosDb = await prisma.instrumento.findMany({
     where: { turmaDisciplinaId, periodoId },
@@ -116,7 +122,7 @@ export async function construirResumoPeriodo(
       criterioId: i.criterioId,
       ordem: i.ordem,
     })),
-    alunos: alunos.map((a) => ({ id: a.id, numero: a.numero, nome: a.nome })),
+    alunos: alunos.map((a) => ({ id: a.id, numero: numeroPorAluno.get(a.id) ?? 0, nome: a.nome })),
     resultados,
     estatisticas,
   };

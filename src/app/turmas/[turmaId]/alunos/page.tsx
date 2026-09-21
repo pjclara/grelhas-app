@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRightLeft, Mic, Square, Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, FileUp, Mic, Square, Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +14,12 @@ import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
 import type { AlunoTurma, Medida, TipoMedida, Turma } from '@/lib/types';
+import type { LinhaAlunoPdf } from '@/lib/importar-alunos-pdf';
+
+interface ResultadoImportacao {
+  importados: number;
+  saltados: Array<{ linha: LinhaAlunoPdf; motivo: string }>;
+}
 
 const GRUPOS_MEDIDAS: Array<{ tipo: TipoMedida; label: string }> = [
   { tipo: 'UNIVERSAL', label: 'Universais' },
@@ -115,6 +121,11 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   const [numeroDestino, setNumeroDestino] = useState('');
   const [erroTransferencia, setErroTransferencia] = useState<string | null>(null);
   const [aTransferir, setATransferir] = useState(false);
+
+  const [aImportar, setAImportar] = useState(false);
+  const [erroImportar, setErroImportar] = useState<string | null>(null);
+  const [resultadoImportacao, setResultadoImportacao] = useState<ResultadoImportacao | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [aDitar, setADitar] = useState(false);
   const [ultimoOuvido, setUltimoOuvido] = useState<string | null>(null);
@@ -406,6 +417,28 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     carregar();
   }
 
+  async function importarPdf(e: React.ChangeEvent<HTMLInputElement>) {
+    const ficheiro = e.target.files?.[0];
+    e.target.value = '';
+    if (!ficheiro) return;
+    setErroImportar(null);
+    setAImportar(true);
+    const formData = new FormData();
+    formData.append('ficheiro', ficheiro);
+    const res = await fetch(`/api/turmas/${params.turmaId}/alunos/importar-pdf`, {
+      method: 'POST',
+      body: formData,
+    });
+    setAImportar(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setErroImportar(body.error ?? 'Não foi possível importar o PDF.');
+      return;
+    }
+    setResultadoImportacao(await res.json());
+    carregar();
+  }
+
   return (
     <AppShell>
       <Link href={`/turmas/${params.turmaId}`} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
@@ -413,17 +446,36 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
       </Link>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Alunos</h1>
-        {ditadoSuportado && (
-          <Button
-            type="button"
-            variant={aDitar ? 'danger' : 'primary'}
-            onClick={() => (aDitar ? pararDitado() : iniciarDitado())}
-          >
-            {aDitar ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            {aDitar ? 'Parar ditado' : 'Ditar alunos'}
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={importarPdf}
+          />
+          <Button type="button" variant="secondary" loading={aImportar} onClick={() => fileInputRef.current?.click()}>
+            <FileUp className="h-4 w-4" />
+            Importar PDF
           </Button>
-        )}
+          {ditadoSuportado && (
+            <Button
+              type="button"
+              variant={aDitar ? 'danger' : 'primary'}
+              onClick={() => (aDitar ? pararDitado() : iniciarDitado())}
+            >
+              {aDitar ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {aDitar ? 'Parar ditado' : 'Ditar alunos'}
+            </Button>
+          )}
+        </div>
       </div>
+
+      {erroImportar && (
+        <Alert tone="danger" className="mb-4">
+          {erroImportar}
+        </Alert>
+      )}
 
       {aDitar && (
         <div className="mb-4 space-y-2">
@@ -612,6 +664,35 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
           </div>
           {erroTransferencia && <Alert tone="danger">{erroTransferencia}</Alert>}
         </div>
+      </Modal>
+
+      <Modal
+        open={resultadoImportacao !== null}
+        onClose={() => setResultadoImportacao(null)}
+        title="Resultado da importação"
+        footer={<Button onClick={() => setResultadoImportacao(null)}>Fechar</Button>}
+      >
+        {resultadoImportacao && (
+          <div className="flex flex-col gap-3">
+            <Alert tone={resultadoImportacao.importados > 0 ? 'success' : 'warning'}>
+              {resultadoImportacao.importados} aluno(s) importado(s).
+            </Alert>
+            {resultadoImportacao.saltados.length > 0 && (
+              <div>
+                <p className="mb-1 text-sm font-medium text-slate-700">
+                  {resultadoImportacao.saltados.length} linha(s) saltada(s):
+                </p>
+                <ul className="flex flex-col gap-1 text-sm text-slate-600">
+                  {resultadoImportacao.saltados.map((s, i) => (
+                    <li key={i}>
+                      Nº turma {s.linha.numero} / processo {s.linha.numeroProcesso} ({s.linha.nome}) — {s.motivo}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </AppShell>
   );

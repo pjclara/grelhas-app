@@ -86,6 +86,36 @@ async function main() {
     create: { nome: anoLetivoNome },
   });
 
+  // Critérios de avaliação vivem no catálogo global (GrupoAvaliacao/
+  // InstrumentoAvaliacao), partilhado entre turmas — encontra ou cria a
+  // entrada do catálogo para este ano letivo antes de a ativar na turma
+  // importada (TurmaDisciplinaInstrumento).
+  async function ativarCriterioDoCatalogo(
+    grupoNome: string,
+    instrumentoNome: string,
+    peso: number,
+    ordem: number
+  ) {
+    const grupo = await prisma.grupoAvaliacao.upsert({
+      where: { anoLetivoId_nome: { anoLetivoId: anoLetivo.id, nome: grupoNome } },
+      update: {},
+      create: { anoLetivoId: anoLetivo.id, nome: grupoNome },
+    });
+    const instrumentoAvaliacao = await prisma.instrumentoAvaliacao.upsert({
+      where: { grupoId_nome: { grupoId: grupo.id, nome: instrumentoNome } },
+      update: {},
+      create: { grupoId: grupo.id, nome: instrumentoNome },
+    });
+    await prisma.instrumentoPeso.upsert({
+      where: { instrumentoId_disciplinaId: { instrumentoId: instrumentoAvaliacao.id, disciplinaId: disciplina.id } },
+      update: {},
+      create: { instrumentoId: instrumentoAvaliacao.id, disciplinaId: disciplina.id, peso },
+    });
+    return prisma.turmaDisciplinaInstrumento.create({
+      data: { turmaDisciplinaId: turmaDisciplina.id, instrumentoAvaliacaoId: instrumentoAvaliacao.id, peso, ordem },
+    });
+  }
+
   const turma = await prisma.turma.create({
     data: {
       userId: user.id,
@@ -120,19 +150,13 @@ async function main() {
     data: alunosCriados.map((a) => ({ alunoId: a.id, turmaDisciplinaId: turmaDisciplina.id })),
   });
 
-  const criterioTestes = await prisma.criterio.create({
-    data: { turmaDisciplinaId: turmaDisciplina.id, grupo: 'Conhecimentos e Capacidades', nome: 'Testes de avaliação', peso: pesoTestes, ordem: 0 },
-  });
-  const criterioOutros = await prisma.criterio.create({
-    data: { turmaDisciplinaId: turmaDisciplina.id, grupo: 'Conhecimentos e Capacidades', nome: 'Outros instrumentos', peso: pesoOutros, ordem: 1 },
-  });
-  const criteriosAtitude = await Promise.all(
-    atitudeDefs.map((def, idx) =>
-      prisma.criterio.create({
-        data: { turmaDisciplinaId: turmaDisciplina.id, grupo: 'Atitudes', nome: def.nome, peso: def.peso, ordem: 2 + idx },
-      })
-    )
-  );
+  const criterioTestes = await ativarCriterioDoCatalogo('Conhecimentos e Capacidades', 'Testes de avaliação', pesoTestes, 0);
+  const criterioOutros = await ativarCriterioDoCatalogo('Conhecimentos e Capacidades', 'Outros instrumentos', pesoOutros, 1);
+  const criteriosAtitude: Awaited<ReturnType<typeof ativarCriterioDoCatalogo>>[] = [];
+  for (let idx = 0; idx < atitudeDefs.length; idx++) {
+    const def = atitudeDefs[idx];
+    criteriosAtitude.push(await ativarCriterioDoCatalogo('Atitudes', def.nome, def.peso, 2 + idx));
+  }
 
   const periodo1 = await prisma.periodo.create({ data: { turmaId: turma.id, nome: '1.º Semestre', ordem: 1 } });
   const periodo2 = await prisma.periodo.create({ data: { turmaId: turma.id, nome: '2.º Semestre', ordem: 2 } });
@@ -213,12 +237,13 @@ async function main() {
     const colunas = ['D', 'E', 'F', 'G', 'H'];
     for (let idx = 0; idx < colunas.length; idx++) {
       const criterio = criteriosAtitude[idx];
+      const nomeCriterio = atitudeDefs[idx].nome;
       const instrumento = await prisma.instrumento.create({
         data: {
           turmaDisciplinaId: turmaDisciplina.id,
           periodoId,
           criterioId: criterio.id,
-          nome: criterio.nome,
+          nome: nomeCriterio,
           modo: ModoAvaliacao.ESCALA,
           escalaMax: 5,
           ordem: idx,
@@ -241,7 +266,7 @@ async function main() {
         );
       }
       if (operacoes.length > 0) await prisma.$transaction(operacoes);
-      console.log(`Importado item de atitude "${criterio.nome}" (${sheetName}): ${operacoes.length} notas.`);
+      console.log(`Importado item de atitude "${nomeCriterio}" (${sheetName}): ${operacoes.length} notas.`);
     }
   }
 

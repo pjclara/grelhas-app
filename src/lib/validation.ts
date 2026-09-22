@@ -95,11 +95,14 @@ export const instrumentoAvaliacaoSchema = z.object({
     ),
 });
 
-export const criterioSchema = z.object({
-  grupo: z.string().min(1),
-  nome: z.string().min(1),
+export const turmaDisciplinaInstrumentoSchema = z.object({
+  instrumentoAvaliacaoId: z.string().min(1),
   peso: z.number().min(0).max(1),
-  ordem: z.number().int().min(0),
+  ordem: z.number().int().min(0).optional(),
+});
+
+export const turmaDisciplinaInstrumentoPesoSchema = z.object({
+  peso: z.number().min(0).max(1),
 });
 
 export const perguntaInputSchema = z.object({

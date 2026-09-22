@@ -5,36 +5,6 @@ import { assertTurmaOwnership } from '@/lib/turma-access';
 import { turmaDisciplinaSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
-const CRITERIOS_PADRAO = [
-  { grupo: 'Conhecimentos e Capacidades', nome: 'Testes de avaliação', peso: 0.45, ordem: 0 },
-  { grupo: 'Conhecimentos e Capacidades', nome: 'Outros instrumentos', peso: 0.3, ordem: 1 },
-  {
-    grupo: 'Atitudes',
-    nome: 'Responsabilidade e valores democráticos, de cidadania e solidariedade',
-    peso: 0.05,
-    ordem: 2,
-  },
-  {
-    grupo: 'Atitudes',
-    nome: 'Cooperação, relacionamento interpessoal e desenvolvimento pessoal',
-    peso: 0.05,
-    ordem: 3,
-  },
-  {
-    grupo: 'Atitudes',
-    nome: 'Reflexão e (auto)regulação do processo de aprendizagem',
-    peso: 0.05,
-    ordem: 4,
-  },
-  { grupo: 'Atitudes', nome: 'Iniciativa, autonomia e organização/método de trabalho', peso: 0.05, ordem: 5 },
-  {
-    grupo: 'Atitudes',
-    nome: 'Seleção e desenvolvimento de estratégias para resolução de problemas',
-    peso: 0.05,
-    ordem: 6,
-  },
-];
-
 export async function GET(_req: NextRequest, { params }: { params: { turmaId: string } }) {
   try {
     const userId = await requireUserId();
@@ -52,7 +22,9 @@ export async function GET(_req: NextRequest, { params }: { params: { turmaId: st
 
 /**
  * Associa uma disciplina (do catálogo global) a esta turma, já com os
- * critérios de avaliação "padrão" (réplica dos pesos da grelha original).
+ * critérios de avaliação ativados a partir do catálogo global (todo
+ * InstrumentoAvaliacao do ano letivo da turma que tenha peso definido para
+ * esta disciplina — ver GrupoAvaliacao/InstrumentoAvaliacao/InstrumentoPeso).
  * A mesma disciplina não pode ser associada duas vezes à mesma turma
  * (garantido por @@unique([turmaId, disciplinaId]) no schema — um pedido
  * duplicado resulta em 409 via handleApiError).
@@ -60,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: { params: { turmaId: st
 export async function POST(req: NextRequest, { params }: { params: { turmaId: string } }) {
   try {
     const userId = await requireUserId();
-    await assertTurmaOwnership(params.turmaId, userId);
+    const turma = await assertTurmaOwnership(params.turmaId, userId);
     const data = turmaDisciplinaSchema.parse(await req.json());
 
     const disciplina = await prisma.disciplina.findFirst({
@@ -68,11 +40,32 @@ export async function POST(req: NextRequest, { params }: { params: { turmaId: st
     });
     if (!disciplina) throw new NotFoundError('Disciplina não encontrada');
 
+    const grupos = await prisma.grupoAvaliacao.findMany({
+      where: { anoLetivoId: turma.anoLetivoId },
+      orderBy: { ordem: 'asc' },
+      include: {
+        instrumentos: {
+          orderBy: { ordem: 'asc' },
+          include: { pesos: { where: { disciplinaId: data.disciplinaId } } },
+        },
+      },
+    });
+
+    const criteriosParaAtivar: { instrumentoAvaliacaoId: string; peso: number; ordem: number }[] = [];
+    let ordem = 0;
+    for (const g of grupos) {
+      for (const inst of g.instrumentos) {
+        const peso = inst.pesos[0]?.peso;
+        if (peso === undefined) continue;
+        criteriosParaAtivar.push({ instrumentoAvaliacaoId: inst.id, peso, ordem: ordem++ });
+      }
+    }
+
     const turmaDisciplina = await prisma.turmaDisciplina.create({
       data: {
         turmaId: params.turmaId,
         disciplinaId: data.disciplinaId,
-        criterios: { create: CRITERIOS_PADRAO },
+        criterios: { create: criteriosParaAtivar },
       },
       include: { disciplina: true, criterios: true },
     });

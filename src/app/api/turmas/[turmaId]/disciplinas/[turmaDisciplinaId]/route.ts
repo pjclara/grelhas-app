@@ -4,6 +4,7 @@ import { requireUserId } from '@/lib/auth';
 import { assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
 import { turmaLimiaresSchema } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-helpers';
+import { criterioInclude, paraCriterioDTO } from '@/lib/criterio-dto';
 
 export async function GET(
   _req: NextRequest,
@@ -16,11 +17,14 @@ export async function GET(
       where: { id: params.turmaDisciplinaId },
       include: {
         disciplina: true,
-        criterios: { orderBy: { ordem: 'asc' } },
+        criterios: { orderBy: { ordem: 'asc' }, include: criterioInclude },
         alunos: { include: { aluno: true } },
       },
     });
-    return NextResponse.json(turmaDisciplina);
+    if (!turmaDisciplina) {
+      return NextResponse.json(turmaDisciplina);
+    }
+    return NextResponse.json({ ...turmaDisciplina, criterios: turmaDisciplina.criterios.map(paraCriterioDTO) });
   } catch (error) {
     return handleApiError(error);
   }

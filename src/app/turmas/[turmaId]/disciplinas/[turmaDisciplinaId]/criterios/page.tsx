@@ -2,16 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Download } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Input, Select } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageLoading } from '@/components/ui/Spinner';
 import type { Criterio } from '@/lib/types';
+
+interface CriterioDisponivel {
+  instrumentoAvaliacaoId: string;
+  grupo: string;
+  nome: string;
+  pesoCatalogo: number | null;
+}
 
 export default function CriteriosPage({
   params,
@@ -19,24 +26,29 @@ export default function CriteriosPage({
   params: { turmaId: string; turmaDisciplinaId: string };
 }) {
   const [criterios, setCriterios] = useState<Criterio[]>([]);
+  const [disponiveis, setDisponiveis] = useState<CriterioDisponivel[]>([]);
   const [aCarregar, setACarregar] = useState(true);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
-  const [grupo, setGrupo] = useState('');
-  const [nome, setNome] = useState('');
+  const [instrumentoAvaliacaoId, setInstrumentoAvaliacaoId] = useState('');
   const [pesoPct, setPesoPct] = useState('');
+
+  const [aImportar, setAImportar] = useState(false);
+  const [mensagemImportar, setMensagemImportar] = useState<string | null>(null);
+  const [erroImportar, setErroImportar] = useState<string | null>(null);
 
   const base = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/criterios`;
 
   async function carregar() {
     setACarregar(true);
-    const r = await fetch(base);
-    if (!r.ok) {
+    const [r, rDisponiveis] = await Promise.all([fetch(base), fetch(`${base}/catalogo`)]);
+    if (!r.ok || !rDisponiveis.ok) {
       setErroCarregar('Não foi possível carregar os critérios.');
       setACarregar(false);
       return;
     }
     setErroCarregar(null);
     setCriterios(await r.json());
+    setDisponiveis(await rDisponiveis.json());
     setACarregar(false);
   }
 
@@ -47,21 +59,25 @@ export default function CriteriosPage({
 
   const totalPeso = criterios.reduce((acc, c) => acc + c.peso, 0);
 
+  function selecionarDisponivel(id: string) {
+    setInstrumentoAvaliacaoId(id);
+    const d = disponiveis.find((x) => x.instrumentoAvaliacaoId === id);
+    setPesoPct(d?.pesoCatalogo != null ? String(Math.round(d.pesoCatalogo * 100)) : '');
+  }
+
   async function adicionar(e: React.FormEvent) {
     e.preventDefault();
-    if (!grupo || !nome || !pesoPct) return;
+    if (!instrumentoAvaliacaoId || !pesoPct) return;
     await fetch(base, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        grupo,
-        nome,
+        instrumentoAvaliacaoId,
         peso: Number(pesoPct) / 100,
         ordem: criterios.length,
       }),
     });
-    setGrupo('');
-    setNome('');
+    setInstrumentoAvaliacaoId('');
     setPesoPct('');
     carregar();
   }
@@ -77,8 +93,32 @@ export default function CriteriosPage({
     });
   }
 
+  async function importarDoCatalogo() {
+    setErroImportar(null);
+    setMensagemImportar(null);
+    setAImportar(true);
+    const res = await fetch(`${base}/importar`, { method: 'POST' });
+    setAImportar(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setErroImportar(body.error ?? 'Não foi possível importar do catálogo.');
+      return;
+    }
+    const body: { importados: number; criterios: Criterio[] } = await res.json();
+    setCriterios(body.criterios);
+    setMensagemImportar(
+      body.importados > 0
+        ? `${body.importados} critério(s) importado(s) do catálogo.`
+        : 'Não há critérios novos para importar (catálogo vazio para esta disciplina/ano letivo, ou já foram todos importados).'
+    );
+  }
+
   async function remover(id: string) {
-    if (!confirm('Remover este critério? Os instrumentos associados ficam sem critério e devem ser reatribuídos.'))
+    if (
+      !confirm(
+        'Desativar este critério nesta turma? Os instrumentos associados e as respetivas notas são apagados.'
+      )
+    )
       return;
     await fetch(`${base}/${id}`, { method: 'DELETE' });
     carregar();
@@ -95,7 +135,23 @@ export default function CriteriosPage({
       >
         <ArrowLeft className="h-4 w-4" /> Voltar à disciplina
       </Link>
-      <h1 className="mb-2 text-2xl font-semibold tracking-tight text-slate-900">Critérios de avaliação</h1>
+      <div className="mb-2 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Critérios de avaliação</h1>
+        <Button type="button" variant="secondary" onClick={importarDoCatalogo} loading={aImportar}>
+          <Download className="h-4 w-4" />
+          Importar do catálogo
+        </Button>
+      </div>
+      {mensagemImportar && (
+        <div className="mb-4">
+          <Alert tone="success">{mensagemImportar}</Alert>
+        </div>
+      )}
+      {erroImportar && (
+        <div className="mb-4">
+          <Alert tone="danger">{erroImportar}</Alert>
+        </div>
+      )}
       {!aCarregar && !erroCarregar && criterios.length > 0 && (
         <div className="mb-6">
           <Alert tone={pesoOk ? 'success' : 'warning'}>
@@ -114,7 +170,14 @@ export default function CriteriosPage({
       ) : grupos.length === 0 ? (
         <div className="mb-6">
           <Card>
-            <EmptyState title="Ainda não tem critérios configurados" description="Adicione o primeiro abaixo." />
+            <EmptyState
+              title="Ainda não tem critérios configurados"
+              description={
+                disponiveis.length > 0
+                  ? 'Ative um critério do catálogo abaixo, ou importe todos de uma vez.'
+                  : 'Não há critérios no catálogo global para esta disciplina — peça a um administrador para os configurar em Critérios de Avaliação.'
+              }
+            />
           </Card>
         </div>
       ) : (
@@ -150,24 +213,33 @@ export default function CriteriosPage({
         ))
       )}
 
-      <Card as="form" onSubmit={adicionar} className="mt-8 flex flex-wrap items-end gap-3 p-4">
-        <div>
-          <Label htmlFor="grupo">Grupo</Label>
-          <Input id="grupo" value={grupo} onChange={(e) => setGrupo(e.target.value)} placeholder="ex: Atitudes" className="w-40" />
-        </div>
-        <div className="min-w-[200px] flex-1">
-          <Label htmlFor="nome-criterio">Nome do critério</Label>
-          <Input id="nome-criterio" value={nome} onChange={(e) => setNome(e.target.value)} />
-        </div>
-        <div>
-          <Label htmlFor="peso">Peso (%)</Label>
-          <Input id="peso" type="number" value={pesoPct} onChange={(e) => setPesoPct(e.target.value)} className="w-24" />
-        </div>
-        <Button type="submit">
-          <Plus className="h-4 w-4" />
-          Adicionar critério
-        </Button>
-      </Card>
+      {disponiveis.length > 0 && (
+        <Card as="form" onSubmit={adicionar} className="mt-8 flex flex-wrap items-end gap-3 p-4">
+          <div className="min-w-[240px] flex-1">
+            <Label htmlFor="criterio-catalogo">Ativar critério do catálogo</Label>
+            <Select
+              id="criterio-catalogo"
+              value={instrumentoAvaliacaoId}
+              onChange={(e) => selecionarDisponivel(e.target.value)}
+            >
+              <option value="">Selecionar…</option>
+              {disponiveis.map((d) => (
+                <option key={d.instrumentoAvaliacaoId} value={d.instrumentoAvaliacaoId}>
+                  {d.grupo} — {d.nome}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="peso">Peso (%)</Label>
+            <Input id="peso" type="number" value={pesoPct} onChange={(e) => setPesoPct(e.target.value)} className="w-24" />
+          </div>
+          <Button type="submit" disabled={!instrumentoAvaliacaoId}>
+            <Plus className="h-4 w-4" />
+            Ativar critério
+          </Button>
+        </Card>
+      )}
     </AppShell>
   );
 }

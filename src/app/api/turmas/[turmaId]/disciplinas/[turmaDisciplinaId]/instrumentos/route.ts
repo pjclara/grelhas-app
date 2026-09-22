@@ -4,6 +4,7 @@ import { requireUserId } from '@/lib/auth';
 import { assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
 import { instrumentoSchema } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-helpers';
+import { criterioInclude, paraCriterioDTO } from '@/lib/criterio-dto';
 
 export async function GET(
   req: NextRequest,
@@ -15,10 +16,16 @@ export async function GET(
     const periodoId = req.nextUrl.searchParams.get('periodoId') ?? undefined;
     const instrumentos = await prisma.instrumento.findMany({
       where: { turmaDisciplinaId: params.turmaDisciplinaId, ...(periodoId ? { periodoId } : {}) },
-      include: { perguntas: { orderBy: { ordem: 'asc' } }, criterio: true, periodo: true },
+      include: {
+        perguntas: { orderBy: { ordem: 'asc' } },
+        criterio: { include: criterioInclude },
+        periodo: true,
+      },
       orderBy: [{ periodoId: 'asc' }, { ordem: 'asc' }],
     });
-    return NextResponse.json(instrumentos);
+    return NextResponse.json(
+      instrumentos.map((i) => ({ ...i, criterio: paraCriterioDTO(i.criterio) }))
+    );
   } catch (error) {
     return handleApiError(error);
   }

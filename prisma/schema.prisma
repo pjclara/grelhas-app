@@ -148,10 +148,30 @@ model InstrumentoAvaliacao {
   nome    String // ex: "Testes", "Trabalhos de grupo"
   ordem   Int    @default(0)
 
-  grupo GrupoAvaliacao    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
-  pesos InstrumentoPeso[]
+  grupo                       GrupoAvaliacao                @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  pesos                       InstrumentoPeso[]
+  turmaDisciplinaInstrumentos TurmaDisciplinaInstrumento[]
 
   @@unique([grupoId, nome])
+}
+
+// Ativação de um InstrumentoAvaliacao do catálogo global numa TurmaDisciplina
+// concreta, com o peso efetivamente usado nessa turma (copiado do catálogo
+// no momento da ativação, mas editável depois sem afetar o catálogo nem
+// outras turmas). Substitui o antigo modelo `Criterio`, que duplicava
+// nome/grupo em vez de reutilizar o catálogo.
+model TurmaDisciplinaInstrumento {
+  id                      String @id @default(cuid())
+  turmaDisciplinaId       String
+  instrumentoAvaliacaoId  String
+  peso                    Float // 0 a 1, específico desta turma+disciplina
+  ordem                   Int
+
+  turmaDisciplina      TurmaDisciplina      @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
+  instrumentoAvaliacao InstrumentoAvaliacao @relation(fields: [instrumentoAvaliacaoId], references: [id], onDelete: Cascade)
+  instrumentos         Instrumento[]
+
+  @@unique([turmaDisciplinaId, instrumentoAvaliacaoId])
 }
 
 // Peso do instrumento numa disciplina concreta — o mesmo instrumento pode
@@ -206,9 +226,9 @@ model TurmaDisciplina {
   limiarNivel4 Float @default(70)
   limiarNivel5 Float @default(90)
 
-  turma        Turma             @relation(fields: [turmaId], references: [id], onDelete: Cascade)
-  disciplina   Disciplina        @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
-  criterios    Criterio[]
+  turma        Turma                        @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  disciplina   Disciplina                   @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  criterios    TurmaDisciplinaInstrumento[]
   instrumentos Instrumento[]
   alunos       AlunoDisciplina[]
 
@@ -318,20 +338,6 @@ enum ModoAvaliacao {
   ESCALA // média de valores numa escala (ex.: 1 a 5)
 }
 
-model Criterio {
-  id                String @id @default(cuid())
-  turmaDisciplinaId String
-  grupo             String // ex: "Conhecimentos e Capacidades", "Atitudes"
-  nome              String // ex: "Testes de avaliação", "Responsabilidade..."
-  peso              Float // 0 a 1 (ex.: 0.45 = 45%)
-  ordem             Int
-
-  turmaDisciplina TurmaDisciplina @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
-  instrumentos    Instrumento[]
-
-  @@unique([turmaDisciplinaId, nome])
-}
-
 // ---------- Instrumentos de avaliação ----------
 
 model Instrumento {
@@ -347,9 +353,9 @@ model Instrumento {
   data              DateTime?
   ordem             Int           @default(0)
 
-  turmaDisciplina TurmaDisciplina @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
-  periodo         Periodo         @relation(fields: [periodoId], references: [id], onDelete: Cascade)
-  criterio        Criterio        @relation(fields: [criterioId], references: [id], onDelete: Cascade)
+  turmaDisciplina TurmaDisciplina            @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
+  periodo         Periodo                    @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  criterio        TurmaDisciplinaInstrumento @relation(fields: [criterioId], references: [id], onDelete: Cascade)
   perguntas       Pergunta[]
 
   @@index([turmaDisciplinaId, periodoId])

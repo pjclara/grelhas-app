@@ -42,7 +42,10 @@ export async function construirResumoPeriodo(
     include: {
       disciplina: true,
       turma: { include: { anoLetivo: true } },
-      criterios: { orderBy: { ordem: 'asc' } },
+      criterios: {
+        orderBy: { ordem: 'asc' },
+        include: { instrumentoAvaliacao: { include: { grupo: true } } },
+      },
       alunos: {
         where: { ativo: true, aluno: { ativo: true } },
         include: { aluno: true },
@@ -91,7 +94,13 @@ export async function construirResumoPeriodo(
     if (mapa) mapa[nota.perguntaId] = nota.valor;
   }
 
-  const criterios: CriterioCalc[] = turmaDisciplina.criterios;
+  const criterios: CriterioCalc[] = turmaDisciplina.criterios.map((c) => ({
+    id: c.id,
+    nome: c.instrumentoAvaliacao.nome,
+    grupo: c.instrumentoAvaliacao.grupo.nome,
+    peso: c.peso,
+    ordem: c.ordem,
+  }));
 
   const resultados = alunos.map((aluno) =>
     calcularAluno(

@@ -4,6 +4,7 @@ import { requireUserId } from '@/lib/auth';
 import { assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
 import { instrumentoSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
+import { criterioInclude, paraCriterioDTO } from '@/lib/criterio-dto';
 
 export async function GET(
   _req: NextRequest,
@@ -16,12 +17,12 @@ export async function GET(
       where: { id: params.instrumentoId, turmaDisciplinaId: params.turmaDisciplinaId },
       include: {
         perguntas: { orderBy: { ordem: 'asc' }, include: { notas: true } },
-        criterio: true,
+        criterio: { include: criterioInclude },
         periodo: true,
       },
     });
     if (!instrumento) throw new NotFoundError('Instrumento não encontrado');
-    return NextResponse.json(instrumento);
+    return NextResponse.json({ ...instrumento, criterio: paraCriterioDTO(instrumento.criterio) });
   } catch (error) {
     return handleApiError(error);
   }

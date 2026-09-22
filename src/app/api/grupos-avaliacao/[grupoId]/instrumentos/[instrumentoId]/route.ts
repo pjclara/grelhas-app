@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAdminId } from '@/lib/auth';
 import { instrumentoAvaliacaoSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
+import { sincronizarAtivacoesInstrumento } from '@/lib/catalogo-sync';
 
 async function assertExists(grupoId: string, instrumentoId: string) {
   const instrumento = await prisma.instrumentoAvaliacao.findFirst({
@@ -35,7 +36,7 @@ export async function PATCH(
       if (data.pesos) {
         await tx.instrumentoPeso.deleteMany({ where: { instrumentoId: params.instrumentoId } });
       }
-      return tx.instrumentoAvaliacao.update({
+      const atualizado = await tx.instrumentoAvaliacao.update({
         where: { id: params.instrumentoId },
         data: {
           nome: data.nome,
@@ -44,6 +45,10 @@ export async function PATCH(
         },
         include: { pesos: true },
       });
+      if (data.pesos) {
+        await sincronizarAtivacoesInstrumento(tx, params.grupoId, params.instrumentoId, data.pesos);
+      }
+      return atualizado;
     });
     return NextResponse.json(instrumento);
   } catch (error) {

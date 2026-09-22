@@ -10,7 +10,8 @@
       "Bash(disown)",
       "Read(//tmp/**)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/login)",
-      "Bash(cd \"c:\\\\Users\\\\pjcla\\\\OneDrive\\\\Ambiente de Trabalho\\\\NaoApagar\\\\grelhas-app\" && git status --short && echo --- && tail -30 /tmp/dev.log)"
+      "Bash(cd \"c:\\\\Users\\\\pjcla\\\\OneDrive\\\\Ambiente de Trabalho\\\\NaoApagar\\\\grelhas-app\" && git status --short && echo --- && tail -30 /tmp/dev.log)",
+      "Bash(git push *)"
     ]
   }
 }

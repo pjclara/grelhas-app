@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
 import type { Disciplina } from '@/lib/types';
+import { compararPorGrupoCicloDisciplinaAno } from '@/lib/disciplina-order';
 
 export default function DisciplinasPage() {
   const { data: session } = useSession();
@@ -62,9 +63,9 @@ export default function DisciplinasPage() {
     carregar();
   }
 
-  const disciplinasFiltradas = disciplinas.filter((d) =>
-    d.nome.toLowerCase().includes(filtroNome.trim().toLowerCase())
-  );
+  const disciplinasFiltradas = disciplinas
+    .filter((d) => d.nome.toLowerCase().includes(filtroNome.trim().toLowerCase()))
+    .sort(compararPorGrupoCicloDisciplinaAno);
 
   return (
     <AppShell>

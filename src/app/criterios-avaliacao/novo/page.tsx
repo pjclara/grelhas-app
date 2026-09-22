@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -32,6 +32,14 @@ function novoDraft(): InstrumentoDraft {
 const TOTAL_PASSOS = 6;
 
 export default function NovoInstrumentoPage() {
+  return (
+    <Suspense fallback={<AppShell><PageLoading /></AppShell>}>
+      <NovoInstrumentoConteudo />
+    </Suspense>
+  );
+}
+
+function NovoInstrumentoConteudo() {
   const { data: session, status } = useSession();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'ADMIN';
   const router = useRouter();

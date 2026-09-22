@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdminId } from '@/lib/auth';
+import { requireUserId, requireAdminId } from '@/lib/auth';
 import { disciplinaSchema } from '@/lib/validation';
 import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
@@ -9,6 +9,23 @@ const INCLUDE = {
   ciclos: { include: { ciclo: true as const } },
   anosEscolaridade: { include: { anoEscolaridade: true as const } },
 };
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { disciplinaId: string } }
+) {
+  try {
+    await requireUserId();
+    const disciplina = await prisma.disciplina.findFirst({
+      where: { id: params.disciplinaId },
+      include: INCLUDE,
+    });
+    if (!disciplina) throw new NotFoundError('Disciplina não encontrada');
+    return NextResponse.json(disciplina);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
 
 export async function PATCH(
   req: NextRequest,

@@ -12,7 +12,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageLoading, Skeleton } from '@/components/ui/Spinner';
-import { NIVEIS_ENSINO, anoLetivoAtual, type AnoLetivo, type Turma } from '@/lib/types';
+import { anoLetivoAtual, type AnoLetivo, type Turma } from '@/lib/types';
 
 export default function DashboardPage() {
   const [turmas, setTurmas] = useState<Turma[]>([]);
@@ -130,10 +130,19 @@ function NovaTurmaForm({
 }) {
   const [nome, setNome] = useState('');
   const [nivelEnsino, setNivelEnsino] = useState('');
+  const [ciclos, setCiclos] = useState<{ id: string; nome: string }[]>([]);
   const [anoLetivoId, setAnoLetivoId] = useState('');
   const [novoAno, setNovoAno] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [aGravar, setAGravar] = useState(false);
+
+  // Os níveis de ensino são os ciclos já criados para as disciplinas.
+  useEffect(() => {
+    fetch('/api/ciclos')
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setCiclos)
+      .catch(() => setCiclos([]));
+  }, []);
 
   // Por omissão sugere o ano letivo corrente: se já existir, pré-seleciona-o;
   // caso contrário, pré-preenche o campo de criação para bastar um clique.
@@ -222,9 +231,9 @@ function NovaTurmaForm({
           <Label htmlFor="nivel-ensino">Nível de ensino</Label>
           <Select id="nivel-ensino" value={nivelEnsino} onChange={(e) => setNivelEnsino(e.target.value)}>
             <option value="">Selecionar…</option>
-            {NIVEIS_ENSINO.map((n) => (
-              <option key={n} value={n}>
-                {n}
+            {ciclos.map((c) => (
+              <option key={c.id} value={c.nome}>
+                {c.nome}
               </option>
             ))}
           </Select>

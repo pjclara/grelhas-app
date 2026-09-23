@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireUserId } from '@/lib/auth';
 import { turmaSchema } from '@/lib/validation';
-import { handleApiError } from '@/lib/api-helpers';
+import { handleApiError, NotFoundError } from '@/lib/api-helpers';
 
 const PERIODOS_PADRAO = [
   { nome: '1.º Semestre', ordem: 1 },
@@ -37,6 +37,11 @@ export async function POST(req: NextRequest) {
   try {
     const userId = await requireUserId();
     const data = turmaSchema.parse(await req.json());
+
+    if (data.nivelEnsino) {
+      const ciclo = await prisma.ciclo.findFirst({ where: { nome: data.nivelEnsino } });
+      if (!ciclo) throw new NotFoundError('Nível de ensino inexistente');
+    }
 
     const turma = await prisma.turma.create({
       data: {

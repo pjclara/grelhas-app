@@ -5,7 +5,10 @@ import { prisma } from '@/lib/prisma';
 import type { Role } from '@prisma/client';
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: 'jwt' },
+  // 1h: o NextAuth renova o token a cada leitura da sessão, por isso é uma
+  // expiração deslizante (ver refetchInterval em SessionProvider). Com o
+  // browser fechado deixa de haver renovação e a sessão expira sozinha.
+  session: { strategy: 'jwt', maxAge: 60 * 60 },
   pages: {
     signIn: '/login',
   },

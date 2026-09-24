@@ -166,6 +166,11 @@ export default function AtitudesPage({
                       <th key={inst.id} className="w-32 px-2 py-2 text-center">
                         {inst.criterio?.nome ?? inst.nome}
                         <div className="text-xs font-normal normal-case text-slate-400">/{inst.escalaMax}</div>
+                        {inst.criterio && (
+                          <div className="text-xs font-normal normal-case text-slate-400">
+                            {Math.round(inst.criterio.peso * 1000) / 10}%
+                          </div>
+                        )}
                       </th>
                     ))}
                     <th className="px-3 py-2 text-center">Total</th>

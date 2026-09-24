@@ -410,7 +410,6 @@ export default function InstrumentoPage({
                   </th>
                 ))}
                 <th className="px-3 py-2 text-center">Total</th>
-                <th className="px-3 py-2 text-center">%</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -424,6 +423,8 @@ export default function InstrumentoPage({
                       const cellKey = `${aluno.id}:${p.id}`;
                       const cellIndex = alunos.indexOf(aluno) * instrumento.perguntas.length + pIdx;
                       const ativa = aDitar && cellIndex === activeIndex;
+                      const valorNota = notas[aluno.id]?.[p.id];
+                      const excedeu = valorNota != null && String(valorNota) !== '' && Number(valorNota) > p.valorMax;
                       return (
                         <td key={p.id} className="px-1 py-1">
                           <input
@@ -437,8 +438,14 @@ export default function InstrumentoPage({
                             value={notas[aluno.id]?.[p.id] ?? ''}
                             onChange={(e) => atualizarNota(aluno.id, p.id, e.target.value)}
                             aria-label={`Nota de ${aluno.nome} na pergunta ${p.codigo}`}
-                            className={`w-16 rounded-md border px-1 py-1 text-center text-sm transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand-500/30 ${
-                              ativa ? 'border-brand-500 ring-2 ring-brand-300' : 'border-slate-200'
+                            aria-invalid={excedeu}
+                            title={excedeu ? `Acima do máximo da pergunta (${p.valorMax})` : undefined}
+                            className={`w-16 rounded-md border px-1 py-1 text-center text-sm transition-colors duration-150 focus:outline-none focus:ring-2 ${
+                              excedeu
+                                ? 'border-red-500 bg-red-50 text-red-700 focus:ring-red-500/30'
+                                : `focus:ring-brand-500/30 ${
+                                    ativa ? 'border-brand-500 ring-2 ring-brand-300' : 'border-slate-200'
+                                  }`
                             }`}
                           />
                         </td>
@@ -446,9 +453,6 @@ export default function InstrumentoPage({
                     })}
                     <td className="px-3 py-1.5 text-center font-medium text-slate-900">
                       {total?.preenchido ? `${total.soma}/${total.max}` : '—'}
-                    </td>
-                    <td className="px-3 py-1.5 text-center font-medium text-slate-900">
-                      {total?.preenchido ? `${((total.soma / total.max) * 100).toFixed(0)}%` : '—'}
                     </td>
                   </tr>
                 );

@@ -21,7 +21,7 @@ export default function AppShell({ children, width = 'default' }: AppShellProps)
       <div className="flex flex-1">
         <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8">
-          <div className={cn('mx-auto', width === 'default' ? 'max-w-5xl' : 'max-w-none')}>{children}</div>
+          <div className={cn('mx-auto', width === 'default' ? 'max-w-7xl' : 'max-w-none')}>{children}</div>
         </main>
       </div>
     </div>

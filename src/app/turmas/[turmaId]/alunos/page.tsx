@@ -27,7 +27,6 @@ const GRUPOS_MEDIDAS: Array<{ tipo: TipoMedida; label: string }> = [
   { tipo: 'ADICIONAL', label: 'Adicionais' },
 ];
 
-const PREFIXO_TIPO: Record<TipoMedida, string> = { UNIVERSAL: 'Un', SELETIVA: 'Sel', ADICIONAL: 'Ad' };
 const TOM_TIPO: Record<TipoMedida, 'brand' | 'warning' | 'danger'> = {
   UNIVERSAL: 'brand',
   SELETIVA: 'warning',
@@ -105,6 +104,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   const [nome, setNome] = useState('');
   const [medidaIds, setMedidaIds] = useState<string[]>([]);
   const [erro, setErro] = useState<string | null>(null);
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
   const [medidasCatalogo, setMedidasCatalogo] = useState<Medida[]>([]);
 
@@ -202,10 +202,11 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
     setNumeroProcesso('');
     setNome('');
     setMedidaIds([]);
+    setMostrarFormulario(false);
     carregar();
   }
 
-  function proximoNumero(): number {
+function proximoNumero(): number {
     const maior = alunosRef.current.reduce((max, a) => Math.max(max, a.numero), 0);
     return maior + 1;
   }
@@ -458,6 +459,17 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
             <FileUp className="h-4 w-4" />
             Importar PDF
           </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setErro(null);
+              setMostrarFormulario((v) => !v);
+            }}
+          >
+            {mostrarFormulario ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {mostrarFormulario ? 'Cancelar' : 'Adicionar aluno'}
+          </Button>
           {ditadoSuportado && (
             <Button
               type="button"
@@ -490,6 +502,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
         </div>
       )}
 
+      {mostrarFormulario && (
       <Card as="form" onSubmit={adicionar} className="mb-6 flex flex-col gap-4 p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div>
@@ -520,6 +533,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
         </div>
         {erro && <Alert tone="danger">{erro}</Alert>}
       </Card>
+      )}
 
       {erroCarregar ? (
         <Alert tone="danger">{erroCarregar}</Alert>
@@ -530,12 +544,17 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
           <Table>
             <THead>
               <Tr>
-                <Th className="w-16">Nº</Th>
-                <Th>Nº processo</Th>
-                <Th>Nome</Th>
-                <Th>Medidas</Th>
-                <Th>Estado</Th>
-                <Th className="text-right">Ações</Th>
+                <Th rowSpan={2} className="w-16">Nº</Th>
+                <Th rowSpan={2}>Nº processo</Th>
+                <Th rowSpan={2}>Nome</Th>
+                <Th colSpan={3} className="border-b border-slate-200 text-center">Medidas</Th>
+                <Th rowSpan={2}>Estado</Th>
+                <Th rowSpan={2} className="text-right">Ações</Th>
+              </Tr>
+              <Tr>
+                {GRUPOS_MEDIDAS.map(({ tipo, label }) => (
+                  <Th key={tipo} className="text-center">{label}</Th>
+                ))}
               </Tr>
             </THead>
             <TBody>
@@ -552,9 +571,32 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
                       <Input value={nomeEdit} onChange={(e) => setNomeEdit(e.target.value)} />
                       {erroEdit && <p className="mt-1 text-xs text-red-600">{erroEdit}</p>}
                     </Td>
-                    <Td>
-                      <SeletorMedidas catalogo={medidasCatalogo} selecionadas={medidaIdsEdit} onChange={setMedidaIdsEdit} />
-                    </Td>
+                    {GRUPOS_MEDIDAS.map(({ tipo, label }) => (
+                      <Td key={tipo}>
+                        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
+                          {medidasCatalogo
+                            .filter((m) => m.tipo === tipo)
+                            .map((m) => (
+                              <label key={m.id} className="flex items-center gap-1 text-sm text-slate-700" title={m.titulo}>
+                                <input
+                                  type="checkbox"
+                                  aria-label={`${label}: ${m.titulo}`}
+                                  className="h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500/40"
+                                  checked={medidaIdsEdit.includes(m.id)}
+                                  onChange={() =>
+                                    setMedidaIdsEdit(
+                                      medidaIdsEdit.includes(m.id)
+                                        ? medidaIdsEdit.filter((id) => id !== m.id)
+                                        : [...medidaIdsEdit, m.id],
+                                    )
+                                  }
+                                />
+                                {m.codigo}
+                              </label>
+                            ))}
+                        </div>
+                      </Td>
+                    ))}
                     <Td className="text-slate-400">{a.ativo ? 'Ativo' : 'Inativo'}</Td>
                     <Td className="text-right">
                       <div className="flex justify-end gap-1">
@@ -572,19 +614,24 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
                     <Td className="tabular-nums text-slate-500">{a.numero}</Td>
                     <Td className="tabular-nums text-slate-500">{a.numeroProcesso}</Td>
                     <Td className="font-medium text-slate-900">{a.nome}</Td>
-                    <Td className="text-slate-500">
-                      {a.medidas.length === 0 ? (
-                        '—'
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {a.medidas.map((am) => (
-                            <Badge key={am.id} tone={TOM_TIPO[am.medida.tipo]}>
-                              {PREFIXO_TIPO[am.medida.tipo]}-{am.medida.codigo}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </Td>
+                    {GRUPOS_MEDIDAS.map(({ tipo }) => {
+                      const doTipo = a.medidas.filter((am) => am.medida.tipo === tipo);
+                      return (
+                        <Td key={tipo} className="text-center text-slate-500">
+                          {doTipo.length === 0 ? (
+                            '—'
+                          ) : (
+                            <div className="flex flex-wrap justify-center gap-1">
+                              {doTipo.map((am) => (
+                                <Badge key={am.id} tone={TOM_TIPO[am.medida.tipo]}>
+                                  {am.medida.codigo}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </Td>
+                      );
+                    })}
                     <Td>
                       <button onClick={() => alternarAtivo(a)}>
                         <Badge tone={a.ativo ? 'success' : 'neutral'}>{a.ativo ? 'Ativo' : 'Inativo'}</Badge>
@@ -608,7 +655,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
               )}
               {alunos.length === 0 && (
                 <Tr>
-                  <Td colSpan={6}>
+                  <Td colSpan={8}>
                     <div className="py-6 text-center text-sm text-slate-400">
                       Ainda não tem alunos. Adicione o primeiro acima.
                     </div>
@@ -618,6 +665,25 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
             </TBody>
           </Table>
         </TableContainer>
+      )}
+
+      {!erroCarregar && !aCarregar && medidasCatalogo.length > 0 && (
+        <div className="mt-4 grid gap-4 text-sm text-slate-600 sm:grid-cols-3">
+          {GRUPOS_MEDIDAS.map(({ tipo, label }) => (
+            <div key={tipo}>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+              <ul className="space-y-0.5">
+                {medidasCatalogo
+                  .filter((m) => m.tipo === tipo)
+                  .map((m) => (
+                    <li key={m.id}>
+                      <span className="font-medium text-slate-700">{m.codigo})</span> {m.titulo}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
 
       <Modal

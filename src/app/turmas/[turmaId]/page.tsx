@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Users, BookOpen } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Users, BookOpen, Lightbulb } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -105,7 +105,23 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
         <ArrowLeft className="h-4 w-4" /> As minhas turmas
       </Link>
       <p className="text-sm text-slate-500">{turma.anoLetivo.nome}</p>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-slate-900">{turma.nome}</h1>
+      <h1 className="mb-4 text-2xl font-semibold tracking-tight text-slate-900">{turma.nome}</h1>
+
+      <Alert tone="info" className="mb-6">
+        <p className="font-medium">Como avançar nesta turma</p>
+        <ol className="mt-1 list-decimal space-y-0.5 pl-4">
+          <li className={turma.alunos.length > 0 ? 'line-through opacity-60' : ''}>
+            Adicione os alunos da turma.
+          </li>
+          <li className={turma.disciplinas.length > 0 ? 'line-through opacity-60' : ''}>
+            Associe as disciplinas que leciona.
+          </li>
+          <li>
+            Dentro de cada disciplina, defina os critérios (pesos a somar 100%) e inscreva os alunos.
+          </li>
+          <li>Por período, crie instrumentos de avaliação e lance as notas; o resumo calcula-se sozinho.</li>
+        </ol>
+      </Alert>
 
       <Link
         href={`/turmas/${turma.id}/alunos`}
@@ -177,6 +193,7 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
               <button
                 onClick={() => removerDisciplina(td.id, td.disciplina.nome)}
                 aria-label="Remover disciplina"
+                title="Apaga também critérios, instrumentos, notas e inscrições desta disciplina nesta turma"
                 className="rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
               >
                 <Trash2 className="h-4 w-4" />
@@ -184,6 +201,10 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
             </div>
             <p className="mt-1 text-xs text-slate-400">
               {td.disciplina.ciclos.length > 0 ? td.disciplina.ciclos.map((dc) => dc.ciclo.nome).join(', ') : '—'}
+            </p>
+            <p className="mt-3 flex items-start gap-1.5 rounded-md bg-brand-50 px-2 py-1.5 text-xs text-brand-700">
+              <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Abra para definir critérios e inscrever alunos.
             </p>
           </div>
         ))}

@@ -67,7 +67,28 @@ export default function TurmaDisciplinaPage({
   return (
     <AppShell>
       <BackLink turmaId={params.turmaId} />
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-slate-900">{turmaDisciplina.disciplina.nome}</h1>
+      <h1 className="mb-4 text-2xl font-semibold tracking-tight text-slate-900">{turmaDisciplina.disciplina.nome}</h1>
+
+      <Alert tone="info" className="mb-6">
+        <p className="font-medium">Como avançar nesta disciplina</p>
+        <ol className="mt-1 list-decimal space-y-0.5 pl-4">
+          <li className={alunosInscritos.length > 0 ? 'line-through opacity-60' : ''}>
+            Inscreva os alunos que frequentam esta disciplina (em &quot;Gerir&quot;).
+          </li>
+          <li>
+            Defina os{' '}
+            <Link
+              href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/criterios`}
+              className="font-medium underline"
+            >
+              critérios de avaliação
+            </Link>
+            ; os pesos têm de somar 100%. Alterá-los depois recalcula todas as notas finais.
+          </li>
+          <li>Em cada período, crie instrumentos e lance as notas.</li>
+          <li>Consulte o resumo para ver a nota final e o nível de cada aluno.</li>
+        </ol>
+      </Alert>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="p-4">

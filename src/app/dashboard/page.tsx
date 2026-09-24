@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
-import { Plus, X, Users, BookOpen } from 'lucide-react';
+import { Plus, X, Users, BookOpen, Lightbulb } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
@@ -13,6 +13,17 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageLoading, Skeleton } from '@/components/ui/Spinner';
 import { anoLetivoAtual, type AnoLetivo, type Turma } from '@/lib/types';
+
+// Dica do que fazer a seguir numa turma, conforme o estado atual.
+function proximoPasso(t: Turma): string | null {
+  if (!t.disciplinas || t.disciplinas.length === 0) {
+    return 'Próximo passo: abra a turma e associe as disciplinas que leciona.';
+  }
+  if ((t._count?.matriculas ?? 0) === 0) {
+    return 'Próximo passo: adicione os alunos para poder lançar notas.';
+  }
+  return null;
+}
 
 export default function DashboardPage() {
   const [turmas, setTurmas] = useState<Turma[]>([]);
@@ -111,6 +122,12 @@ export default function DashboardPage() {
                   {t._count?.matriculas ?? 0} alunos
                 </span>
               </div>
+              {proximoPasso(t) && (
+                <p className="mt-3 flex items-start gap-1.5 rounded-md bg-brand-50 px-2 py-1.5 text-xs text-brand-700">
+                  <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {proximoPasso(t)}
+                </p>
+              )}
             </Link>
           ))}
         </div>

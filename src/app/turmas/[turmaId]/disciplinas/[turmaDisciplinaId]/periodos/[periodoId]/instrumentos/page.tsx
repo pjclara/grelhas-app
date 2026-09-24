@@ -266,6 +266,10 @@ export default function InstrumentosPage({
                   </option>
                 )}
               </Select>
+              <p className="mt-1 text-xs text-slate-500">
+                A média dos instrumentos deste critério conta para a nota final com o peso indicado.
+                {criterios.length === 0 && ' Ainda não há critérios: defina-os primeiro na disciplina.'}
+              </p>
             </div>
             {!isAtitudes && (
               <div>
@@ -274,6 +278,11 @@ export default function InstrumentosPage({
                   <option value="PONTOS">Pontos por pergunta (ex.: teste)</option>
                   <option value="ESCALA">Escala (ex.: 1 a 5, atitudes)</option>
                 </Select>
+                <p className="mt-1 text-xs text-slate-500">
+                  {modo === 'PONTOS'
+                    ? 'Cada pergunta tem uma pontuação máxima; a nota do aluno é a soma em percentagem.'
+                    : 'Cada item é avaliado de 1 até à escala máxima.'}
+                </p>
               </div>
             )}
             {!isAtitudes && modo === 'ESCALA' && (
@@ -361,7 +370,13 @@ export default function InstrumentosPage({
                 <Button size="sm" variant="ghost" onClick={() => iniciarEdicao(i)} aria-label="Editar">
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => remover(i.id)} aria-label="Remover">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => remover(i.id)}
+                  aria-label="Remover"
+                  title="Apaga também todas as notas lançadas neste instrumento"
+                >
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
               </div>
@@ -394,7 +409,12 @@ export default function InstrumentosPage({
           )}
           {instrumentos.length === 0 && (
             <Card>
-              <div className="py-8 text-center text-sm text-slate-400">Ainda não há instrumentos neste período.</div>
+              <div className="py-8 text-center text-sm text-slate-400">
+                <p>Ainda não há instrumentos neste período.</p>
+                <p className="mt-1">
+                  Crie um instrumento (teste, trabalho, atitudes…) e depois abra-o para lançar as notas dos alunos.
+                </p>
+              </div>
             </Card>
           )}
         </div>

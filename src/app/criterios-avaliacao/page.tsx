@@ -233,7 +233,7 @@ export default function CriteriosAvaliacaoPage() {
           <Link href={`/criterios-avaliacao/novo?anoLetivoId=${anoLetivoId}`}>
             <Button type="button">
               <Plus className="h-4 w-4" />
-              Novo instrumento
+              Novo Critério e avaliação
             </Button>
           </Link>
         )}

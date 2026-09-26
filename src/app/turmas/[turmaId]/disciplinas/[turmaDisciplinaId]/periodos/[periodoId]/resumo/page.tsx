@@ -60,13 +60,39 @@ export default function ResumoPage({
   // Para os critérios fora do grupo "Atitudes" (ex.: Conhecimentos e Capacidades), mostra-se
   // uma coluna por instrumento (além da média do critério) — em Atitudes cada critério já
   // corresponde a um único instrumento, pelo que a coluna do critério já mostra esse valor.
-  const instrumentosPorCriterio = resumo.criterios.map((c) => ({
-    criterio: c,
-    instrumentos:
-      c.grupo === 'Atitudes'
-        ? []
-        : resumo.instrumentos.filter((i) => i.criterioId === c.id).sort((a, b) => a.ordem - b.ordem),
-  }));
+  // No 3.º ciclo, os valores fora de Atitudes são apresentados na escala 0-200 em vez de %.
+  const escala200 = resumo.turma.nivelEnsino === '3.º ciclo';
+  const formatarValor = (v: number | null | undefined, atitudes = false) =>
+    v == null ? '—' : escala200 && !atitudes ? (v * 2).toFixed(0) : `${v.toFixed(0)}%`;
+
+  // Todos os critérios de Atitudes são juntos numa única coluna (média ponderada pelos pesos).
+  const criteriosAtitudes = resumo.criterios.filter((c) => c.grupo === 'Atitudes');
+  const pesoAtitudes = criteriosAtitudes.reduce((acc, c) => acc + c.peso, 0);
+  const mediaAtitudes = (resultado: ResumoPeriodoDTO['resultados'][number]) => {
+    let soma = 0;
+    let pesos = 0;
+    for (const c of criteriosAtitudes) {
+      const m = resultado.porCriterio.find((x) => x.criterioId === c.id)?.media;
+      if (m != null) {
+        soma += m * c.peso;
+        pesos += c.peso;
+      }
+    }
+    return pesos > 0 ? soma / pesos : null;
+  };
+  const instrumentosPorCriterio = resumo.criterios.flatMap((c) =>
+    c.grupo === 'Atitudes'
+      ? c.id === criteriosAtitudes[0].id
+        ? [{ criterio: c, atitudes: true, instrumentos: [] as typeof resumo.instrumentos }]
+        : []
+      : [
+          {
+            criterio: c,
+            atitudes: false,
+            instrumentos: resumo.instrumentos.filter((i) => i.criterioId === c.id).sort((a, b) => a.ordem - b.ordem),
+          },
+        ]
+  );
 
   return (
     <AppShell width="full">
@@ -101,7 +127,7 @@ export default function ResumoPage({
               <tr>
                 <th className="px-3 py-2" rowSpan={2}>Nº</th>
                 <th className="px-3 py-2" rowSpan={2}>Nome</th>
-                {instrumentosPorCriterio.map(({ criterio: c, instrumentos }) =>
+                {instrumentosPorCriterio.map(({ criterio: c, atitudes, instrumentos }) =>
                   instrumentos.length > 0 ? (
                     <th key={c.id} className="px-2 py-2 text-center" colSpan={instrumentos.length + 1}>
                       {c.nome}
@@ -109,8 +135,10 @@ export default function ResumoPage({
                     </th>
                   ) : (
                     <th key={c.id} className="px-3 py-2 text-center" rowSpan={2}>
-                      {c.nome}
-                      <div className="text-xs font-normal normal-case text-slate-400">{Math.round(c.peso * 100)}%</div>
+                      {atitudes ? 'Atitudes' : c.nome}
+                      <div className="text-xs font-normal normal-case text-slate-400">
+                        {Math.round((atitudes ? pesoAtitudes : c.peso) * 100)}%
+                      </div>
                     </th>
                   )
                 )}
@@ -141,12 +169,13 @@ export default function ResumoPage({
                   <tr key={aluno.id} className="hover:bg-slate-50/70">
                     <td className="px-3 py-1.5 tabular-nums text-slate-500">{aluno.numero}</td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">{aluno.nome}</td>
-                    {instrumentosPorCriterio.flatMap(({ criterio: c, instrumentos }) => {
+                    {instrumentosPorCriterio.flatMap(({ criterio: c, atitudes, instrumentos }) => {
                       const media = resultado.porCriterio.find((x) => x.criterioId === c.id);
                       if (instrumentos.length === 0) {
+                        const valor = atitudes ? mediaAtitudes(resultado) : media?.media ?? null;
                         return [
                           <td key={c.id} className="px-3 py-1.5 text-center tabular-nums">
-                            {media?.media != null ? `${media.media.toFixed(0)}%` : '—'}
+                            {formatarValor(valor, atitudes)}
                           </td>,
                         ];
                       }
@@ -155,12 +184,12 @@ export default function ResumoPage({
                           const r = resultado.porInstrumento.find((x) => x.instrumentoId === i.id);
                           return (
                             <td key={i.id} className="px-2 py-1.5 text-center tabular-nums text-slate-500">
-                              {r?.percent != null ? `${r.percent.toFixed(0)}%` : '—'}
+                              {formatarValor(r?.percent)}
                             </td>
                           );
                         }),
                         <td key={`${c.id}-media`} className="px-2 py-1.5 text-center tabular-nums font-medium text-slate-900">
-                          {media?.media != null ? `${media.media.toFixed(0)}%` : '—'}
+                          {formatarValor(media?.media)}
                         </td>,
                       ];
                     })}

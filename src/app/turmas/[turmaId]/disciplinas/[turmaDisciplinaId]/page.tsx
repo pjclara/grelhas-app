@@ -76,14 +76,14 @@ export default function TurmaDisciplinaPage({
             Inscreva os alunos que frequentam esta disciplina (em &quot;Gerir&quot;).
           </li>
           <li>
-            Defina os{' '}
+            Ver os{' '}
             <Link
               href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/criterios`}
               className="font-medium underline"
             >
               critérios de avaliação
             </Link>
-            ; os pesos têm de somar 100%. Alterá-los depois recalcula todas as notas finais.
+            ; os pesos de cada instrumento.
           </li>
           <li>Em cada período, crie instrumentos e lance as notas.</li>
           <li>Consulte o resumo para ver a nota final e o nível de cada aluno.</li>

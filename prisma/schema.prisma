@@ -386,3 +386,14 @@ model Nota {
   @@unique([perguntaId, alunoId])
   @@index([alunoId])
 }
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  tableName String   @map("table_name")
+  operation String
+  rowData   Json     @map("row_data")
+  changedBy String   @default(dbgenerated("current_user")) @map("changed_by")
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  @@map("audit_log")
+}

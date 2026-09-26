@@ -30,6 +30,40 @@ function novoDraft(): InstrumentoDraft {
 }
 
 const TOTAL_PASSOS = 6;
+const TOLERANCIA = 0.0005; // pesos em fração (0-1); evita erros de vírgula flutuante
+
+const PASSOS: { titulo: string; explicacao: string }[] = [
+  {
+    titulo: 'Grupo disciplinar',
+    explicacao:
+      'Escolha o grupo disciplinar para reduzir a lista de disciplinas do passo 3. É apenas um filtro: se não escolher nenhum, aparecem as disciplinas de todos os grupos.',
+  },
+  {
+    titulo: 'Ciclo',
+    explicacao:
+      'Escolha o ciclo de ensino para filtrar ainda mais as disciplinas do passo 3. Também é apenas um filtro: se não escolher nenhum, aparecem as disciplinas de todos os ciclos.',
+  },
+  {
+    titulo: 'Disciplinas',
+    explicacao:
+      'Marque todas as disciplinas em que este instrumento vai existir. O instrumento é criado uma vez e recebe um peso próprio em cada disciplina escolhida (passo 6). Tem de marcar pelo menos uma.',
+  },
+  {
+    titulo: 'Anos de escolaridade',
+    explicacao:
+      'Indique a que anos de escolaridade se aplica. Só ficam incluídas as disciplinas marcadas no passo anterior que existam nos anos escolhidos. Tem de marcar pelo menos um, quando houver anos disponíveis.',
+  },
+  {
+    titulo: 'Grupo de avaliação',
+    explicacao:
+      'O grupo de avaliação agrupa instrumentos do mesmo tipo (por exemplo, "Conhecimentos e Capacidades" ou "Atitudes"). Escolha um grupo existente ou crie um novo. É obrigatório.',
+  },
+  {
+    titulo: 'Instrumentos e pesos',
+    explicacao:
+      'Dê um nome a cada instrumento e indique, para cada disciplina, o peso em % que ele tem no grupo de avaliação. Os pesos de todos os instrumentos de uma disciplina devem somar 100% — o total aparece ao lado de cada campo. Pode adicionar vários instrumentos de uma vez.',
+  },
+];
 
 export default function NovoInstrumentoPage() {
   return (
@@ -60,6 +94,7 @@ function NovoInstrumentoConteudo() {
   const [instrumentos, setInstrumentos] = useState<InstrumentoDraft[]>([novoDraft()]);
 
   const [erroPasso, setErroPasso] = useState<string | null>(null);
+  const [avisoPasso, setAvisoPasso] = useState<string | null>(null);
   const [aGravar, setAGravar] = useState(false);
 
   useEffect(() => {
@@ -125,9 +160,9 @@ function NovoInstrumentoConteudo() {
     [disciplinasAll, disciplinaIds, anosCandidatos, anoIds]
   );
 
-  function totalJaAtribuido(disciplinaId: string) {
+  function totalJaAtribuido(disciplinaId: string, grupos: GrupoAvaliacao[] = gruposAvaliacao) {
     let total = 0;
-    for (const g of gruposAvaliacao) {
+    for (const g of grupos) {
       for (const inst of g.instrumentos) {
         const p = inst.pesos.find((pp) => pp.disciplinaId === disciplinaId);
         if (p) total += p.peso;
@@ -144,6 +179,31 @@ function NovoInstrumentoConteudo() {
     }
     return total;
   }
+
+  // Escolhas dos passos já concluídos, mostradas em cima para o utilizador ver o que já definiu.
+  const escolhas: { titulo: string; valores: string[] }[] = [];
+  if (passo > 1)
+    escolhas.push({
+      titulo: 'Grupo disciplinar',
+      valores: [grupoDisciplinares.find((g) => g.id === grupoDisciplinarId)?.nome ?? 'Todos'],
+    });
+  if (passo > 2)
+    escolhas.push({ titulo: 'Ciclo', valores: [ciclos.find((c) => c.id === cicloId)?.nome ?? 'Todos'] });
+  if (passo > 3 && passo < TOTAL_PASSOS)
+    escolhas.push({
+      titulo: 'Disciplinas',
+      valores: disciplinasAll.filter((d) => disciplinaIds.includes(d.id)).map((d) => d.nome),
+    });
+  if (passo > 4 && anoIds.length > 0)
+    escolhas.push({
+      titulo: 'Anos de escolaridade',
+      valores: anosCandidatos.filter((a) => anoIds.includes(a.id)).map((a) => a.nome),
+    });
+  if (passo > 5)
+    escolhas.push({
+      titulo: 'Grupo de avaliação',
+      valores: [gruposAvaliacao.find((g) => g.id === grupoAvaliacaoId)?.nome ?? ''],
+    });
 
   function toggleDisciplina(id: string) {
     setDisciplinaIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
@@ -178,9 +238,18 @@ function NovoInstrumentoConteudo() {
     setPasso((p) => Math.min(TOTAL_PASSOS, p + 1));
   }
 
+  // Voltar atrás apaga o que foi escolhido no passo de onde se sai e nos seguintes,
+  // para nada ficar preenchido com base em escolhas que podem mudar.
   function recuar() {
     setErroPasso(null);
-    setPasso((p) => Math.max(1, p - 1));
+    setAvisoPasso(null);
+    if (passo <= 1) return;
+    if (passo <= 6) setInstrumentos([novoDraft()]);
+    if (passo <= 5) setGrupoAvaliacaoId('');
+    if (passo <= 4) setAnoIds([]);
+    if (passo <= 3) setDisciplinaIds([]);
+    if (passo <= 2) setCicloId('');
+    setPasso(passo - 1);
   }
 
   async function submeter() {
@@ -209,6 +278,17 @@ function NovoInstrumentoConteudo() {
       }
     }
 
+    // Não permite gravar se o total de alguma disciplina ultrapassar 100%.
+    const excedidas = disciplinasFinal.filter((d) => totalComRascunhos(d.id) > 1 + TOLERANCIA);
+    if (excedidas.length > 0) {
+      setErroPasso(
+        `O total ultrapassa 100% em: ${excedidas
+          .map((d) => `${d.nome} (${pct(totalComRascunhos(d.id))}%)`)
+          .join(', ')}. Reduza os pesos para poder gravar.`
+      );
+      return;
+    }
+
     setAGravar(true);
     const ordemBase = grupoAtual?.instrumentos.length ?? 0;
     for (const [i, draft] of instrumentos.entries()) {
@@ -228,8 +308,30 @@ function NovoInstrumentoConteudo() {
         return;
       }
     }
+
+    // Recarrega os grupos para que os totais incluam os instrumentos que acabaram de ser gravados.
+    const resGrupos = await fetch(`/api/grupos-avaliacao?anoLetivoId=${anoLetivoId}`);
     setAGravar(false);
-    router.push(`/criterios-avaliacao?anoLetivoId=${anoLetivoId}`);
+    if (!resGrupos.ok) {
+      router.push(`/criterios-avaliacao?anoLetivoId=${anoLetivoId}`);
+      return;
+    }
+    const gruposAtualizados: GrupoAvaliacao[] = await resGrupos.json();
+    setGruposAvaliacao(gruposAtualizados);
+
+    const emFalta = disciplinasFinal.filter((d) => Math.abs(totalJaAtribuido(d.id, gruposAtualizados) - 1) > TOLERANCIA);
+    if (emFalta.length === 0) {
+      router.push(`/criterios-avaliacao?anoLetivoId=${anoLetivoId}`);
+      return;
+    }
+    // Ainda não chega a 100%: volta ao passo 5 (mantendo as escolhas) para acrescentar mais um instrumento.
+    setAvisoPasso(
+      `Instrumento(s) gravado(s), mas o total ainda não é 100% em: ${emFalta
+        .map((d) => `${d.nome} (${pct(totalJaAtribuido(d.id, gruposAtualizados))}%)`)
+        .join(', ')}. Avance para acrescentar outro instrumento até atingir 100%.`
+    );
+    setInstrumentos([novoDraft()]);
+    setPasso(5);
   }
 
   if (!anoLetivoId) {
@@ -259,6 +361,31 @@ function NovoInstrumentoConteudo() {
         <PageLoading />
       ) : (
         <Card className="flex flex-col gap-4 p-4">
+          {escolhas.length > 0 && (
+            <div className="flex flex-col gap-2 rounded-md bg-slate-50 p-3">
+              {escolhas.map((e) => (
+                <div key={e.titulo} className="flex flex-wrap items-center gap-1.5 text-sm">
+                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{e.titulo}:</span>
+                  {e.valores.map((v) => (
+                    <Badge key={v}>{v}</Badge>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Passo {passo}: {PASSOS[passo - 1].titulo}
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">{PASSOS[passo - 1].explicacao}</p>
+            {passo > 1 && (
+              <p className="mt-2 text-xs text-slate-500">
+                Se voltar atrás, o que escolheu neste passo e nos seguintes é apagado.
+              </p>
+            )}
+          </div>
+
           {passo === 1 && (
             <div>
               <Label htmlFor="grupo-disciplinar">Grupo Disciplinar</Label>
@@ -405,7 +532,11 @@ function NovoInstrumentoConteudo() {
                               className="w-20"
                             />
                             <span className="text-xs text-slate-400">%</span>
-                            <span className={total === 100 ? 'text-xs text-emerald-600' : 'text-xs text-amber-600'}>
+                            <span
+                              className={
+                                total === 100 ? 'text-xs text-emerald-600' : total > 100 ? 'text-xs text-red-600' : 'text-xs text-amber-600'
+                              }
+                            >
                               total nesta disciplina: {total}%
                             </span>
                           </div>
@@ -423,6 +554,7 @@ function NovoInstrumentoConteudo() {
             </div>
           )}
 
+          {avisoPasso && <Alert tone="warning">{avisoPasso}</Alert>}
           {erroPasso && <Alert tone="danger">{erroPasso}</Alert>}
 
           <div className="flex items-center justify-between border-t border-slate-100 pt-4">

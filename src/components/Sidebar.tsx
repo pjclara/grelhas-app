@@ -7,7 +7,7 @@ import { GraduationCap, BookOpen, ClipboardList, ShieldCheck, X } from 'lucide-r
 import { cn } from '@/lib/cn';
 
 const LINKS = [
-  { href: '/dashboard', label: 'Turmas', icon: GraduationCap },
+  { href: '/dashboard', label: 'As minhas turmas', icon: GraduationCap },
   { href: '/disciplinas', label: 'Disciplinas', icon: BookOpen },
   { href: '/criterios-avaliacao', label: 'Critérios de Avaliação', icon: ClipboardList },
 ];

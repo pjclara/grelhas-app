@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import TopNav from '@/components/TopNav';
 import Sidebar from '@/components/Sidebar';
 import { cn } from '@/lib/cn';
+import { version } from '../../package.json';
 
 interface AppShellProps {
   children: ReactNode;
@@ -20,9 +21,14 @@ export default function AppShell({ children, width = 'default' }: AppShellProps)
       <TopNav onMenuClick={() => setMobileOpen(true)} />
       <div className="flex flex-1">
         <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8">
-          <div className={cn('mx-auto', width === 'default' ? 'max-w-7xl' : 'max-w-none')}>{children}</div>
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8">
+            <div className={cn('mx-auto', width === 'default' ? 'max-w-7xl' : 'max-w-none')}>{children}</div>
+          </main>
+          <footer className="px-4 pb-3 text-right text-xs text-slate-400 sm:px-6">
+            v{version} · © {new Date().getFullYear()} SurgTuga
+          </footer>
+        </div>
       </div>
     </div>
   );

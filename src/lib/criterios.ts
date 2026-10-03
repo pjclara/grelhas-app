@@ -81,6 +81,15 @@ export interface CriterioFolha {
   criterioPeso: number;
   /** false = o admin não definiu peso para este item: `peso` é só a divisão igual usada no cálculo. */
   pesoDefinido: boolean;
+  /**
+   * Como se lançam as notas desta folha: GRELHA = tabela alunos × colunas (uma nota por
+   * célula; critérios gerais e sub-instrumentos); INSTRUMENTOS = instrumentos com
+   * perguntas (instrumento de recolha específico sem sub-instrumentos).
+   */
+  avaliacao: 'GRELHA' | 'INSTRUMENTOS';
+  /** Chave do bloco de avaliação: "g:<criterioId>" | "s:<recolhaId>" (grelhas) | "i:<recolhaId>" | "c:<criterioId>". */
+  bloco: string;
+  blocoNome: string;
   semInstrumentos?: boolean;
 }
 
@@ -88,6 +97,7 @@ interface CriterioComArvore {
   id: string;
   nome: string;
   peso: number;
+  tipo: 'GERAL' | 'ESPECIFICO';
   instrumentosRecolha: Array<{
     id: string;
     nome: string;
@@ -120,6 +130,9 @@ export function folhasDeCriterios(criterios: CriterioComArvore[]): CriterioFolha
         ordem: proxima(),
         criterioPeso: c.peso,
         pesoDefinido: true,
+        avaliacao: 'INSTRUMENTOS',
+        bloco: `c:${c.id}`,
+        blocoNome: c.nome,
         semInstrumentos: true,
       });
       continue;
@@ -138,6 +151,10 @@ export function folhasDeCriterios(criterios: CriterioComArvore[]): CriterioFolha
           ordem: proxima(),
           criterioPeso: c.peso,
           pesoDefinido: recolhasComPeso,
+          // Critério geral: uma grelha com todos os instrumentos de recolha como colunas.
+          ...(c.tipo === 'GERAL'
+            ? { avaliacao: 'GRELHA' as const, bloco: `g:${c.id}`, blocoNome: c.nome }
+            : { avaliacao: 'INSTRUMENTOS' as const, bloco: `i:${ir.id}`, blocoNome: ir.nome }),
         });
         return;
       }
@@ -154,6 +171,10 @@ export function folhasDeCriterios(criterios: CriterioComArvore[]): CriterioFolha
           ordem: proxima(),
           criterioPeso: c.peso,
           pesoDefinido: subsComPeso,
+          // Instrumento de recolha com sub-instrumentos: grelha com os sub-instrumentos como colunas.
+          avaliacao: 'GRELHA',
+          bloco: c.tipo === 'GERAL' ? `g:${c.id}` : `s:${ir.id}`,
+          blocoNome: c.tipo === 'GERAL' ? c.nome : `${c.nome} — ${ir.nome}`,
         });
       });
     });

@@ -121,6 +121,9 @@ export interface Criterio {
   ordem: number;
   criterioPeso?: number; // peso do critério a que pertence (sempre definido)
   pesoDefinido?: boolean; // false = sem peso definido pelo admin (média simples)
+  avaliacao?: 'GRELHA' | 'INSTRUMENTOS'; // grelha de notas (tabela) ou instrumentos com perguntas
+  bloco?: string; // chave do bloco de avaliação (agrupa as colunas de uma grelha)
+  blocoNome?: string;
   semInstrumentos?: boolean;
 }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Table2, ExternalLink } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -41,8 +41,23 @@ export default function InstrumentosPage({
 
   const disciplinaBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
 
-  // Só as folhas com instrumentos de recolha definidos aceitam instrumentos de avaliação.
-  const criteriosUtilizaveis = criterios.filter((c) => !c.semInstrumentos);
+  // Critérios gerais e sub-instrumentos avaliam-se em grelhas (tabela alunos × colunas);
+  // os instrumentos de recolha específicos sem sub-instrumentos, em instrumentos com perguntas.
+  const criteriosUtilizaveis = criterios.filter((c) => !c.semInstrumentos && c.avaliacao !== 'GRELHA');
+  const grelhas = Array.from(
+    criterios
+      .filter((c) => c.avaliacao === 'GRELHA' && c.bloco)
+      .reduce((mapa, c) => {
+        const bloco = c.bloco as string;
+        const atual = mapa.get(bloco) ?? { chave: bloco, nome: c.blocoNome ?? c.grupo, colunas: [] as string[] };
+        atual.colunas.push(c.nome);
+        return mapa.set(bloco, atual);
+      }, new Map<string, { chave: string; nome: string; colunas: string[] }>())
+      .values()
+  );
+  const instrumentosListados = instrumentos.filter((i) => i.criterio?.avaliacao !== 'GRELHA');
+  const grelhaHref = (chave: string) =>
+    `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/grelhas/${encodeURIComponent(chave)}`;
 
   async function carregar() {
     setACarregar(true);
@@ -205,7 +220,9 @@ export default function InstrumentosPage({
               <p className="mt-1 text-xs text-slate-500">
                 A média dos instrumentos deste critério conta para a nota final com o peso indicado.
                 {criteriosUtilizaveis.length === 0 &&
-                  ' Não há critérios com instrumentos de recolha para esta disciplina: peça a um administrador para os definir em Critérios de Avaliação (e confirme que a turma tem ciclo).'}
+                  (grelhas.length > 0
+                    ? ' Os critérios desta disciplina avaliam-se nas grelhas de notas, listadas abaixo.'
+                    : ' Não há critérios com instrumentos de recolha para esta disciplina: peça a um administrador para os definir em Critérios de Avaliação (e confirme que a turma tem ciclo).')}
               </p>
             </div>
             <div>
@@ -275,7 +292,28 @@ export default function InstrumentosPage({
         <PageLoading />
       ) : (
         <div className="space-y-2">
-          {instrumentos.map((i) => (
+          {grelhas.map((g) => (
+            <Card key={g.chave} className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+                  <Table2 className="h-4 w-4" />
+                </span>
+                <div>
+                  <Link href={grelhaHref(g.chave)} className="font-medium text-slate-900 hover:text-brand-700">
+                    {g.nome}
+                  </Link>
+                  <p className="text-xs text-slate-500">Grelha de notas · {g.colunas.join(', ')}</p>
+                </div>
+              </div>
+              <Link href={grelhaHref(g.chave)}>
+                <Button size="sm" variant="secondary">
+                  <ExternalLink className="h-4 w-4" />
+                  Abrir grelha
+                </Button>
+              </Link>
+            </Card>
+          ))}
+          {instrumentosListados.map((i) => (
             <Card key={i.id} className="flex items-center justify-between px-4 py-3">
               <div>
                 <Link
@@ -304,10 +342,10 @@ export default function InstrumentosPage({
               </div>
             </Card>
           ))}
-          {instrumentos.length === 0 && (
+          {instrumentosListados.length === 0 && grelhas.length === 0 && (
             <Card>
               <div className="py-8 text-center text-sm text-slate-400">
-                <p>Ainda não há instrumentos neste período.</p>
+                <p>Ainda não há grelhas nem instrumentos neste período.</p>
                 <p className="mt-1">
                   Crie um instrumento (teste, trabalho…) e depois abra-o para lançar as notas dos alunos.
                 </p>

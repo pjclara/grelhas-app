@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireUserId } from '@/lib/auth';
 import { assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
 import { instrumentoSchema } from '@/lib/validation';
-import { handleApiError, NotFoundError } from '@/lib/api-helpers';
+import { ConflictError, handleApiError, NotFoundError } from '@/lib/api-helpers';
 import { comCriterio, folhasAplicaveis, resolverFolha } from '@/lib/criterios';
 
 export async function GET(
@@ -43,6 +43,9 @@ export async function PATCH(
     await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
     const data = instrumentoSchema.parse(await req.json());
     const folha = resolverFolha(await folhasAplicaveis(params.turmaDisciplinaId), data.criterioId);
+    if (folha.avaliacao === 'GRELHA') {
+      throw new ConflictError('Este critério é avaliado numa grelha de notas, não em instrumentos com perguntas.');
+    }
 
     const existente = await prisma.instrumento.findFirst({
       where: { id: params.instrumentoId, turmaDisciplinaId: params.turmaDisciplinaId },

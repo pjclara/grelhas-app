@@ -141,6 +141,38 @@ export interface Criterio {
   ordem: number;
 }
 
+// Critérios de avaliação por ano letivo + ciclo (modelo novo; ver src/lib/criterios.ts).
+export type TipoCriterio = 'GERAL' | 'ESPECIFICO';
+
+export interface SubInstrumento {
+  id: string;
+  nome: string;
+  peso: number | null; // 0..1
+  ordem: number;
+}
+
+export interface InstrumentoRecolha {
+  id: string;
+  nome: string;
+  peso: number | null; // 0..1
+  ordem: number;
+  subInstrumentos: SubInstrumento[];
+}
+
+export interface CriterioCatalogo {
+  id: string;
+  anoLetivoId: string;
+  cicloId: string;
+  nome: string;
+  peso: number; // 0..1
+  tipo: TipoCriterio;
+  grupoDisciplinarId: string | null;
+  anoLetivo: AnoLetivo;
+  ciclo: Ciclo;
+  grupoDisciplinar: GrupoDisciplinar | null;
+  instrumentosRecolha: InstrumentoRecolha[];
+}
+
 export type ModoAvaliacao = 'PONTOS' | 'ESCALA';
 
 export interface Pergunta {

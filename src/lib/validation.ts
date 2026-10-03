@@ -139,3 +139,77 @@ export const notasLancamentoSchema = z.object({
   // notas[alunoId][perguntaId] = valor | null
   notas: z.record(z.string(), z.record(z.string(), z.number().nullable())),
 });
+
+// ---------- Critérios de avaliação (ano letivo + ciclo) ----------
+
+const pesoCriterioSchema = z.number().min(0).max(1);
+const TOLERANCIA_PESOS = 0.001;
+
+const subInstrumentoInputSchema = z.object({
+  nome: z.string().trim().min(1, 'Indique o nome do sub-instrumento'),
+  peso: pesoCriterioSchema.nullable().optional(),
+});
+
+const instrumentoRecolhaInputSchema = z.object({
+  nome: z.string().trim().min(1, 'Indique o nome do instrumento'),
+  peso: pesoCriterioSchema.nullable().optional(),
+  subInstrumentos: z.array(subInstrumentoInputSchema).default([]),
+});
+
+/** Irmãos: ou nenhum tem peso (média simples) ou todos têm e somam 100%. */
+function mensagemPesosIrmaos(itens: { peso?: number | null }[]): string | null {
+  const comPeso = itens.filter((i) => i.peso !== null && i.peso !== undefined);
+  if (comPeso.length === 0) return null;
+  if (comPeso.length !== itens.length) return 'Ou todos os itens têm peso, ou nenhum tem.';
+  const soma = comPeso.reduce((acc, i) => acc + (i.peso ?? 0), 0);
+  if (Math.abs(soma - 1) > TOLERANCIA_PESOS) return 'Os pesos têm de somar 100%.';
+  return null;
+}
+
+export const criterioSchema = z
+  .object({
+    anoLetivoId: z.string().min(1),
+    cicloId: z.string().min(1),
+    nome: z.string().trim().min(2, 'Nome demasiado curto'),
+    peso: pesoCriterioSchema,
+    tipo: z.enum(['GERAL', 'ESPECIFICO']),
+    grupoDisciplinarId: z.string().min(1).optional().nullable(),
+    instrumentosRecolha: z.array(instrumentoRecolhaInputSchema).default([]),
+  })
+  .superRefine((c, ctx) => {
+    if (c.tipo === 'ESPECIFICO' && !c.grupoDisciplinarId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['grupoDisciplinarId'],
+        message: 'Escolha o grupo disciplinar do critério específico.',
+      });
+    }
+    if (c.tipo === 'GERAL' && c.grupoDisciplinarId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['grupoDisciplinarId'],
+        message: 'Um critério geral não tem grupo disciplinar.',
+      });
+    }
+    const msgInstrumentos = mensagemPesosIrmaos(c.instrumentosRecolha);
+    if (msgInstrumentos) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['instrumentosRecolha'], message: msgInstrumentos });
+    }
+    c.instrumentosRecolha.forEach((ir, i) => {
+      if (c.tipo === 'GERAL' && ir.subInstrumentos.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['instrumentosRecolha', i, 'subInstrumentos'],
+          message: 'Só os critérios específicos têm sub-instrumentos.',
+        });
+      }
+      const msgSub = mensagemPesosIrmaos(ir.subInstrumentos);
+      if (msgSub) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['instrumentosRecolha', i, 'subInstrumentos'],
+          message: msgSub,
+        });
+      }
+    });
+  });

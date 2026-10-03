@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { GraduationCap, BookOpen, ClipboardList, ShieldCheck, X } from 'lucide-react';
+import { GraduationCap, BookOpen, ClipboardList, ListChecks, ShieldCheck, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 const LINKS = [
@@ -22,7 +22,14 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const { data: session } = useSession();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'ADMIN';
 
-  const links = isAdmin ? [...LINKS, { href: '/admin', label: 'Administração', icon: ShieldCheck }] : LINKS;
+  // "Critérios (novo)": modelo por ano letivo + ciclo, ainda não ligado às turmas — só ADMIN.
+  const links = isAdmin
+    ? [
+        ...LINKS,
+        { href: '/criterios', label: 'Critérios (novo)', icon: ListChecks },
+        { href: '/admin', label: 'Administração', icon: ShieldCheck },
+      ]
+    : LINKS;
 
   const content = (
     <nav className="flex flex-col gap-0.5 px-3 py-5">

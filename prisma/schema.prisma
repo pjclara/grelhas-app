@@ -60,6 +60,7 @@ model GrupoDisciplinar {
   updatedAt DateTime @updatedAt
 
   disciplinas Disciplina[]
+  criterios   Criterio[]
 
   @@unique([nome])
 }
@@ -74,6 +75,7 @@ model Ciclo {
   updatedAt DateTime @updatedAt
 
   disciplinas DisciplinaCiclo[]
+  criterios   Criterio[]
 
   @@unique([nome])
 }
@@ -122,6 +124,7 @@ model AnoLetivo {
 
   turmas          Turma[]
   gruposAvaliacao GrupoAvaliacao[]
+  criterios       Criterio[]
 
   @@unique([nome])
 }
@@ -186,6 +189,66 @@ model InstrumentoPeso {
   disciplina  Disciplina           @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
 
   @@unique([instrumentoId, disciplinaId])
+}
+
+// ---------- Critérios de avaliação (novo modelo: ano letivo + ciclo) ----------
+
+enum TipoCriterio {
+  GERAL // aplica-se a todo o ciclo
+  ESPECIFICO // aplica-se só a um grupo disciplinar
+}
+
+// Critério de avaliação de um ano letivo e ciclo. GERAL = vale para todas as
+// disciplinas do ciclo; ESPECIFICO = vale só para as disciplinas de um grupo
+// disciplinar. Só ADMIN pode criar/editar/apagar. Convive com o modelo antigo
+// (GrupoAvaliacao/InstrumentoAvaliacao) enquanto turmas e cálculo não migram.
+model Criterio {
+  id                 String       @id @default(cuid())
+  anoLetivoId        String
+  cicloId            String
+  nome               String
+  peso               Float // 0 a 1
+  tipo               TipoCriterio
+  grupoDisciplinarId String? // obrigatório se ESPECIFICO, nulo se GERAL
+  ordem              Int          @default(0)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  anoLetivo           AnoLetivo           @relation(fields: [anoLetivoId], references: [id], onDelete: Cascade)
+  ciclo               Ciclo               @relation(fields: [cicloId], references: [id], onDelete: Cascade)
+  grupoDisciplinar    GrupoDisciplinar?   @relation(fields: [grupoDisciplinarId], references: [id], onDelete: Cascade)
+  instrumentosRecolha InstrumentoRecolha[]
+
+  @@index([anoLetivoId, cicloId])
+}
+
+// Instrumento de recolha de um critério (ex.: "Testes"). `peso` nulo = sem
+// peso (média simples entre irmãos).
+model InstrumentoRecolha {
+  id         String @id @default(cuid())
+  criterioId String
+  nome       String
+  peso       Float? // 0 a 1
+  ordem      Int    @default(0)
+
+  criterio        Criterio         @relation(fields: [criterioId], references: [id], onDelete: Cascade)
+  subInstrumentos SubInstrumento[]
+
+  @@index([criterioId])
+}
+
+// Sub-instrumento de um instrumento de recolha. Só existe em critérios
+// ESPECIFICO (validado na API).
+model SubInstrumento {
+  id                   String @id @default(cuid())
+  instrumentoRecolhaId String
+  nome                 String
+  peso                 Float? // 0 a 1
+  ordem                Int    @default(0)
+
+  instrumentoRecolha InstrumentoRecolha @relation(fields: [instrumentoRecolhaId], references: [id], onDelete: Cascade)
+
+  @@index([instrumentoRecolhaId])
 }
 
 // Turma = grupo de alunos (ex.: "9.º F"). Não está ligada a nenhuma

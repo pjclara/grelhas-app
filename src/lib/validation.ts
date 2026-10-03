@@ -156,13 +156,21 @@ const instrumentoRecolhaInputSchema = z.object({
   subInstrumentos: z.array(subInstrumentoInputSchema).default([]),
 });
 
-/** Irmãos: ou nenhum tem peso (média simples) ou todos têm e somam 100%. */
-function mensagemPesosIrmaos(itens: { peso?: number | null }[]): string | null {
+/**
+ * Irmãos: ou nenhum tem peso (média simples) ou todos têm e somam o peso do
+ * item pai (`total`). Os instrumentos de recolha somam o peso do critério; os
+ * sub-instrumentos somam o peso do instrumento. O que soma 100% é o conjunto
+ * dos critérios aplicáveis a uma disciplina, não os filhos de cada critério.
+ */
+function mensagemPesosIrmaos(itens: { peso?: number | null }[], total: number | null): string | null {
   const comPeso = itens.filter((i) => i.peso !== null && i.peso !== undefined);
   if (comPeso.length === 0) return null;
+  if (total === null) return 'Defina primeiro o peso do item pai para poder dar peso a estes itens.';
   if (comPeso.length !== itens.length) return 'Ou todos os itens têm peso, ou nenhum tem.';
   const soma = comPeso.reduce((acc, i) => acc + (i.peso ?? 0), 0);
-  if (Math.abs(soma - 1) > TOLERANCIA_PESOS) return 'Os pesos têm de somar 100%.';
+  if (Math.abs(soma - total) > TOLERANCIA_PESOS) {
+    return `Os pesos somam ${Math.round(soma * 10000) / 100}% e têm de somar ${Math.round(total * 10000) / 100}%.`;
+  }
   return null;
 }
 
@@ -191,7 +199,7 @@ export const criterioSchema = z
         message: 'Um critério geral não tem grupo disciplinar.',
       });
     }
-    const msgInstrumentos = mensagemPesosIrmaos(c.instrumentosRecolha);
+    const msgInstrumentos = mensagemPesosIrmaos(c.instrumentosRecolha, c.peso);
     if (msgInstrumentos) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['instrumentosRecolha'], message: msgInstrumentos });
     }
@@ -203,7 +211,7 @@ export const criterioSchema = z
           message: 'Só os critérios específicos têm sub-instrumentos.',
         });
       }
-      const msgSub = mensagemPesosIrmaos(ir.subInstrumentos);
+      const msgSub = mensagemPesosIrmaos(ir.subInstrumentos, ir.peso ?? null);
       if (msgSub) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

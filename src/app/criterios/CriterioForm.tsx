@@ -100,25 +100,38 @@ function numeroValido(percent: string): boolean {
   return percent.trim() !== '' && Number.isFinite(n) && n >= 0 && n <= 100;
 }
 
-/** Irmãos: ou nenhum tem peso (média simples) ou todos têm e somam 100%. */
-function erroPesosIrmaos(itens: { peso: string }[]): string | null {
+function paraNumero(percent: string): number {
+  return Number(percent.replace(',', '.'));
+}
+
+/**
+ * Irmãos: ou nenhum tem peso (média simples) ou todos têm e somam o peso do
+ * item pai (`totalPai`, em %). Instrumentos somam o peso do critério;
+ * sub-instrumentos somam o peso do instrumento.
+ */
+function erroPesosIrmaos(itens: { peso: string }[], totalPai: string): string | null {
   const comPeso = itens.filter((i) => i.peso.trim() !== '');
   if (comPeso.length === 0) return null;
+  if (!numeroValido(totalPai)) return 'Defina primeiro o peso do item pai para poder dar peso a estes itens.';
   if (comPeso.length !== itens.length) return 'Ou todos os itens têm peso, ou nenhum tem.';
   if (comPeso.some((i) => !numeroValido(i.peso))) return 'Os pesos têm de estar entre 0 e 100.';
-  const soma = comPeso.reduce((acc, i) => acc + Number(i.peso.replace(',', '.')), 0);
-  if (Math.abs(soma - 100) > TOLERANCIA) return `Os pesos somam ${Math.round(soma * 100) / 100}% e têm de somar 100%.`;
+  const soma = comPeso.reduce((acc, i) => acc + paraNumero(i.peso), 0);
+  const total = paraNumero(totalPai);
+  if (Math.abs(soma - total) > TOLERANCIA) {
+    return `Os pesos somam ${Math.round(soma * 100) / 100}% e têm de somar ${total}%.`;
+  }
   return null;
 }
 
-function SomaPesos({ itens }: { itens: { peso: string }[] }) {
+function SomaPesos({ itens, totalPai }: { itens: { peso: string }[]; totalPai: string }) {
   const comPeso = itens.filter((i) => i.peso.trim() !== '');
   if (comPeso.length === 0) return null;
-  const soma = comPeso.reduce((acc, i) => acc + (Number(i.peso.replace(',', '.')) || 0), 0);
-  const certo = Math.abs(soma - 100) <= TOLERANCIA && comPeso.length === itens.length;
+  const soma = comPeso.reduce((acc, i) => acc + (paraNumero(i.peso) || 0), 0);
+  const certo =
+    numeroValido(totalPai) && Math.abs(soma - paraNumero(totalPai)) <= TOLERANCIA && comPeso.length === itens.length;
   return (
     <span className={certo ? 'text-xs text-emerald-700' : 'text-xs text-amber-700'}>
-      Soma: {Math.round(soma * 100) / 100}%
+      Soma: {Math.round(soma * 100) / 100}%{numeroValido(totalPai) ? ` de ${paraNumero(totalPai)}%` : ''}
     </span>
   );
 }
@@ -204,10 +217,10 @@ export default function CriterioForm({
       for (const s of ir.subInstrumentos) {
         if (!s.nome.trim()) return setErroLocal(`Indique o nome de todos os sub-instrumentos de "${ir.nome}".`);
       }
-      const erroSub = erroPesosIrmaos(ir.subInstrumentos);
+      const erroSub = erroPesosIrmaos(ir.subInstrumentos, ir.peso);
       if (erroSub) return setErroLocal(`Sub-instrumentos de "${ir.nome}": ${erroSub}`);
     }
-    const erroInstrumentos = erroPesosIrmaos(form.instrumentosRecolha);
+    const erroInstrumentos = erroPesosIrmaos(form.instrumentosRecolha, form.peso);
     if (erroInstrumentos) return setErroLocal(`Instrumentos de recolha: ${erroInstrumentos}`);
 
     aoSubmeter({
@@ -331,11 +344,11 @@ export default function CriterioForm({
           <div>
             <h2 className="text-sm font-semibold text-slate-900">Instrumentos de recolha</h2>
             <p className="text-xs text-slate-500">
-              Deixe o peso em branco para média simples. Se indicar pesos, têm de somar 100%.
+              Deixe o peso em branco para média simples. Se indicar pesos, têm de somar o peso do critério.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <SomaPesos itens={form.instrumentosRecolha} />
+            <SomaPesos itens={form.instrumentosRecolha} totalPai={form.peso} />
             <Button
               type="button"
               size="sm"
@@ -403,7 +416,7 @@ export default function CriterioForm({
                     Sub-instrumentos
                   </span>
                   <div className="flex items-center gap-3">
-                    <SomaPesos itens={ir.subInstrumentos} />
+                    <SomaPesos itens={ir.subInstrumentos} totalPai={ir.peso} />
                     <Button
                       type="button"
                       size="sm"

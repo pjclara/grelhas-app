@@ -77,6 +77,10 @@ export interface CriterioFolha {
   nome: string;
   peso: number;
   ordem: number;
+  /** Peso do critério a que a folha pertence (sempre definido). */
+  criterioPeso: number;
+  /** false = o admin não definiu peso para este item: `peso` é só a divisão igual usada no cálculo. */
+  pesoDefinido: boolean;
   semInstrumentos?: boolean;
 }
 
@@ -114,11 +118,14 @@ export function folhasDeCriterios(criterios: CriterioComArvore[]): CriterioFolha
         nome: 'Sem instrumentos de recolha definidos',
         peso: c.peso,
         ordem: proxima(),
+        criterioPeso: c.peso,
+        pesoDefinido: true,
         semInstrumentos: true,
       });
       continue;
     }
     const pesosRecolha = pesosEfetivos(c.instrumentosRecolha, c.peso);
+    const recolhasComPeso = c.instrumentosRecolha.every((r) => r.peso !== null);
     c.instrumentosRecolha.forEach((ir, i) => {
       if (ir.subInstrumentos.length === 0) {
         folhas.push({
@@ -129,10 +136,13 @@ export function folhasDeCriterios(criterios: CriterioComArvore[]): CriterioFolha
           nome: ir.nome,
           peso: pesosRecolha[i],
           ordem: proxima(),
+          criterioPeso: c.peso,
+          pesoDefinido: recolhasComPeso,
         });
         return;
       }
       const pesosSub = pesosEfetivos(ir.subInstrumentos, pesosRecolha[i]);
+      const subsComPeso = ir.subInstrumentos.every((s) => s.peso !== null);
       ir.subInstrumentos.forEach((s, j) => {
         folhas.push({
           id: s.id,
@@ -142,6 +152,8 @@ export function folhasDeCriterios(criterios: CriterioComArvore[]): CriterioFolha
           nome: `${ir.nome} › ${s.nome}`,
           peso: pesosSub[j],
           ordem: proxima(),
+          criterioPeso: c.peso,
+          pesoDefinido: subsComPeso,
         });
       });
     });

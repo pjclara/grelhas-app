@@ -38,9 +38,10 @@ export default function CriteriosPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.turmaId, params.turmaDisciplinaId]);
 
-  const totalPeso = criterios.reduce((acc, c) => acc + c.peso, 0);
-
+  // Um critério (grupo) pode ter várias linhas; o seu peso é o mesmo em todas.
   const grupos = Array.from(new Set(criterios.map((c) => c.grupo)));
+  const pesoDoGrupo = (g: string) => criterios.find((c) => c.grupo === g)?.criterioPeso ?? 0;
+  const totalPeso = grupos.reduce((acc, g) => acc + pesoDoGrupo(g), 0);
   const pesoOk = Math.abs(totalPeso - 1) < 0.001;
 
   return (
@@ -55,7 +56,7 @@ export default function CriteriosPage({
       {!aCarregar && !erroCarregar && criterios.length > 0 && (
         <div className="mb-6">
           <Alert tone={pesoOk ? 'success' : 'warning'}>
-            Soma dos pesos: {(totalPeso * 100).toFixed(0)}%
+            Soma dos pesos dos critérios: {Math.round(totalPeso * 1000) / 10}%
             {!pesoOk && ' — deve somar 100% para a nota final ser calculada; peça a um administrador para rever os pesos'}
           </Alert>
         </div>
@@ -79,14 +80,21 @@ export default function CriteriosPage({
       ) : (
         grupos.map((g) => (
           <div key={g} className="mb-6">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{g}</h2>
+            <h2 className="mb-2 flex items-baseline justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <span>{g}</span>
+              <span className="tabular-nums">{Math.round(pesoDoGrupo(g) * 1000) / 10}%</span>
+            </h2>
             <Card className="divide-y divide-slate-100">
               {criterios
                 .filter((c) => c.grupo === g)
                 .map((c) => (
                   <div key={c.id} className="flex items-center gap-3 px-4 py-3">
                     <span className="flex-1 text-sm text-slate-800">{c.nome}</span>
-                    <span className="text-sm tabular-nums text-slate-700">{(c.peso * 100).toFixed(0)}%</span>
+                    {c.pesoDefinido === false ? (
+                      <span className="text-sm text-slate-400">sem peso</span>
+                    ) : (
+                      <span className="text-sm tabular-nums text-slate-700">{Math.round(c.peso * 1000) / 10}%</span>
+                    )}
                   </div>
                 ))}
             </Card>

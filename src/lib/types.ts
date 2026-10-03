@@ -119,6 +119,8 @@ export interface Criterio {
   nome: string; // instrumento de recolha (› sub-instrumento)
   peso: number; // peso efetivo na nota final, 0..1
   ordem: number;
+  criterioPeso?: number; // peso do critério a que pertence (sempre definido)
+  pesoDefinido?: boolean; // false = sem peso definido pelo admin (média simples)
   semInstrumentos?: boolean;
 }
 

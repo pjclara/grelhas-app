@@ -197,7 +197,8 @@ export default function InstrumentosPage({
                 <option value="">Selecionar…</option>
                 {criteriosUtilizaveis.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.grupo} — {c.nome} ({Math.round(c.peso * 1000) / 10}%)
+                    {c.grupo} — {c.nome}
+                    {c.pesoDefinido === false ? '' : ` (${Math.round(c.peso * 1000) / 10}%)`}
                   </option>
                 ))}
               </Select>

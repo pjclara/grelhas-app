@@ -4,7 +4,10 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
+  // Ligação direta (sem pooler) usada pelo `prisma migrate`: o pooler da Neon não
+  // suporta o advisory lock das migrações (erro P1002).
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 // ---------- Utilizadores (professores) ----------

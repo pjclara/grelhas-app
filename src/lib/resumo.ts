@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NotFoundError } from '@/lib/api-helpers';
+import { folhasAplicaveis } from '@/lib/criterios';
 import {
   calcularAluno,
   calcularEstatisticasTurma,
@@ -28,7 +29,7 @@ export interface ResumoPeriodo {
 
 /**
  * Constrói o resumo de um período para uma disciplina concreta de uma
- * turma. Os critérios/instrumentos são os da TurmaDisciplina; os alunos
+ * turma. Os critérios são os aplicáveis à disciplina (ver folhasAplicaveis); os instrumentos são os da TurmaDisciplina; os alunos
  * considerados são apenas os que têm inscrição ativa nessa disciplina
  * (AlunoDisciplina.ativo) e continuam ativos na turma.
  */
@@ -42,10 +43,6 @@ export async function construirResumoPeriodo(
     include: {
       disciplina: true,
       turma: { include: { anoLetivo: true } },
-      criterios: {
-        orderBy: { ordem: 'asc' },
-        include: { instrumentoAvaliacao: { include: { grupo: true } } },
-      },
       alunos: {
         where: { ativo: true, aluno: { ativo: true } },
         include: { aluno: true },
@@ -75,7 +72,7 @@ export async function construirResumoPeriodo(
 
   const instrumentos: InstrumentoCalc[] = instrumentosDb.map((i) => ({
     id: i.id,
-    criterioId: i.criterioId,
+    criterioId: i.subInstrumentoId ?? i.instrumentoRecolhaId,
     periodoId: i.periodoId,
     modo: i.modo,
     escalaMax: i.escalaMax,
@@ -94,12 +91,14 @@ export async function construirResumoPeriodo(
     if (mapa) mapa[nota.perguntaId] = nota.valor;
   }
 
-  const criterios: CriterioCalc[] = turmaDisciplina.criterios.map((c) => ({
-    id: c.id,
-    nome: c.instrumentoAvaliacao.nome,
-    grupo: c.instrumentoAvaliacao.grupo.nome,
-    peso: c.peso,
-    ordem: c.ordem,
+  // Cada folha dos critérios aplicáveis (instrumento de recolha ou sub-instrumento)
+  // é uma "coluna" do cálculo, com o seu peso efetivo na nota final.
+  const criterios: CriterioCalc[] = (await folhasAplicaveis(turmaDisciplinaId)).map((f) => ({
+    id: f.id,
+    nome: f.nome,
+    grupo: f.grupo,
+    peso: f.peso,
+    ordem: f.ordem,
   }));
 
   const resultados = alunos.map((aluno) =>
@@ -128,7 +127,7 @@ export async function construirResumoPeriodo(
     instrumentos: instrumentosDb.map((i) => ({
       id: i.id,
       nome: i.nome,
-      criterioId: i.criterioId,
+      criterioId: i.subInstrumentoId ?? i.instrumentoRecolhaId,
       ordem: i.ordem,
     })),
     alunos: alunos.map((a) => ({ id: a.id, numero: numeroPorAluno.get(a.id) ?? 0, nome: a.nome })),

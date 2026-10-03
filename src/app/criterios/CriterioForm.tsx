@@ -11,11 +11,13 @@ import { Alert } from '@/components/ui/Alert';
 import type { AnoLetivo, Ciclo, CriterioCatalogo, GrupoDisciplinar, TipoCriterio } from '@/lib/types';
 
 interface SubFormValues {
+  id?: string; // presente ao editar um sub-instrumento já existente
   nome: string;
   peso: string; // percentagem; vazio = sem peso
 }
 
 interface InstrumentoFormValues {
+  id?: string; // presente ao editar um instrumento de recolha já existente
   nome: string;
   peso: string; // percentagem; vazio = sem peso
   subInstrumentos: SubFormValues[];
@@ -40,9 +42,10 @@ export interface CriterioPayload {
   tipo: TipoCriterio;
   grupoDisciplinarId: string | null;
   instrumentosRecolha: Array<{
+    id?: string;
     nome: string;
     peso: number | null;
-    subInstrumentos: Array<{ nome: string; peso: number | null }>;
+    subInstrumentos: Array<{ id?: string; nome: string; peso: number | null }>;
   }>;
 }
 
@@ -76,9 +79,10 @@ export function valoresDeCriterio(c: CriterioCatalogo): CriterioFormValues {
     tipo: c.tipo,
     grupoDisciplinarId: c.grupoDisciplinarId ?? '',
     instrumentosRecolha: c.instrumentosRecolha.map((ir) => ({
+      id: ir.id,
       nome: ir.nome,
       peso: paraPercent(ir.peso),
-      subInstrumentos: ir.subInstrumentos.map((s) => ({ nome: s.nome, peso: paraPercent(s.peso) })),
+      subInstrumentos: ir.subInstrumentos.map((s) => ({ id: s.id, nome: s.nome, peso: paraPercent(s.peso) })),
     })),
   };
 }
@@ -231,10 +235,11 @@ export default function CriterioForm({
       tipo: form.tipo,
       grupoDisciplinarId: especifico ? form.grupoDisciplinarId : null,
       instrumentosRecolha: form.instrumentosRecolha.map((ir) => ({
+        id: ir.id,
         nome: ir.nome.trim(),
         peso: paraFracao(ir.peso),
         subInstrumentos: especifico
-          ? ir.subInstrumentos.map((s) => ({ nome: s.nome.trim(), peso: paraFracao(s.peso) }))
+          ? ir.subInstrumentos.map((s) => ({ id: s.id, nome: s.nome.trim(), peso: paraFracao(s.peso) }))
           : [],
       })),
     });

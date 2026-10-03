@@ -72,38 +72,6 @@ export const periodoSchema = z.object({
   ordem: z.number().int().min(1),
 });
 
-export const grupoAvaliacaoSchema = z.object({
-  anoLetivoId: z.string().min(1),
-  nome: z.string().min(1),
-  ordem: z.number().int().min(0).optional(),
-});
-
-export const instrumentoPesoSchema = z.object({
-  disciplinaId: z.string().min(1),
-  peso: z.number().min(0).max(1),
-});
-
-export const instrumentoAvaliacaoSchema = z.object({
-  nome: z.string().min(1),
-  ordem: z.number().int().min(0).optional(),
-  pesos: z
-    .array(instrumentoPesoSchema)
-    .refine(
-      (pesos) => new Set(pesos.map((p) => p.disciplinaId)).size === pesos.length,
-      'Cada disciplina só pode aparecer uma vez.'
-    ),
-});
-
-export const turmaDisciplinaInstrumentoSchema = z.object({
-  instrumentoAvaliacaoId: z.string().min(1),
-  peso: z.number().min(0).max(1),
-  ordem: z.number().int().min(0).optional(),
-});
-
-export const turmaDisciplinaInstrumentoPesoSchema = z.object({
-  peso: z.number().min(0).max(1),
-});
-
 export const perguntaInputSchema = z.object({
   id: z.string().optional(), // presente = atualizar, ausente = criar
   codigo: z.string().min(1),
@@ -146,11 +114,13 @@ const pesoCriterioSchema = z.number().min(0).max(1);
 const TOLERANCIA_PESOS = 0.001;
 
 const subInstrumentoInputSchema = z.object({
+  id: z.string().min(1).optional(), // presente = atualizar, ausente = criar
   nome: z.string().trim().min(1, 'Indique o nome do sub-instrumento'),
   peso: pesoCriterioSchema.nullable().optional(),
 });
 
 const instrumentoRecolhaInputSchema = z.object({
+  id: z.string().min(1).optional(), // presente = atualizar, ausente = criar
   nome: z.string().trim().min(1, 'Indique o nome do instrumento'),
   peso: pesoCriterioSchema.nullable().optional(),
   subInstrumentos: z.array(subInstrumentoInputSchema).default([]),

@@ -57,42 +57,17 @@ export default function ResumoPage({
       ? (comNota20.filter((r) => (r.notaFinal20 as number) < 10).length / comNota20.length) * 100
       : null;
 
-  // Para os critérios fora do grupo "Atitudes" (ex.: Conhecimentos e Capacidades), mostra-se
-  // uma coluna por instrumento (além da média do critério) — em Atitudes cada critério já
-  // corresponde a um único instrumento, pelo que a coluna do critério já mostra esse valor.
-  // No 3.º ciclo, os valores fora de Atitudes são apresentados na escala 0-200 em vez de %.
+  // Cada coluna de critério (instrumento de recolha ou sub-instrumento) mostra uma
+  // coluna por instrumento de avaliação, além da média. No 3.º ciclo os valores são
+  // apresentados na escala 0-200 em vez de %.
   const escala200 = resumo.turma.nivelEnsino === '3.º ciclo';
-  const formatarValor = (v: number | null | undefined, atitudes = false) =>
-    v == null ? '—' : escala200 && !atitudes ? (v * 2).toFixed(0) : `${v.toFixed(0)}%`;
+  const formatarValor = (v: number | null | undefined) =>
+    v == null ? '—' : escala200 ? (v * 2).toFixed(0) : `${v.toFixed(0)}%`;
 
-  // Todos os critérios de Atitudes são juntos numa única coluna (média ponderada pelos pesos).
-  const criteriosAtitudes = resumo.criterios.filter((c) => c.grupo === 'Atitudes');
-  const pesoAtitudes = criteriosAtitudes.reduce((acc, c) => acc + c.peso, 0);
-  const mediaAtitudes = (resultado: ResumoPeriodoDTO['resultados'][number]) => {
-    let soma = 0;
-    let pesos = 0;
-    for (const c of criteriosAtitudes) {
-      const m = resultado.porCriterio.find((x) => x.criterioId === c.id)?.media;
-      if (m != null) {
-        soma += m * c.peso;
-        pesos += c.peso;
-      }
-    }
-    return pesos > 0 ? soma / pesos : null;
-  };
-  const instrumentosPorCriterio = resumo.criterios.flatMap((c) =>
-    c.grupo === 'Atitudes'
-      ? c.id === criteriosAtitudes[0].id
-        ? [{ criterio: c, atitudes: true, instrumentos: [] as typeof resumo.instrumentos }]
-        : []
-      : [
-          {
-            criterio: c,
-            atitudes: false,
-            instrumentos: resumo.instrumentos.filter((i) => i.criterioId === c.id).sort((a, b) => a.ordem - b.ordem),
-          },
-        ]
-  );
+  const instrumentosPorCriterio = resumo.criterios.map((c) => ({
+    criterio: c,
+    instrumentos: resumo.instrumentos.filter((i) => i.criterioId === c.id).sort((a, b) => a.ordem - b.ordem),
+  }));
 
   return (
     <AppShell width="full">
@@ -127,7 +102,7 @@ export default function ResumoPage({
               <tr>
                 <th className="px-3 py-2" rowSpan={2}>Nº</th>
                 <th className="px-3 py-2" rowSpan={2}>Nome</th>
-                {instrumentosPorCriterio.map(({ criterio: c, atitudes, instrumentos }) =>
+                {instrumentosPorCriterio.map(({ criterio: c, instrumentos }) =>
                   instrumentos.length > 0 ? (
                     <th key={c.id} className="px-2 py-2 text-center" colSpan={instrumentos.length + 1}>
                       {c.nome}
@@ -135,10 +110,8 @@ export default function ResumoPage({
                     </th>
                   ) : (
                     <th key={c.id} className="px-3 py-2 text-center" rowSpan={2}>
-                      {atitudes ? 'Atitudes' : c.nome}
-                      <div className="text-xs font-normal normal-case text-slate-400">
-                        {Math.round((atitudes ? pesoAtitudes : c.peso) * 100)}%
-                      </div>
+                      {c.nome}
+                      <div className="text-xs font-normal normal-case text-slate-400">{Math.round(c.peso * 100)}%</div>
                     </th>
                   )
                 )}
@@ -169,13 +142,12 @@ export default function ResumoPage({
                   <tr key={aluno.id} className="hover:bg-slate-50/70">
                     <td className="px-3 py-1.5 tabular-nums text-slate-500">{aluno.numero}</td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">{aluno.nome}</td>
-                    {instrumentosPorCriterio.flatMap(({ criterio: c, atitudes, instrumentos }) => {
+                    {instrumentosPorCriterio.flatMap(({ criterio: c, instrumentos }) => {
                       const media = resultado.porCriterio.find((x) => x.criterioId === c.id);
                       if (instrumentos.length === 0) {
-                        const valor = atitudes ? mediaAtitudes(resultado) : media?.media ?? null;
                         return [
                           <td key={c.id} className="px-3 py-1.5 text-center tabular-nums">
-                            {formatarValor(valor, atitudes)}
+                            {formatarValor(media?.media)}
                           </td>,
                         ];
                       }

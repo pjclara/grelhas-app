@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireUserId, requireAdminId } from '@/lib/auth';
 import { criterioSchema } from '@/lib/validation';
-import { handleApiError } from '@/lib/api-helpers';
+import { ConflictError, handleApiError } from '@/lib/api-helpers';
 import {
   criterioInclude,
   existeCriterioComNome,
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     await validarReferenciasCriterio(data);
 
     if (await existeCriterioComNome(data)) {
-      return NextResponse.json({ error: 'Já existe um critério com este nome.' }, { status: 409 });
+      throw new ConflictError('Já existe um critério com este nome.');
     }
 
     const criterio = await prisma.criterio.create({

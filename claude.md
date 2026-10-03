@@ -72,7 +72,7 @@ Docker, ou um Route Handler dedicado a health-check. Ver secção 7 e
   DTOs em `src/lib/types.ts`) salvo pedido explícito de alteração.
 * Não invente abstrações genéricas que o projeto não usa hoje — ex.: não
   crie um `<DataTable>`/`<CrudForm>` genérico só porque `disciplinas` e
-  `criterios-avaliacao` têm tabelas com formato parecido; o padrão atual é
+  `criterios` têm tabelas com formato parecido; o padrão atual é
   cada página definir o seu próprio JSX inline.
 
 ## 3. Processo obrigatório

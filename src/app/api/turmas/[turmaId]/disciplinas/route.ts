@@ -21,10 +21,9 @@ export async function GET(_req: NextRequest, { params }: { params: { turmaId: st
 }
 
 /**
- * Associa uma disciplina (do catálogo global) a esta turma, já com os
- * critérios de avaliação ativados a partir do catálogo global (todo
- * InstrumentoAvaliacao do ano letivo da turma que tenha peso definido para
- * esta disciplina — ver GrupoAvaliacao/InstrumentoAvaliacao/InstrumentoPeso).
+ * Associa uma disciplina (do catálogo global) a esta turma. Os critérios de
+ * avaliação não são copiados para aqui: aplicam-se por derivação (ano letivo e
+ * ciclo da turma + grupo disciplinar da disciplina — ver folhasAplicaveis).
  * A mesma disciplina não pode ser associada duas vezes à mesma turma
  * (garantido por @@unique([turmaId, disciplinaId]) no schema — um pedido
  * duplicado resulta em 409 via handleApiError).
@@ -32,7 +31,7 @@ export async function GET(_req: NextRequest, { params }: { params: { turmaId: st
 export async function POST(req: NextRequest, { params }: { params: { turmaId: string } }) {
   try {
     const userId = await requireUserId();
-    const turma = await assertTurmaOwnership(params.turmaId, userId);
+    await assertTurmaOwnership(params.turmaId, userId);
     const data = turmaDisciplinaSchema.parse(await req.json());
 
     const disciplina = await prisma.disciplina.findFirst({
@@ -40,34 +39,9 @@ export async function POST(req: NextRequest, { params }: { params: { turmaId: st
     });
     if (!disciplina) throw new NotFoundError('Disciplina não encontrada');
 
-    const grupos = await prisma.grupoAvaliacao.findMany({
-      where: { anoLetivoId: turma.anoLetivoId },
-      orderBy: { ordem: 'asc' },
-      include: {
-        instrumentos: {
-          orderBy: { ordem: 'asc' },
-          include: { pesos: { where: { disciplinaId: data.disciplinaId } } },
-        },
-      },
-    });
-
-    const criteriosParaAtivar: { instrumentoAvaliacaoId: string; peso: number; ordem: number }[] = [];
-    let ordem = 0;
-    for (const g of grupos) {
-      for (const inst of g.instrumentos) {
-        const peso = inst.pesos[0]?.peso;
-        if (peso === undefined) continue;
-        criteriosParaAtivar.push({ instrumentoAvaliacaoId: inst.id, peso, ordem: ordem++ });
-      }
-    }
-
     const turmaDisciplina = await prisma.turmaDisciplina.create({
-      data: {
-        turmaId: params.turmaId,
-        disciplinaId: data.disciplinaId,
-        criterios: { create: criteriosParaAtivar },
-      },
-      include: { disciplina: true, criterios: true },
+      data: { turmaId: params.turmaId, disciplinaId: data.disciplinaId },
+      include: { disciplina: true },
     });
 
     return NextResponse.json(turmaDisciplina, { status: 201 });

@@ -86,33 +86,34 @@ async function main() {
     create: { nome: anoLetivoNome },
   });
 
-  // Critérios de avaliação vivem no catálogo global (GrupoAvaliacao/
-  // InstrumentoAvaliacao), partilhado entre turmas — encontra ou cria a
-  // entrada do catálogo para este ano letivo antes de a ativar na turma
-  // importada (TurmaDisciplinaInstrumento).
+  // Critérios de avaliação vivem no catálogo global (Criterio / InstrumentoRecolha),
+  // por ano letivo e ciclo. Aplicam-se à turma importada por derivação (ano letivo
+  // + ciclo da turma), por isso o ciclo tem de existir.
+  const ciclo = nivelEnsino ? await prisma.ciclo.findFirst({ where: { nome: nivelEnsino } }) : null;
+  if (!ciclo) {
+    console.error(`O nível de ensino "${nivelEnsino ?? ''}" da folha não corresponde a nenhum ciclo existente.`);
+    process.exit(1);
+  }
+
+  // Encontra ou cria o critério GERAL (somando o peso do instrumento de recolha
+  // ao do critério) e acrescenta-lhe o instrumento de recolha. Devolve o
+  // instrumento de recolha, onde se penduram os instrumentos de avaliação.
   async function ativarCriterioDoCatalogo(
     grupoNome: string,
     instrumentoNome: string,
     peso: number,
     ordem: number
   ) {
-    const grupo = await prisma.grupoAvaliacao.upsert({
-      where: { anoLetivoId_nome: { anoLetivoId: anoLetivo.id, nome: grupoNome } },
-      update: {},
-      create: { anoLetivoId: anoLetivo.id, nome: grupoNome },
+    const existente = await prisma.criterio.findFirst({
+      where: { anoLetivoId: anoLetivo.id, cicloId: ciclo!.id, tipo: 'GERAL', grupoDisciplinarId: null, nome: grupoNome },
     });
-    const instrumentoAvaliacao = await prisma.instrumentoAvaliacao.upsert({
-      where: { grupoId_nome: { grupoId: grupo.id, nome: instrumentoNome } },
-      update: {},
-      create: { grupoId: grupo.id, nome: instrumentoNome },
-    });
-    await prisma.instrumentoPeso.upsert({
-      where: { instrumentoId_disciplinaId: { instrumentoId: instrumentoAvaliacao.id, disciplinaId: disciplina.id } },
-      update: {},
-      create: { instrumentoId: instrumentoAvaliacao.id, disciplinaId: disciplina.id, peso },
-    });
-    return prisma.turmaDisciplinaInstrumento.create({
-      data: { turmaDisciplinaId: turmaDisciplina.id, instrumentoAvaliacaoId: instrumentoAvaliacao.id, peso, ordem },
+    const criterio = existente
+      ? await prisma.criterio.update({ where: { id: existente.id }, data: { peso: { increment: peso } } })
+      : await prisma.criterio.create({
+          data: { anoLetivoId: anoLetivo.id, cicloId: ciclo!.id, nome: grupoNome, peso, tipo: 'GERAL' },
+        });
+    return prisma.instrumentoRecolha.create({
+      data: { criterioId: criterio.id, nome: instrumentoNome, peso, ordem },
     });
   }
 
@@ -122,6 +123,7 @@ async function main() {
       anoLetivoId: anoLetivo.id,
       nome: turmaNome,
       nivelEnsino: nivelEnsino ?? null,
+      cicloId: ciclo.id,
     },
   });
   console.log(`Turma criada: ${turma.nome} (${turma.id})`);
@@ -195,7 +197,7 @@ async function main() {
       data: {
         turmaDisciplinaId: turmaDisciplina.id,
         periodoId,
-        criterioId,
+        instrumentoRecolhaId: criterioId,
         nome: nomeInstrumento,
         modo: ModoAvaliacao.PONTOS,
         tema: tema ?? null,
@@ -242,7 +244,7 @@ async function main() {
         data: {
           turmaDisciplinaId: turmaDisciplina.id,
           periodoId,
-          criterioId: criterio.id,
+          instrumentoRecolhaId: criterio.id,
           nome: nomeCriterio,
           modo: ModoAvaliacao.ESCALA,
           escalaMax: 5,

@@ -19,16 +19,28 @@ Hierarquia real de dados (ver `schema.prisma`):
 User (professor)
  ├─ Disciplina (única por [userId, nome])
  ├─ AnoLetivo (único por [userId, nome])
- ├─ GrupoAvaliacao → InstrumentoAvaliacao (config. de critérios por ano letivo)
  └─ Turma (única por [userId, disciplinaId, anoLetivoId, nome])
       ├─ Aluno (único por [turmaId, numero])
       ├─ Periodo (único por [turmaId, ordem])
-      ├─ Criterio (único por [turmaId, nome]) — pesos configuráveis
-      └─ Instrumento (por turma/período/critério)
+      └─ Instrumento (por turma/período; aponta para um InstrumentoRecolha ou SubInstrumento)
            └─ Pergunta → Nota (por aluno)
 ```
 
-Todas as relações têm `onDelete: Cascade` a partir do `User`/`Turma` — uma
+Critérios de avaliação (catálogo global, só ADMIN) — independentes do `User`:
+
+```
+Criterio (anoLetivo + ciclo; GERAL ou ESPECIFICO de um GrupoDisciplinar; peso)
+ └─ InstrumentoRecolha (peso opcional; somam o peso do critério)
+     └─ SubInstrumento (só em critérios específicos; peso opcional; somam o do instrumento)
+```
+
+Um critério aplica-se a uma `TurmaDisciplina` quando `Turma.anoLetivoId` e
+`Turma.cicloId` coincidem e o critério é GERAL ou do
+`Disciplina.grupoDisciplinarId` (ver `src/lib/criterios.ts`). O `Instrumento`
+→ `InstrumentoRecolha`/`SubInstrumento` usa `onDelete: Restrict`: apagar um
+critério em uso é bloqueado (409) em vez de apagar notas.
+
+Todas as relações a partir do `User`/`Turma` têm `onDelete: Cascade` a partir do `User`/`Turma` — uma
 eliminação em cascata é intencional e documentada nas próprias
 confirmações da UI (ex.: `remover()` em `disciplinas/page.tsx` avisa quantas
 turmas serão apagadas).

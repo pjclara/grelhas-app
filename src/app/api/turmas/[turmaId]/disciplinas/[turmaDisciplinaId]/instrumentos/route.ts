@@ -4,7 +4,7 @@ import { requireUserId } from '@/lib/auth';
 import { assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
 import { instrumentoSchema } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-helpers';
-import { criterioInclude, paraCriterioDTO } from '@/lib/criterio-dto';
+import { comCriterio, folhasAplicaveis, resolverFolha } from '@/lib/criterios';
 
 export async function GET(
   req: NextRequest,
@@ -18,14 +18,11 @@ export async function GET(
       where: { turmaDisciplinaId: params.turmaDisciplinaId, ...(periodoId ? { periodoId } : {}) },
       include: {
         perguntas: { orderBy: { ordem: 'asc' } },
-        criterio: { include: criterioInclude },
         periodo: true,
       },
       orderBy: [{ periodoId: 'asc' }, { ordem: 'asc' }],
     });
-    return NextResponse.json(
-      instrumentos.map((i) => ({ ...i, criterio: paraCriterioDTO(i.criterio) }))
-    );
+    return NextResponse.json(comCriterio(instrumentos, await folhasAplicaveis(params.turmaDisciplinaId)));
   } catch (error) {
     return handleApiError(error);
   }
@@ -39,12 +36,14 @@ export async function POST(
     const userId = await requireUserId();
     await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
     const data = instrumentoSchema.parse(await req.json());
+    const folha = resolverFolha(await folhasAplicaveis(params.turmaDisciplinaId), data.criterioId);
 
     const instrumento = await prisma.instrumento.create({
       data: {
         turmaDisciplinaId: params.turmaDisciplinaId,
         periodoId: data.periodoId,
-        criterioId: data.criterioId,
+        instrumentoRecolhaId: folha.recolhaId as string,
+        subInstrumentoId: folha.subId,
         nome: data.nome,
         modo: data.modo,
         escalaMax: data.escalaMax,

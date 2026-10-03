@@ -52,17 +52,10 @@ Baseado em `src/lib/auth.ts`, `src/middleware.ts` e
   `ADMIN` para `/admin/**` é feita ao nível dos Route Handlers
   (`requireAdminId`) e/ou verificação de sessão dentro da própria página
   (`src/app/admin/layout.tsx`/`page.tsx`), não pelo middleware.
-* **Lacuna real, não corrigida**: `/disciplinas` e `/criterios-avaliacao`
-  são páginas protegidas na prática apenas porque as suas chamadas a
-  `/api/disciplinas` e `/api/grupos-avaliacao` exigem `requireUserId()` —
-  mas as próprias páginas **não estão no `matcher`** e não fazem
-  `getServerSession` como `src/app/admin/layout.tsx` faz. Um visitante não
-  autenticado consegue abrir essas duas páginas diretamente (só os dados
-  é que falham a carregar, sem redirecionar para `/login`). Não replicar
-  essa omissão em páginas novas — use `admin/layout.tsx` como referência
-  de como proteger uma página no servidor — e sinalizar isto ao
-  utilizador se a tarefa tocar nessas páginas, em vez de assumir que já
-  estão corretamente protegidas.
+* `/disciplinas` e `/criterios` estão no `matcher` do middleware, por isso
+  redirecionam para `/login` sem sessão. Páginas novas que exijam sessão
+  devem seguir o mesmo caminho (ou `admin/layout.tsx` para verificação de
+  papel no servidor).
 
 ## Utilizador não autenticado
 

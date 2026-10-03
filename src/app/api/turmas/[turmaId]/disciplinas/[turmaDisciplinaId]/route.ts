@@ -4,7 +4,7 @@ import { requireUserId } from '@/lib/auth';
 import { assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
 import { turmaLimiaresSchema } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-helpers';
-import { criterioInclude, paraCriterioDTO } from '@/lib/criterio-dto';
+import { folhasAplicaveis } from '@/lib/criterios';
 
 export async function GET(
   _req: NextRequest,
@@ -17,14 +17,13 @@ export async function GET(
       where: { id: params.turmaDisciplinaId },
       include: {
         disciplina: true,
-        criterios: { orderBy: { ordem: 'asc' }, include: criterioInclude },
         alunos: { include: { aluno: true } },
       },
     });
     if (!turmaDisciplina) {
       return NextResponse.json(turmaDisciplina);
     }
-    return NextResponse.json({ ...turmaDisciplina, criterios: turmaDisciplina.criterios.map(paraCriterioDTO) });
+    return NextResponse.json({ ...turmaDisciplina, criterios: await folhasAplicaveis(params.turmaDisciplinaId) });
   } catch (error) {
     return handleApiError(error);
   }
@@ -48,7 +47,7 @@ export async function PATCH(
   }
 }
 
-/** Remove a disciplina da turma — apaga em cascata critérios, instrumentos, notas e inscrições (AlunoDisciplina) dessa disciplina. */
+/** Remove a disciplina da turma — apaga em cascata instrumentos, notas e inscrições (AlunoDisciplina) dessa disciplina. */
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: { turmaId: string; turmaDisciplinaId: string } }

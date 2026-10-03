@@ -44,7 +44,6 @@ model Disciplina {
   ciclos           DisciplinaCiclo[]
   anosEscolaridade DisciplinaAnoEscolaridade[]
   turmaDisciplinas TurmaDisciplina[]
-  instrumentoPesos InstrumentoPeso[]
 
   @@unique([nome])
 }
@@ -76,6 +75,7 @@ model Ciclo {
 
   disciplinas DisciplinaCiclo[]
   criterios   Criterio[]
+  turmas      Turma[]
 
   @@unique([nome])
 }
@@ -123,72 +123,9 @@ model AnoLetivo {
   nome String // ex: "2025/2026"
 
   turmas          Turma[]
-  gruposAvaliacao GrupoAvaliacao[]
   criterios       Criterio[]
 
   @@unique([nome])
-}
-
-// ---------- Critérios de avaliação (configuração global por ano letivo) ----------
-
-// Catálogo global de critérios de avaliação (grupos/instrumentos), não
-// associado a nenhum utilizador. Só ADMIN pode criar/editar/apagar.
-model GrupoAvaliacao {
-  id          String @id @default(cuid())
-  anoLetivoId String
-  nome        String // ex: "Atitudes", "Conhecimentos e Capacidades"
-  ordem       Int    @default(0)
-
-  anoLetivo    AnoLetivo              @relation(fields: [anoLetivoId], references: [id], onDelete: Cascade)
-  instrumentos InstrumentoAvaliacao[]
-
-  @@unique([anoLetivoId, nome])
-}
-
-model InstrumentoAvaliacao {
-  id      String @id @default(cuid())
-  grupoId String
-  nome    String // ex: "Testes", "Trabalhos de grupo"
-  ordem   Int    @default(0)
-
-  grupo                       GrupoAvaliacao                @relation(fields: [grupoId], references: [id], onDelete: Cascade)
-  pesos                       InstrumentoPeso[]
-  turmaDisciplinaInstrumentos TurmaDisciplinaInstrumento[]
-
-  @@unique([grupoId, nome])
-}
-
-// Ativação de um InstrumentoAvaliacao do catálogo global numa TurmaDisciplina
-// concreta, com o peso efetivamente usado nessa turma (copiado do catálogo
-// no momento da ativação, mas editável depois sem afetar o catálogo nem
-// outras turmas). Substitui o antigo modelo `Criterio`, que duplicava
-// nome/grupo em vez de reutilizar o catálogo.
-model TurmaDisciplinaInstrumento {
-  id                      String @id @default(cuid())
-  turmaDisciplinaId       String
-  instrumentoAvaliacaoId  String
-  peso                    Float // 0 a 1, específico desta turma+disciplina
-  ordem                   Int
-
-  turmaDisciplina      TurmaDisciplina      @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
-  instrumentoAvaliacao InstrumentoAvaliacao @relation(fields: [instrumentoAvaliacaoId], references: [id], onDelete: Cascade)
-  instrumentos         Instrumento[]
-
-  @@unique([turmaDisciplinaId, instrumentoAvaliacaoId])
-}
-
-// Peso do instrumento numa disciplina concreta — o mesmo instrumento pode
-// estar ativo em várias disciplinas, cada uma com o seu próprio peso.
-model InstrumentoPeso {
-  id            String @id @default(cuid())
-  instrumentoId String
-  disciplinaId  String
-  peso          Float // 0 a 1
-
-  instrumento InstrumentoAvaliacao @relation(fields: [instrumentoId], references: [id], onDelete: Cascade)
-  disciplina  Disciplina           @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
-
-  @@unique([instrumentoId, disciplinaId])
 }
 
 // ---------- Critérios de avaliação (novo modelo: ano letivo + ciclo) ----------
@@ -200,8 +137,9 @@ enum TipoCriterio {
 
 // Critério de avaliação de um ano letivo e ciclo. GERAL = vale para todas as
 // disciplinas do ciclo; ESPECIFICO = vale só para as disciplinas de um grupo
-// disciplinar. Só ADMIN pode criar/editar/apagar. Convive com o modelo antigo
-// (GrupoAvaliacao/InstrumentoAvaliacao) enquanto turmas e cálculo não migram.
+// disciplinar. Só ADMIN pode criar/editar/apagar. Aplica-se a uma
+// TurmaDisciplina quando o ano letivo e o ciclo da turma coincidem e o critério
+// é GERAL ou do grupo disciplinar da disciplina (ver src/lib/criterios.ts).
 model Criterio {
   id                 String       @id @default(cuid())
   anoLetivoId        String
@@ -233,6 +171,7 @@ model InstrumentoRecolha {
 
   criterio        Criterio         @relation(fields: [criterioId], references: [id], onDelete: Cascade)
   subInstrumentos SubInstrumento[]
+  instrumentos    Instrumento[]
 
   @@index([criterioId])
 }
@@ -247,6 +186,7 @@ model SubInstrumento {
   ordem                Int    @default(0)
 
   instrumentoRecolha InstrumentoRecolha @relation(fields: [instrumentoRecolhaId], references: [id], onDelete: Cascade)
+  instrumentos       Instrumento[]
 
   @@index([instrumentoRecolhaId])
 }
@@ -260,11 +200,13 @@ model Turma {
   userId      String
   anoLetivoId String
   nome        String // ex: "9.º F"
-  nivelEnsino String? // ex: "3.º ciclo"
+  nivelEnsino String? // ex: "3.º ciclo" (rótulo; o ciclo efetivo é cicloId)
+  cicloId     String?
   createdAt   DateTime @default(now())
 
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   anoLetivo   AnoLetivo         @relation(fields: [anoLetivoId], references: [id], onDelete: Cascade)
+  ciclo       Ciclo?            @relation(fields: [cicloId], references: [id], onDelete: SetNull)
   matriculas  Matricula[]
   periodos    Periodo[]
   disciplinas TurmaDisciplina[]
@@ -276,8 +218,9 @@ model Turma {
 // associado a uma Turma concreta). A mesma Disciplina pode estar associada
 // a várias Turmas sem duplicar o registo de Disciplina; a mesma Turma não
 // pode ter a mesma Disciplina associada duas vezes (@@unique abaixo).
-// Os critérios/instrumentos de avaliação e os limiares de nível vivem aqui,
-// porque dependem da disciplina, não só da turma.
+// Os limiares de nível vivem aqui, porque dependem da disciplina, não só da
+// turma. Os critérios de avaliação não são guardados aqui: derivam-se do ano
+// letivo/ciclo da turma e do grupo disciplinar da disciplina.
 model TurmaDisciplina {
   id           String @id @default(cuid())
   turmaId      String
@@ -291,7 +234,6 @@ model TurmaDisciplina {
 
   turma        Turma                        @relation(fields: [turmaId], references: [id], onDelete: Cascade)
   disciplina   Disciplina                   @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
-  criterios    TurmaDisciplinaInstrumento[]
   instrumentos Instrumento[]
   alunos       AlunoDisciplina[]
 
@@ -404,22 +346,26 @@ enum ModoAvaliacao {
 // ---------- Instrumentos de avaliação ----------
 
 model Instrumento {
-  id                String        @id @default(cuid())
-  turmaDisciplinaId String
-  periodoId         String
-  criterioId        String
-  nome              String // ex: "Teste de Avaliação 1", "Responsabilidade e valores..."
-  modo              ModoAvaliacao @default(PONTOS)
-  escalaMax         Int           @default(5) // usado quando modo = ESCALA
-  unidade           String?
-  tema              String?
-  data              DateTime?
-  ordem             Int           @default(0)
+  id                   String        @id @default(cuid())
+  turmaDisciplinaId    String
+  periodoId            String
+  instrumentoRecolhaId String
+  subInstrumentoId     String? // preenchido quando o instrumento de recolha tem sub-instrumentos
+  nome                 String // ex: "Teste de Avaliação 1", "Responsabilidade e valores..."
+  modo                 ModoAvaliacao @default(PONTOS)
+  escalaMax            Int           @default(5) // usado quando modo = ESCALA
+  unidade              String?
+  tema                 String?
+  data                 DateTime?
+  ordem                Int           @default(0)
 
-  turmaDisciplina TurmaDisciplina            @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
-  periodo         Periodo                    @relation(fields: [periodoId], references: [id], onDelete: Cascade)
-  criterio        TurmaDisciplinaInstrumento @relation(fields: [criterioId], references: [id], onDelete: Cascade)
-  perguntas       Pergunta[]
+  turmaDisciplina    TurmaDisciplina    @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
+  periodo            Periodo            @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  // Restrict: apagar um critério/instrumento de recolha em uso por turmas é bloqueado
+  // (a API devolve 409), em vez de apagar em cascata as notas dos professores.
+  instrumentoRecolha InstrumentoRecolha @relation(fields: [instrumentoRecolhaId], references: [id], onDelete: Restrict)
+  subInstrumento     SubInstrumento?    @relation(fields: [subInstrumentoId], references: [id], onDelete: Restrict)
+  perguntas          Pergunta[]
 
   @@index([turmaDisciplinaId, periodoId])
 }

@@ -38,9 +38,11 @@ export async function POST(req: NextRequest) {
     const userId = await requireUserId();
     const data = turmaSchema.parse(await req.json());
 
+    let cicloId: string | null = null;
     if (data.nivelEnsino) {
       const ciclo = await prisma.ciclo.findFirst({ where: { nome: data.nivelEnsino } });
       if (!ciclo) throw new NotFoundError('Nível de ensino inexistente');
+      cicloId = ciclo.id;
     }
 
     const turma = await prisma.turma.create({
@@ -49,6 +51,7 @@ export async function POST(req: NextRequest) {
         anoLetivoId: data.anoLetivoId,
         nome: data.nome,
         nivelEnsino: data.nivelEnsino ?? null,
+        cicloId,
         periodos: { create: PERIODOS_PADRAO },
       },
       include: { periodos: true, disciplinas: true },

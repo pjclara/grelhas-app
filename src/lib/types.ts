@@ -112,33 +112,14 @@ export interface Periodo {
   ordem: number;
 }
 
-export interface InstrumentoPeso {
-  id: string;
-  disciplinaId: string;
-  peso: number;
-}
-
-export interface InstrumentoAvaliacao {
-  id: string;
-  nome: string;
-  ordem: number;
-  pesos: InstrumentoPeso[];
-}
-
-export interface GrupoAvaliacao {
-  id: string;
-  anoLetivoId: string;
-  nome: string;
-  ordem: number;
-  instrumentos: InstrumentoAvaliacao[];
-}
-
+/** Critério aplicável a uma disciplina da turma, "achatado" numa folha (ver CriterioFolha em src/lib/criterios.ts). */
 export interface Criterio {
   id: string;
-  grupo: string;
-  nome: string;
-  peso: number;
+  grupo: string; // nome do critério
+  nome: string; // instrumento de recolha (› sub-instrumento)
+  peso: number; // peso efetivo na nota final, 0..1
   ordem: number;
+  semInstrumentos?: boolean;
 }
 
 // Critérios de avaliação por ano letivo + ciclo (modelo novo; ver src/lib/criterios.ts).

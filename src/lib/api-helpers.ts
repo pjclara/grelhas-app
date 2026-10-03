@@ -19,6 +19,9 @@ export function handleApiError(error: unknown) {
   if (error instanceof NotFoundError) {
     return NextResponse.json({ error: error.message }, { status: 404 });
   }
+  if (error instanceof ConflictError) {
+    return NextResponse.json({ error: error.message }, { status: 409 });
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
     return NextResponse.json({ error: 'Já existe um registo com este nome.' }, { status: 409 });
   }
@@ -28,3 +31,6 @@ export function handleApiError(error: unknown) {
 }
 
 export class NotFoundError extends Error {}
+
+/** Pedido válido mas incompatível com o estado atual dos dados (→ 409). */
+export class ConflictError extends Error {}

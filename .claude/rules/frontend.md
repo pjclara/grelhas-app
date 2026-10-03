@@ -38,16 +38,11 @@ Baseado no código real em `src/app/**/page.tsx` e `src/components/`.
   (usa o `SessionProvider` do `next-auth/react`, que depende de Context) —
   isto é um caso legítimo de fronteira cliente.
 
-## Lacuna de proteção conhecida (não replicar)
+## Proteção de páginas
 
-* `src/middleware.ts` só protege `/dashboard`, `/turmas` e `/admin`
-  (ver `.claude/rules/authentication.md`). As páginas `/disciplinas` e
-  `/criterios-avaliacao` — linkadas na `Sidebar` para qualquer utilizador
-  autenticado — **não estão no `matcher`** nem fazem `getServerSession`
-  própria, ao contrário de `admin/layout.tsx`. Isto é uma lacuna real do
-  projeto, não um padrão a seguir: não seguir a proteção dessas duas
-  páginas como exemplo, e sinalizar ao utilizador se for pedido para
-  trabalhar nelas.
+* `src/middleware.ts` protege `/dashboard`, `/turmas`, `/admin`,
+  `/disciplinas` e `/criterios` (ver `.claude/rules/authentication.md`).
+  Ao criar uma página nova que exija sessão, acrescente-a ao `matcher`.
 
 ## Data fetching
 

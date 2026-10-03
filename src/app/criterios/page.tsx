@@ -73,7 +73,12 @@ export default function CriteriosPage() {
 
   async function remover(c: CriterioCatalogo) {
     if (!confirm(`Eliminar o critério "${c.nome}" e os seus instrumentos? Esta ação não pode ser desfeita.`)) return;
-    await fetch(`/api/criterios/${c.id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/criterios/${c.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      alert(body.error ?? 'Não foi possível eliminar o critério.');
+      return;
+    }
     carregar();
   }
 

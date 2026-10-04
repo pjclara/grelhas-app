@@ -361,9 +361,10 @@ model Instrumento {
   tema                 String?
   data                 DateTime?
   ordem                Int           @default(0)
+  ocorrencia           Int           @default(1) // repetição do instrumento no período (grelhas: 1.ª, 2.ª, ... avaliação)
 
   turmaDisciplina    TurmaDisciplina    @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
-  periodo            Periodo            @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  periodo           Periodo            @relation(fields: [periodoId], references: [id], onDelete: Cascade)
   // Restrict: apagar um critério/instrumento de recolha em uso por turmas é bloqueado
   // (a API devolve 409), em vez de apagar em cascata as notas dos professores.
   instrumentoRecolha InstrumentoRecolha @relation(fields: [instrumentoRecolhaId], references: [id], onDelete: Restrict)

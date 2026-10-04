@@ -9,6 +9,9 @@ export interface GrelhaDTO {
   chave: string;
   nome: string;
   periodo: { id: string; nome: string };
+  /** Ocorrência (repetição) mostrada, e todas as que existem neste período (sempre inclui a pedida). */
+  ocorrencia: number;
+  ocorrencias: number[];
   escalaMax: number;
   colunas: Array<{ id: string; nome: string; peso: number; pesoDefinido: boolean }>;
   alunos: Array<{ id: string; numero: number; nome: string }>;
@@ -55,7 +58,8 @@ export async function carregarGrelha(
   turmaId: string,
   turmaDisciplinaId: string,
   periodoId: string,
-  chave: string
+  chave: string,
+  ocorrencia = 1
 ): Promise<GrelhaDTO> {
   const { periodo, colunas, alunos } = await contexto(turmaId, turmaDisciplinaId, periodoId, chave);
 
@@ -67,11 +71,15 @@ export async function carregarGrelha(
     },
     include: { perguntas: { orderBy: { ordem: 'asc' }, include: { notas: true } } },
   });
+  const ocorrencias = Array.from(new Set([1, ocorrencia, ...instrumentos.map((i) => i.ocorrencia)])).sort(
+    (a, b) => a - b
+  );
+  const daOcorrencia = instrumentos.filter((i) => i.ocorrencia === ocorrencia);
 
   const notas: GrelhaDTO['notas'] = {};
   for (const aluno of alunos) notas[aluno.id] = {};
   for (const coluna of colunas) {
-    const pergunta = instrumentoDaColuna(instrumentos, coluna)?.perguntas[0];
+    const pergunta = instrumentoDaColuna(daOcorrencia, coluna)?.perguntas[0];
     for (const aluno of alunos) {
       const nota = pergunta?.notas.find((n) => n.alunoId === aluno.id);
       notas[aluno.id][coluna.id] = nota?.valor ?? null;
@@ -82,6 +90,8 @@ export async function carregarGrelha(
     chave,
     nome: colunas[0].blocoNome,
     periodo: { id: periodo.id, nome: periodo.nome },
+    ocorrencia,
+    ocorrencias,
     escalaMax: ESCALA_GRELHA,
     colunas: colunas.map((c) => ({ id: c.id, nome: c.nome, peso: c.peso, pesoDefinido: c.pesoDefinido })),
     alunos,
@@ -99,7 +109,8 @@ export async function gravarGrelha(
   turmaDisciplinaId: string,
   periodoId: string,
   chave: string,
-  notas: Record<string, Record<string, number | null>>
+  notas: Record<string, Record<string, number | null>>,
+  ocorrencia = 1
 ) {
   const { colunas, alunos } = await contexto(turmaId, turmaDisciplinaId, periodoId, chave);
   const alunoIds = new Set(alunos.map((a) => a.id));
@@ -121,6 +132,7 @@ export async function gravarGrelha(
       where: {
         turmaDisciplinaId,
         periodoId,
+        ocorrencia,
         instrumentoRecolhaId: { in: colunas.map((c) => c.recolhaId as string) },
       },
       include: { perguntas: { orderBy: { ordem: 'asc' } } },
@@ -138,7 +150,8 @@ export async function gravarGrelha(
             periodoId,
             instrumentoRecolhaId: coluna.recolhaId as string,
             subInstrumentoId: coluna.subId,
-            nome: coluna.nome,
+            nome: ocorrencia > 1 ? `${coluna.nome} (${ocorrencia})` : coluna.nome,
+            ocorrencia,
             modo: 'ESCALA',
             escalaMax: ESCALA_GRELHA,
             ordem: coluna.ordem,

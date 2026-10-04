@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Plus } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -12,6 +12,8 @@ import { PageLoading } from '@/components/ui/Spinner';
 interface Grelha {
   nome: string;
   periodo: { id: string; nome: string };
+  ocorrencia: number;
+  ocorrencias: number[];
   escalaMax: number;
   colunas: Array<{ id: string; nome: string; peso: number; pesoDefinido: boolean }>;
   alunos: Array<{ id: string; numero: number; nome: string }>;
@@ -38,7 +40,8 @@ export default function GrelhaPage({
   params: { turmaId: string; turmaDisciplinaId: string; periodoId: string; chave: string };
 }) {
   const chave = decodeURIComponent(params.chave);
-  const api = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/grelhas/${encodeURIComponent(chave)}`;
+  const [ocorrencia, setOcorrencia] = useState(1);
+  const api = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/grelhas/${encodeURIComponent(chave)}?ocorrencia=${ocorrencia}`;
   const voltarHref = `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/instrumentos`;
 
   const [grelha, setGrelha] = useState<Grelha | null>(null);
@@ -66,7 +69,7 @@ export default function GrelhaPage({
   useEffect(() => {
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.turmaId, params.turmaDisciplinaId, params.periodoId, params.chave]);
+  }, [params.turmaId, params.turmaDisciplinaId, params.periodoId, params.chave, ocorrencia]);
 
   function alterar(alunoId: string, colunaId: string, valor: string) {
     setValores((prev) => ({ ...prev, [alunoId]: { ...prev[alunoId], [colunaId]: valor } }));
@@ -123,6 +126,14 @@ export default function GrelhaPage({
 
   const porGuardar = Object.keys(alteracoes()).length > 0;
 
+  function mudarOcorrencia(n: number) {
+    if (n === ocorrencia) return;
+    if (porGuardar && !confirm('Há alterações por guardar nesta avaliação. Descartá-las?')) return;
+    setGuardadoEm(null);
+    setErro(null);
+    setOcorrencia(n);
+  }
+
   return (
     <AppShell width="full">
       <div className="mx-auto max-w-screen-2xl">
@@ -157,6 +168,32 @@ export default function GrelhaPage({
                   Guardar notas
                 </Button>
               </div>
+            </div>
+
+            <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Avaliações do período">
+              {grelha.ocorrencias.map((n) => (
+                <Button
+                  key={n}
+                  type="button"
+                  size="sm"
+                  variant={n === grelha.ocorrencia ? 'primary' : 'secondary'}
+                  aria-pressed={n === grelha.ocorrencia}
+                  onClick={() => mudarOcorrencia(n)}
+                >
+                  {n}.ª avaliação
+                </Button>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => mudarOcorrencia(Math.max(...grelha.ocorrencias) + 1)}
+              >
+                <Plus className="h-4 w-4" /> Nova avaliação
+              </Button>
+              {grelha.ocorrencias.length > 1 && (
+                <span className="text-xs text-slate-500">A nota do critério é a média das avaliações lançadas.</span>
+              )}
             </div>
 
             {erro && (

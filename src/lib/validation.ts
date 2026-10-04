@@ -193,6 +193,8 @@ export const criterioSchema = z
   });
 
 // Grelhas de notas (critérios gerais / sub-instrumentos): escala fixa de 1 a 5.
+export const ocorrenciaSchema = z.coerce.number().int().min(1).max(50);
+
 export const grelhaNotasSchema = z.object({
   // notas[alunoId][colunaId] = valor | null
   notas: z.record(z.string(), z.record(z.string(), z.number().min(1).max(5).nullable())),

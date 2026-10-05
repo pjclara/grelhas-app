@@ -54,6 +54,7 @@ export interface Disciplina {
   ciclos: DisciplinaCiclo[];
   anosEscolaridade: DisciplinaAnoEscolaridade[];
   periodicidade: Periodicidade;
+  semestre: number | null; // 1 ou 2; só quando periodicidade = SEMESTRAL
   _count?: { turmaDisciplinas: number };
 }
 

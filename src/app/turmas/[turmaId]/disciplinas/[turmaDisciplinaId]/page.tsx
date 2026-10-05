@@ -73,8 +73,8 @@ export default function TurmaDisciplinaPage({
       <BackLink turmaId={params.turmaId} />
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{turmaDisciplina.disciplina.nome}</h1>
       <p className="mb-4 text-sm text-slate-500">
-        {turmaDisciplina.periodoId
-          ? `Semestral — ${periodos.find((p) => p.id === turmaDisciplina.periodoId)?.nome ?? ''}`
+        {turmaDisciplina.disciplina.periodicidade === 'SEMESTRAL'
+          ? `Semestral — ${turmaDisciplina.disciplina.semestre === 2 ? '2.º Semestre' : '1.º Semestre'}`
           : 'Anual'}
       </p>
 

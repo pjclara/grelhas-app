@@ -16,6 +16,7 @@ export interface DisciplinaFormValues {
   cicloIds: string[];
   anoEscolaridadeIds: string[];
   periodicidade: Periodicidade;
+  semestre: number | null; // 1 ou 2; obrigatório quando periodicidade = SEMESTRAL
 }
 
 interface DisciplinaFormProps {
@@ -28,7 +29,7 @@ interface DisciplinaFormProps {
 }
 
 function estadoVazio(): DisciplinaFormValues {
-  return { nome: '', grupoDisciplinarId: '', cicloIds: [], anoEscolaridadeIds: [], periodicidade: 'ANUAL' };
+  return { nome: '', grupoDisciplinarId: '', cicloIds: [], anoEscolaridadeIds: [], periodicidade: 'ANUAL', semestre: null };
 }
 
 /** Formulário de disciplina partilhado entre /disciplinas/nova e /disciplinas/[id]/editar. */
@@ -126,7 +127,11 @@ export default function DisciplinaForm({
       setErroLocal('Selecione pelo menos um ano de escolaridade.');
       return;
     }
-    aoSubmeter({ ...form, nome: form.nome.trim() });
+    if (form.periodicidade === 'SEMESTRAL' && !form.semestre) {
+      setErroLocal('Indique se é no 1.º ou no 2.º semestre.');
+      return;
+    }
+    aoSubmeter({ ...form, nome: form.nome.trim(), semestre: form.periodicidade === 'SEMESTRAL' ? form.semestre : null });
   }
 
   return (
@@ -180,7 +185,7 @@ export default function DisciplinaForm({
               type="radio"
               name="periodicidade"
               checked={form.periodicidade === 'ANUAL'}
-              onChange={() => setForm((f) => ({ ...f, periodicidade: 'ANUAL' }))}
+              onChange={() => setForm((f) => ({ ...f, periodicidade: 'ANUAL', semestre: null }))}
             />
             Anual (decorre nos dois semestres)
           </label>
@@ -194,6 +199,28 @@ export default function DisciplinaForm({
             Semestral (só num dos semestres)
           </label>
         </div>
+        {form.periodicidade === 'SEMESTRAL' && (
+          <div className="mt-2 flex gap-6">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="radio"
+                name="semestre"
+                checked={form.semestre === 1}
+                onChange={() => setForm((f) => ({ ...f, semestre: 1 }))}
+              />
+              1.º Semestre
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="radio"
+                name="semestre"
+                checked={form.semestre === 2}
+                onChange={() => setForm((f) => ({ ...f, semestre: 2 }))}
+              />
+              2.º Semestre
+            </label>
+          </div>
+        )}
       </fieldset>
       <div className="flex items-center gap-3">
         <Button type="submit" loading={aEnviar}>

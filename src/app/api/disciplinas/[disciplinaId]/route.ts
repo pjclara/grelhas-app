@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireUserId, requireAdminId } from '@/lib/auth';
 import { disciplinaSchema } from '@/lib/validation';
-import { handleApiError, NotFoundError } from '@/lib/api-helpers';
+import { ConflictError, handleApiError, NotFoundError } from '@/lib/api-helpers';
 
 const INCLUDE = {
   grupoDisciplinar: true,
@@ -39,6 +39,15 @@ export async function PATCH(
       where: { id: params.disciplinaId },
     });
     if (!existente) throw new NotFoundError('Disciplina não encontrada');
+
+    const periodicidadeFinal = data.periodicidade ?? existente.periodicidade;
+    if (periodicidadeFinal === 'SEMESTRAL') {
+      const semestreFinal = data.semestre !== undefined ? data.semestre : existente.semestre;
+      if (!semestreFinal) throw new ConflictError('Indique se a disciplina é no 1.º ou no 2.º semestre.');
+      data.semestre = semestreFinal;
+    } else if (data.periodicidade === 'ANUAL') {
+      data.semestre = null; // ao voltar a anual, limpa um semestre que tivesse ficado definido
+    }
 
     const disciplina = await prisma.$transaction(async (tx) => {
       if (cicloIds) {

@@ -140,7 +140,7 @@ export default function DisciplinasPage() {
                   <Td className="text-slate-500">{d.grupoDisciplinar?.nome ?? '—'}</Td>
                   <Td>
                     <Badge tone={d.periodicidade === 'SEMESTRAL' ? 'warning' : 'neutral'}>
-                      {d.periodicidade === 'SEMESTRAL' ? 'Semestral' : 'Anual'}
+                      {d.periodicidade === 'SEMESTRAL' ? `Semestral — ${d.semestre === 2 ? '2.º' : '1.º'}` : 'Anual'}
                     </Badge>
                   </Td>
                   <Td>

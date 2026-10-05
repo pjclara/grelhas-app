@@ -66,7 +66,9 @@ export default async function DisciplinaShowPage({ params }: { params: { discipl
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Periodicidade</h2>
           <Badge tone={disciplina.periodicidade === 'SEMESTRAL' ? 'warning' : 'neutral'} className="mt-1">
-            {disciplina.periodicidade === 'SEMESTRAL' ? 'Semestral' : 'Anual'}
+            {disciplina.periodicidade === 'SEMESTRAL'
+              ? `Semestral — ${disciplina.semestre === 2 ? '2.º Semestre' : '1.º Semestre'}`
+              : 'Anual'}
           </Badge>
         </div>
         <div>

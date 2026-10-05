@@ -28,9 +28,10 @@ export async function GET(_req: NextRequest, { params }: { params: { turmaId: st
  * (garantido por @@unique([turmaId, disciplinaId]) no schema — um pedido
  * duplicado resulta em 409 via handleApiError).
  *
- * Disciplinas SEMESTRAL exigem `periodoId` (o semestre em que decorrem nesta
- * turma); disciplinas ANUAL ignoram qualquer `periodoId` enviado — decorrem
- * sempre nos dois períodos da turma.
+ * Disciplinas SEMESTRAL decorrem no semestre definido no catálogo
+ * (Disciplina.semestre) — o período correspondente desta turma é resolvido
+ * aqui automaticamente, sem o professor ter de o escolher; disciplinas ANUAL
+ * decorrem sempre nos dois períodos da turma.
  */
 export async function POST(req: NextRequest, { params }: { params: { turmaId: string } }) {
   try {
@@ -45,11 +46,13 @@ export async function POST(req: NextRequest, { params }: { params: { turmaId: st
 
     let periodoId: string | null = null;
     if (disciplina.periodicidade === 'SEMESTRAL') {
-      if (!data.periodoId) {
-        throw new ConflictError('Esta disciplina é semestral: escolha em que período decorre nesta turma.');
+      if (!disciplina.semestre) {
+        throw new ConflictError(
+          'Esta disciplina está marcada como semestral mas não tem semestre definido no catálogo — peça a um administrador para o corrigir em Disciplinas.'
+        );
       }
-      const periodo = await prisma.periodo.findFirst({ where: { id: data.periodoId, turmaId: params.turmaId } });
-      if (!periodo) throw new NotFoundError('Período inválido para esta turma');
+      const periodo = await prisma.periodo.findFirst({ where: { turmaId: params.turmaId, ordem: disciplina.semestre } });
+      if (!periodo) throw new NotFoundError('Período correspondente não encontrado nesta turma');
       periodoId = periodo.id;
     }
 

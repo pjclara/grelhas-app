@@ -23,3 +23,19 @@ export async function assertTurmaDisciplinaOwnership(
   if (!turmaDisciplina) throw new NotFoundError('Disciplina da turma não encontrada');
   return turmaDisciplina;
 }
+
+/**
+ * Confirma que o período indicado é um em que esta disciplina pode ter
+ * instrumentos/notas: qualquer um, se a disciplina for ANUAL
+ * (`turmaDisciplina.periodoId` nulo); só o período fixado no catálogo, se for
+ * SEMESTRAL. Usar sempre que um pedido referir um `periodoId` para uma
+ * disciplina-na-turma (criar/editar instrumento, grelhas de notas).
+ */
+export function assertPeriodoDaDisciplina(
+  turmaDisciplina: { periodoId: string | null },
+  periodoId: string
+) {
+  if (turmaDisciplina.periodoId && turmaDisciplina.periodoId !== periodoId) {
+    throw new NotFoundError('Esta disciplina é semestral e não decorre neste período');
+  }
+}

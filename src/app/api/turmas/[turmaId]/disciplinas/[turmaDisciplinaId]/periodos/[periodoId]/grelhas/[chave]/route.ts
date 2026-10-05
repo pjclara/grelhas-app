@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUserId } from '@/lib/auth';
-import { assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
+import { assertPeriodoDaDisciplina, assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
 import { grelhaNotasSchema, ocorrenciaSchema } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-helpers';
 import { carregarGrelha, gravarGrelha } from '@/lib/grelha';
@@ -11,7 +11,8 @@ type Params = { turmaId: string; turmaDisciplinaId: string; periodoId: string; c
 export async function GET(req: NextRequest, { params }: { params: Params }) {
   try {
     const userId = await requireUserId();
-    await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
+    const turmaDisciplina = await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
+    assertPeriodoDaDisciplina(turmaDisciplina, params.periodoId);
     const ocorrencia = ocorrenciaSchema.parse(req.nextUrl.searchParams.get('ocorrencia') ?? 1);
     const grelha = await carregarGrelha(
       params.turmaId,
@@ -30,7 +31,8 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 export async function PUT(req: NextRequest, { params }: { params: Params }) {
   try {
     const userId = await requireUserId();
-    await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
+    const turmaDisciplina = await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
+    assertPeriodoDaDisciplina(turmaDisciplina, params.periodoId);
     const { notas, data } = grelhaNotasSchema.parse(await req.json());
     const ocorrencia = ocorrenciaSchema.parse(req.nextUrl.searchParams.get('ocorrencia') ?? 1);
     const gravadas = await gravarGrelha(

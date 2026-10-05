@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireUserId } from '@/lib/auth';
-import { assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
+import { assertPeriodoDaDisciplina, assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
 import { instrumentoSchema } from '@/lib/validation';
 import { ConflictError, handleApiError, NotFoundError } from '@/lib/api-helpers';
 import { comCriterio, folhasAplicaveis, resolverFolha } from '@/lib/criterios';
@@ -40,8 +40,9 @@ export async function PATCH(
 ) {
   try {
     const userId = await requireUserId();
-    await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
+    const turmaDisciplina = await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
     const data = instrumentoSchema.parse(await req.json());
+    assertPeriodoDaDisciplina(turmaDisciplina, data.periodoId);
     const folha = resolverFolha(await folhasAplicaveis(params.turmaDisciplinaId), data.criterioId);
     if (folha.avaliacao === 'GRELHA') {
       throw new ConflictError('Este critério é avaliado numa grelha de notas, não em instrumentos com perguntas.');

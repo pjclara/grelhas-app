@@ -46,10 +46,14 @@ export default function TurmaDisciplinaPage({
   }, [params.turmaId, params.turmaDisciplinaId]);
 
   const alunosInscritos = inscricoes.filter((i) => i.ativo).map((i) => i.aluno);
-  // Disciplina semestral: só mostra o período escolhido na associação à turma.
+  // Disciplina semestral: só mostra o período do semestre definido no catálogo.
+  const semestreDisciplina =
+    turmaDisciplina?.disciplina.periodicidade === 'SEMESTRAL' ? turmaDisciplina.disciplina.semestre : null;
   const periodosRelevantes = turmaDisciplina?.periodoId
     ? periodos.filter((p) => p.id === turmaDisciplina.periodoId)
-    : periodos;
+    : semestreDisciplina
+      ? periodos.filter((p) => p.ordem === semestreDisciplina)
+      : periodos;
 
   if (erro) {
     return (

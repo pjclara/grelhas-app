@@ -46,6 +46,10 @@ export default function TurmaDisciplinaPage({
   }, [params.turmaId, params.turmaDisciplinaId]);
 
   const alunosInscritos = inscricoes.filter((i) => i.ativo).map((i) => i.aluno);
+  // Disciplina semestral: só mostra o período escolhido na associação à turma.
+  const periodosRelevantes = turmaDisciplina?.periodoId
+    ? periodos.filter((p) => p.id === turmaDisciplina.periodoId)
+    : periodos;
 
   if (erro) {
     return (
@@ -67,7 +71,12 @@ export default function TurmaDisciplinaPage({
   return (
     <AppShell>
       <BackLink turmaId={params.turmaId} />
-      <h1 className="mb-4 text-2xl font-semibold tracking-tight text-slate-900">{turmaDisciplina.disciplina.nome}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{turmaDisciplina.disciplina.nome}</h1>
+      <p className="mb-4 text-sm text-slate-500">
+        {turmaDisciplina.periodoId
+          ? `Semestral — ${periodos.find((p) => p.id === turmaDisciplina.periodoId)?.nome ?? ''}`
+          : 'Anual'}
+      </p>
 
       <Alert tone="info" className="mb-6">
         <p className="font-medium">Como avançar nesta disciplina</p>
@@ -117,7 +126,7 @@ export default function TurmaDisciplinaPage({
           )}
         </Card>
 
-        {periodos.map((periodo) => (
+        {periodosRelevantes.map((periodo) => (
           <Card key={periodo.id} className="p-4">
             <h2 className="font-semibold text-slate-900">{periodo.nome}</h2>
             <div className="mt-3 flex flex-col gap-2 text-sm">

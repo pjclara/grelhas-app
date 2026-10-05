@@ -11,6 +11,7 @@ export const disciplinaSchema = z.object({
   grupoDisciplinarId: z.string().min(1),
   cicloIds: z.array(z.string()).min(1),
   anoEscolaridadeIds: z.array(z.string()).min(1),
+  periodicidade: z.enum(['ANUAL', 'SEMESTRAL']).default('ANUAL'),
   ativo: z.boolean().optional(),
 });
 
@@ -41,6 +42,9 @@ export const turmaSchema = z.object({
 
 export const turmaDisciplinaSchema = z.object({
   disciplinaId: z.string().min(1),
+  // Obrigatório quando a disciplina é SEMESTRAL (escolha do semestre); ignorado
+  // quando é ANUAL — ver POST /api/turmas/[turmaId]/disciplinas.
+  periodoId: z.string().min(1).optional(),
 });
 
 export const turmaLimiaresSchema = z.object({

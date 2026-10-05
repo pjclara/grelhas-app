@@ -43,6 +43,8 @@ export interface DisciplinaAnoEscolaridade {
   anoEscolaridade: AnoEscolaridade;
 }
 
+export type Periodicidade = 'ANUAL' | 'SEMESTRAL';
+
 export interface Disciplina {
   id: string;
   nome: string;
@@ -51,6 +53,7 @@ export interface Disciplina {
   grupoDisciplinar: GrupoDisciplinar | null;
   ciclos: DisciplinaCiclo[];
   anosEscolaridade: DisciplinaAnoEscolaridade[];
+  periodicidade: Periodicidade;
   _count?: { turmaDisciplinas: number };
 }
 
@@ -73,6 +76,9 @@ export interface TurmaDisciplina {
   id: string;
   turmaId: string;
   disciplina: Disciplina;
+  // Preenchido quando a disciplina é SEMESTRAL: o período (semestre) escolhido
+  // para esta turma. Null = disciplina anual (ambos os períodos).
+  periodoId: string | null;
   limiarNivel2: number;
   limiarNivel3: number;
   limiarNivel4: number;

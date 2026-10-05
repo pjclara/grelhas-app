@@ -99,6 +99,7 @@ export default function EditarDisciplinaPage({ params }: { params: { disciplinaI
             grupoDisciplinarId: disciplina.grupoDisciplinarId ?? '',
             cicloIds: disciplina.ciclos.map((dc) => dc.ciclo.id),
             anoEscolaridadeIds: disciplina.anosEscolaridade.map((da) => da.anoEscolaridade.id),
+            periodicidade: disciplina.periodicidade,
           }}
           aoSubmeter={guardar}
           aEnviar={aEnviar}

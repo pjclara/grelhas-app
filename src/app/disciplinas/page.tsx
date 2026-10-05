@@ -122,6 +122,7 @@ export default function DisciplinasPage() {
               <Tr>
                 <Th>Disciplina</Th>
                 <Th>Grupo Disciplinar</Th>
+                <Th>Periodicidade</Th>
                 <Th>Ciclos</Th>
                 <Th>Anos</Th>
                 <Th>Estado</Th>
@@ -137,6 +138,11 @@ export default function DisciplinasPage() {
                     </Link>
                   </Td>
                   <Td className="text-slate-500">{d.grupoDisciplinar?.nome ?? '—'}</Td>
+                  <Td>
+                    <Badge tone={d.periodicidade === 'SEMESTRAL' ? 'warning' : 'neutral'}>
+                      {d.periodicidade === 'SEMESTRAL' ? 'Semestral' : 'Anual'}
+                    </Badge>
+                  </Td>
                   <Td>
                     {d.ciclos.length === 0 ? (
                       <span className="text-slate-400">—</span>

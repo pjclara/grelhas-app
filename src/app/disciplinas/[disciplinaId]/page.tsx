@@ -64,6 +64,12 @@ export default async function DisciplinaShowPage({ params }: { params: { discipl
           <p className="mt-1 text-sm text-slate-700">{disciplina.grupoDisciplinar?.nome ?? '—'}</p>
         </div>
         <div>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Periodicidade</h2>
+          <Badge tone={disciplina.periodicidade === 'SEMESTRAL' ? 'warning' : 'neutral'} className="mt-1">
+            {disciplina.periodicidade === 'SEMESTRAL' ? 'Semestral' : 'Anual'}
+          </Badge>
+        </div>
+        <div>
           <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Ciclos</h2>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {disciplina.ciclos.length === 0 ? (

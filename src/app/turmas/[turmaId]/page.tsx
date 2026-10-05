@@ -19,6 +19,7 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
   const [erro, setErro] = useState<string | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [disciplinaId, setDisciplinaId] = useState('');
+  const [periodoId, setPeriodoId] = useState('');
   const [erroAdicionar, setErroAdicionar] = useState<string | null>(null);
   const [aGravar, setAGravar] = useState(false);
 
@@ -48,11 +49,15 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
       setErroAdicionar('Selecione uma disciplina.');
       return;
     }
+    if (disciplinaSelecionada?.periodicidade === 'SEMESTRAL' && !periodoId) {
+      setErroAdicionar('Esta disciplina é semestral: escolha em que período decorre nesta turma.');
+      return;
+    }
     setAGravar(true);
     const res = await fetch(`/api/turmas/${params.turmaId}/disciplinas`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ disciplinaId }),
+      body: JSON.stringify({ disciplinaId, periodoId: periodoId || undefined }),
     });
     setAGravar(false);
     if (!res.ok) {
@@ -61,6 +66,7 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
       return;
     }
     setDisciplinaId('');
+    setPeriodoId('');
     setMostrarForm(false);
     carregar();
   }
@@ -98,6 +104,7 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
   const disciplinasDisponiveis = disciplinasCatalogo.filter(
     (d) => !turma.disciplinas.some((td) => td.disciplina.id === d.id)
   );
+  const disciplinaSelecionada = disciplinasDisponiveis.find((d) => d.id === disciplinaId);
 
   return (
     <AppShell>
@@ -150,11 +157,19 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
         <Card as="form" onSubmit={adicionarDisciplina} className="mt-3 flex flex-wrap items-end gap-3 p-4">
           <div className="min-w-[220px] flex-1">
             <Label htmlFor="disciplina">Disciplina</Label>
-            <Select id="disciplina" value={disciplinaId} onChange={(e) => setDisciplinaId(e.target.value)}>
+            <Select
+              id="disciplina"
+              value={disciplinaId}
+              onChange={(e) => {
+                setDisciplinaId(e.target.value);
+                setPeriodoId('');
+              }}
+            >
               <option value="">Selecionar…</option>
               {disciplinasDisponiveis.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.nome}
+                  {d.periodicidade === 'SEMESTRAL' ? ' (semestral)' : ''}
                 </option>
               ))}
             </Select>
@@ -169,6 +184,19 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
               </p>
             )}
           </div>
+          {disciplinaSelecionada?.periodicidade === 'SEMESTRAL' && (
+            <div className="min-w-[180px]">
+              <Label htmlFor="periodo-disciplina">Semestre</Label>
+              <Select id="periodo-disciplina" value={periodoId} onChange={(e) => setPeriodoId(e.target.value)}>
+                <option value="">Selecionar…</option>
+                {turma.periodos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
           <Button type="submit" loading={aGravar}>
             {aGravar ? 'A associar…' : 'Associar'}
           </Button>
@@ -201,6 +229,7 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
             </div>
             <p className="mt-1 text-xs text-slate-400">
               {td.disciplina.ciclos.length > 0 ? td.disciplina.ciclos.map((dc) => dc.ciclo.nome).join(', ') : '—'}
+              {td.periodoId && ` · ${turma.periodos.find((p) => p.id === td.periodoId)?.nome ?? 'semestral'}`}
             </p>
             <p className="mt-3 flex items-start gap-1.5 rounded-md bg-brand-50 px-2 py-1.5 text-xs text-brand-700">
               <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" />

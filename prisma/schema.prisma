@@ -35,13 +35,21 @@ model User {
 // (não pertence a nenhum professor). Só ADMIN pode criar/editar/apagar
 // (ver requireAdminId em src/lib/auth.ts); qualquer professor pode
 // associá-las às suas turmas.
+enum Periodicidade {
+  ANUAL
+  SEMESTRAL
+}
+
 model Disciplina {
-  id                 String   @id @default(cuid())
+  id                 String        @id @default(cuid())
   nome               String
   grupoDisciplinarId String? // nullable: disciplinas antigas podem não ter grupo atribuído
-  ativo              Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  // ANUAL: decorre nos dois semestres da turma. SEMESTRAL: só num deles, escolhido
+  // pelo professor ao associar a disciplina a uma turma (TurmaDisciplina.periodoId).
+  periodicidade      Periodicidade @default(ANUAL)
+  ativo              Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   grupoDisciplinar GrupoDisciplinar?           @relation(fields: [grupoDisciplinarId], references: [id])
   ciclos           DisciplinaCiclo[]
@@ -225,9 +233,13 @@ model Turma {
 // turma. Os critérios de avaliação não são guardados aqui: derivam-se do ano
 // letivo/ciclo da turma e do grupo disciplinar da disciplina.
 model TurmaDisciplina {
-  id           String @id @default(cuid())
+  id           String  @id @default(cuid())
   turmaId      String
   disciplinaId String
+  // Preenchido quando Disciplina.periodicidade = SEMESTRAL: o período (semestre)
+  // em que esta disciplina decorre nesta turma. Null = disciplina anual (ambos
+  // os períodos) ou disciplinas antigas criadas antes deste campo existir.
+  periodoId    String?
 
   // Limiares de nível (percentagem 0-100), configuráveis por disciplina da turma
   limiarNivel2 Float @default(20)
@@ -237,6 +249,7 @@ model TurmaDisciplina {
 
   turma        Turma                        @relation(fields: [turmaId], references: [id], onDelete: Cascade)
   disciplina   Disciplina                   @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  periodo      Periodo?                     @relation(fields: [periodoId], references: [id], onDelete: SetNull)
   instrumentos Instrumento[]
   alunos       AlunoDisciplina[]
 
@@ -333,8 +346,9 @@ model Periodo {
   nome    String // ex: "1.º Semestre"
   ordem   Int
 
-  turma        Turma         @relation(fields: [turmaId], references: [id], onDelete: Cascade)
-  instrumentos Instrumento[]
+  turma            Turma             @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  instrumentos     Instrumento[]
+  turmaDisciplinas TurmaDisciplina[]
 
   @@unique([turmaId, ordem])
 }

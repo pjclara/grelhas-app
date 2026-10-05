@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       data: {
         nome: data.nome,
         grupoDisciplinarId: data.grupoDisciplinarId,
+        periodicidade: data.periodicidade,
         ciclos: { create: data.cicloIds.map((cicloId) => ({ cicloId })) },
         anosEscolaridade: { create: data.anoEscolaridadeIds.map((anoEscolaridadeId) => ({ anoEscolaridadeId })) },
       },

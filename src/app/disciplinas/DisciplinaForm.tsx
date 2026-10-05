@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { CreatableSelect } from '@/components/ui/CreatableSelect';
-import type { AnoEscolaridade, Ciclo, GrupoDisciplinar } from '@/lib/types';
+import type { AnoEscolaridade, Ciclo, GrupoDisciplinar, Periodicidade } from '@/lib/types';
 
 export interface DisciplinaFormValues {
   nome: string;
   grupoDisciplinarId: string;
   cicloIds: string[];
   anoEscolaridadeIds: string[];
+  periodicidade: Periodicidade;
 }
 
 interface DisciplinaFormProps {
@@ -27,7 +28,7 @@ interface DisciplinaFormProps {
 }
 
 function estadoVazio(): DisciplinaFormValues {
-  return { nome: '', grupoDisciplinarId: '', cicloIds: [], anoEscolaridadeIds: [] };
+  return { nome: '', grupoDisciplinarId: '', cicloIds: [], anoEscolaridadeIds: [], periodicidade: 'ANUAL' };
 }
 
 /** Formulário de disciplina partilhado entre /disciplinas/nova e /disciplinas/[id]/editar. */
@@ -171,6 +172,29 @@ export default function DisciplinaForm({
         value={form.anoEscolaridadeIds}
         onChange={(ids) => setForm((f) => ({ ...f, anoEscolaridadeIds: ids }))}
       />
+      <fieldset>
+        <legend className="mb-1.5 text-sm font-medium text-slate-700">Periodicidade</legend>
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="radio"
+              name="periodicidade"
+              checked={form.periodicidade === 'ANUAL'}
+              onChange={() => setForm((f) => ({ ...f, periodicidade: 'ANUAL' }))}
+            />
+            Anual (decorre nos dois semestres)
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="radio"
+              name="periodicidade"
+              checked={form.periodicidade === 'SEMESTRAL'}
+              onChange={() => setForm((f) => ({ ...f, periodicidade: 'SEMESTRAL' }))}
+            />
+            Semestral (só num dos semestres)
+          </label>
+        </div>
+      </fieldset>
       <div className="flex items-center gap-3">
         <Button type="submit" loading={aEnviar}>
           {textoSubmeter}

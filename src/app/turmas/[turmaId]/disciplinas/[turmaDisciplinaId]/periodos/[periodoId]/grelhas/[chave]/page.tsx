@@ -126,6 +126,23 @@ export default function GrelhaPage({
 
   const porGuardar = Object.keys(alteracoes()).length > 0;
 
+  /** Soma das notas já lançadas (ou em edição) de um aluno nesta grelha; null se nenhuma estiver preenchida. */
+  function somaAluno(alunoId: string): number | null {
+    const porColuna = valores[alunoId];
+    if (!porColuna) return null;
+    let soma = 0;
+    let algumaPreenchida = false;
+    for (const c of grelha?.colunas ?? []) {
+      const texto = porColuna[c.id];
+      if (!texto || texto.trim() === '') continue;
+      const n = Number(texto.replace(',', '.'));
+      if (!Number.isFinite(n)) continue;
+      algumaPreenchida = true;
+      soma += n;
+    }
+    return algumaPreenchida ? soma : null;
+  }
+
   function mudarOcorrencia(n: number) {
     if (n === ocorrencia) return;
     if (porGuardar && !confirm('Há alterações por guardar nesta avaliação. Descartá-las?')) return;
@@ -221,6 +238,12 @@ export default function GrelhaPage({
                           )}
                         </th>
                       ))}
+                      <th className="px-3 py-2 text-center">
+                        Soma
+                        <div className="text-xs font-normal normal-case text-slate-400">
+                          máx. {grelha.colunas.length * grelha.escalaMax}
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -243,6 +266,9 @@ export default function GrelhaPage({
                             />
                           </td>
                         ))}
+                        <td className="px-3 py-1.5 text-center tabular-nums font-semibold text-slate-900">
+                          {somaAluno(aluno.id) ?? '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

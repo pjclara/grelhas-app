@@ -6,7 +6,7 @@ import { ArrowLeft, Plus, Pencil, Trash2, Table2, ExternalLink } from 'lucide-re
 import AppShell from '@/components/AppShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input, Select } from '@/components/ui/Input';
+import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
@@ -37,6 +37,7 @@ export default function InstrumentosPage({
   const [tema, setTema] = useState('');
   const [data, setData] = useState('');
   const [perguntas, setPerguntas] = useState<PerguntaForm[]>([{ codigo: '1.', valorMax: '' }]);
+  const [colagem, setColagem] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [aGravar, setAGravar] = useState(false);
 
@@ -92,6 +93,39 @@ export default function InstrumentosPage({
 
   function removerPergunta(i: number) {
     setPerguntas((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  // Aceita o formato colado de uma folha de cálculo: linha de itens + linha de pontos
+  // ("Item 1 2a 2b Total" / "Pontos 40 50 10 100"), ou uma linha "item<TAB>pontos" por pergunta.
+  function aplicarColagem() {
+    const linhas = colagem
+      .split(/\r?\n/)
+      .map((l) => l.split(/\t|;/).map((c) => c.trim()))
+      .filter((cels) => cels.some((c) => c !== ''));
+    const numero = (s: string) => {
+      const n = Number(s.replace(',', '.'));
+      return s !== '' && Number.isFinite(n) ? n : null;
+    };
+    let novas: PerguntaForm[] = [];
+    if (linhas.length === 2 && linhas[0].length > 2) {
+      const [itens, pontos] = linhas.map((l) => l.slice(1));
+      novas = itens
+        .map((codigo, i) => ({ codigo, valor: numero(pontos[i] ?? '') }))
+        .filter((p) => p.codigo !== '' && p.valor !== null && p.codigo.toLowerCase() !== 'total')
+        .map((p) => ({ codigo: p.codigo, valorMax: String(p.valor) }));
+    } else {
+      novas = linhas
+        .map(([codigo, valor]) => ({ codigo, valor: numero(valor ?? '') }))
+        .filter((p) => p.codigo !== '' && p.valor !== null && p.codigo.toLowerCase() !== 'total')
+        .map((p) => ({ codigo: p.codigo, valorMax: String(p.valor) }));
+    }
+    if (novas.length === 0) {
+      setErro('Não foi possível ler as linhas coladas. Cole uma linha de itens e uma linha de pontos, copiadas do Excel.');
+      return;
+    }
+    setErro(null);
+    setPerguntas(novas);
+    setColagem('');
   }
 
   function abrirNovo() {
@@ -264,6 +298,23 @@ export default function InstrumentosPage({
 
           <div>
             <Label>{modo === 'PONTOS' ? 'Perguntas' : 'Itens da escala'}</Label>
+            <div className="mb-3">
+              <Label htmlFor="colagem">Colar da folha de cálculo (opcional)</Label>
+              <Textarea
+                id="colagem"
+                rows={3}
+                value={colagem}
+                onChange={(e) => setColagem(e.target.value)}
+                placeholder={'Item\t1\t2a\t2b\t3\t4\tTotal\nPontos\t40\t50\t10\t30\t70\t200'}
+                className="font-mono"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Substitui as linhas abaixo; pode rever e corrigir antes de criar o instrumento.
+              </p>
+              <Button type="button" variant="secondary" size="sm" className="mt-2" onClick={aplicarColagem} disabled={!colagem.trim()}>
+                Preencher linhas
+              </Button>
+            </div>
             <div className="space-y-2">
               {perguntas.map((p, i) => (
                 <div key={i} className="flex gap-2">

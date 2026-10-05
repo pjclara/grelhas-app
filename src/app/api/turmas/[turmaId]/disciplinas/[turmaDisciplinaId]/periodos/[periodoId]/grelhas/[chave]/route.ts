@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
   try {
     const userId = await requireUserId();
     await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
-    const { notas } = grelhaNotasSchema.parse(await req.json());
+    const { notas, data } = grelhaNotasSchema.parse(await req.json());
     const ocorrencia = ocorrenciaSchema.parse(req.nextUrl.searchParams.get('ocorrencia') ?? 1);
     const gravadas = await gravarGrelha(
       params.turmaId,
@@ -39,6 +39,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
       params.periodoId,
       decodeURIComponent(params.chave),
       notas,
+      data,
       ocorrencia
     );
     return NextResponse.json({ ok: true, gravadas });

@@ -86,7 +86,7 @@ export async function PATCH(
           escalaMax: data.escalaMax,
           unidade: data.unidade ?? null,
           tema: data.tema ?? null,
-          data: data.data ? new Date(data.data) : null,
+          data: new Date(data.data),
           ordem: data.ordem ?? existente.ordem,
         },
       }),

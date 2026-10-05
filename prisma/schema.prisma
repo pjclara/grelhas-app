@@ -359,7 +359,7 @@ model Instrumento {
   escalaMax            Int           @default(5) // usado quando modo = ESCALA
   unidade              String?
   tema                 String?
-  data                 DateTime?
+  data                 DateTime // data da avaliação, obrigatória
   ordem                Int           @default(0)
   ocorrencia           Int           @default(1) // repetição do instrumento no período (grelhas: 1.ª, 2.ª, ... avaliação)
 

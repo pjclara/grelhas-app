@@ -52,7 +52,7 @@ export async function POST(
         escalaMax: data.escalaMax,
         unidade: data.unidade ?? null,
         tema: data.tema ?? null,
-        data: data.data ? new Date(data.data) : null,
+        data: new Date(data.data),
         ordem: data.ordem ?? 0,
         perguntas: {
           create: data.perguntas.map((p) => ({

@@ -35,6 +35,7 @@ export default function InstrumentosPage({
   const [modo, setModo] = useState<ModoAvaliacao>('PONTOS');
   const [escalaMax, setEscalaMax] = useState('5');
   const [tema, setTema] = useState('');
+  const [data, setData] = useState('');
   const [perguntas, setPerguntas] = useState<PerguntaForm[]>([{ codigo: '1.', valorMax: '' }]);
   const [erro, setErro] = useState<string | null>(null);
   const [aGravar, setAGravar] = useState(false);
@@ -100,6 +101,7 @@ export default function InstrumentosPage({
     setModo('PONTOS');
     setEscalaMax('5');
     setTema('');
+    setData(new Date().toISOString().slice(0, 10));
     setPerguntas([{ codigo: '1.', valorMax: '' }]);
     setErro(null);
     setMostrarForm(true);
@@ -112,6 +114,7 @@ export default function InstrumentosPage({
     setModo(instrumento.modo);
     setEscalaMax(String(instrumento.escalaMax));
     setTema(instrumento.tema ?? '');
+    setData(instrumento.data.slice(0, 10));
     setPerguntas(
       instrumento.perguntas.map((p) => ({ id: p.id, codigo: p.codigo, valorMax: String(p.valorMax) }))
     );
@@ -127,8 +130,8 @@ export default function InstrumentosPage({
   async function guardarInstrumento(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
-    if (!nome || !criterioId || perguntas.length === 0) {
-      setErro('Preencha nome, critério e pelo menos uma pergunta/item.');
+    if (!nome || !criterioId || !data || perguntas.length === 0) {
+      setErro('Preencha nome, critério, data da avaliação e pelo menos uma pergunta/item.');
       return;
     }
     const perguntasValidas = perguntas.filter((p) => p.codigo && p.valorMax);
@@ -144,6 +147,7 @@ export default function InstrumentosPage({
       modo,
       escalaMax: Number(escalaMax) || 5,
       tema: tema || null,
+      data,
       ordem: editandoId ? undefined : instrumentos.length,
       perguntas: perguntasValidas.map((p, idx) => ({
         id: p.id,
@@ -244,6 +248,15 @@ export default function InstrumentosPage({
               </div>
             )}
             <div>
+              <Label htmlFor="data-instrumento">Data da avaliação</Label>
+              <Input
+                id="data-instrumento"
+                type="date"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+              />
+            </div>
+            <div>
               <Label htmlFor="tema">Tema (opcional)</Label>
               <Input id="tema" value={tema} onChange={(e) => setTema(e.target.value)} />
             </div>
@@ -323,7 +336,8 @@ export default function InstrumentosPage({
                   {i.nome}
                 </Link>
                 <p className="text-xs text-slate-500">
-                  {i.criterio?.nome} · {i.perguntas.length} {i.modo === 'PONTOS' ? 'perguntas' : 'itens'}
+                  {i.criterio?.nome} · {i.perguntas.length} {i.modo === 'PONTOS' ? 'perguntas' : 'itens'} ·{' '}
+                  {new Date(i.data).toLocaleDateString('pt-PT')}
                 </p>
               </div>
               <div className="flex gap-1">

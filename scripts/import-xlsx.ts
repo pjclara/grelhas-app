@@ -201,6 +201,9 @@ async function main() {
         nome: nomeInstrumento,
         modo: ModoAvaliacao.PONTOS,
         tema: tema ?? null,
+        // A folha original não tem uma data de avaliação por instrumento; usa-se a
+        // data da importação, a corrigir depois pelo professor se necessário.
+        data: new Date(),
         ordem,
         perguntas: {
           create: perguntas.map((p, idx) => ({ codigo: p.codigo, valorMax: p.valorMax, ordem: idx })),
@@ -248,6 +251,7 @@ async function main() {
           nome: nomeCriterio,
           modo: ModoAvaliacao.ESCALA,
           escalaMax: 5,
+          data: new Date(),
           ordem: idx,
           perguntas: { create: [{ codigo: 'Avaliação', valorMax: 5, ordem: 0 }] },
         },

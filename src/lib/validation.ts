@@ -87,7 +87,7 @@ export const instrumentoSchema = z.object({
   escalaMax: z.number().int().positive().default(5),
   unidade: z.string().optional().nullable(),
   tema: z.string().optional().nullable(),
-  data: z.string().datetime().optional().nullable(),
+  data: z.string().min(1, 'Indique a data da avaliação'), // "YYYY-MM-DD" (input type=date)
   ordem: z.number().int().min(0).optional(),
   perguntas: z.array(perguntaInputSchema).min(1),
 });
@@ -198,4 +198,5 @@ export const ocorrenciaSchema = z.coerce.number().int().min(1).max(50);
 export const grelhaNotasSchema = z.object({
   // notas[alunoId][colunaId] = valor | null
   notas: z.record(z.string(), z.record(z.string(), z.number().min(1).max(5).nullable())),
+  data: z.string().min(1, 'Indique a data da avaliação'), // "YYYY-MM-DD" (input type=date)
 });

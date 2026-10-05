@@ -12,6 +12,8 @@ export interface GrelhaDTO {
   /** Ocorrência (repetição) mostrada, e todas as que existem neste período (sempre inclui a pedida). */
   ocorrencia: number;
   ocorrencias: number[];
+  /** Data da avaliação desta ocorrência (ISO), ou null se ainda não foi gravada nenhuma nota. */
+  data: string | null;
   escalaMax: number;
   colunas: Array<{ id: string; nome: string; peso: number; pesoDefinido: boolean }>;
   alunos: Array<{ id: string; numero: number; nome: string }>;
@@ -92,6 +94,7 @@ export async function carregarGrelha(
     periodo: { id: periodo.id, nome: periodo.nome },
     ocorrencia,
     ocorrencias,
+    data: daOcorrencia[0]?.data.toISOString() ?? null,
     escalaMax: ESCALA_GRELHA,
     colunas: colunas.map((c) => ({ id: c.id, nome: c.nome, peso: c.peso, pesoDefinido: c.pesoDefinido })),
     alunos,
@@ -101,8 +104,11 @@ export async function carregarGrelha(
 
 /**
  * Grava notas da grelha. Cada coluna é guardada num Instrumento (modo ESCALA,
- * uma pergunta "Nota"), criado na primeira nota lançada nessa coluna e período.
- * Só aceita alunos inscritos nesta disciplina e colunas desta grelha.
+ * uma pergunta "Nota"), criado na primeira nota lançada nessa coluna e período,
+ * com a data de avaliação indicada (obrigatória, igual para todas as colunas
+ * desta ocorrência). Se a data mudar numa gravação seguinte, atualiza-se nos
+ * instrumentos já criados desta ocorrência. Só aceita alunos inscritos nesta
+ * disciplina e colunas desta grelha.
  */
 export async function gravarGrelha(
   turmaId: string,
@@ -110,6 +116,7 @@ export async function gravarGrelha(
   periodoId: string,
   chave: string,
   notas: Record<string, Record<string, number | null>>,
+  dataAvaliacao: string,
   ocorrencia = 1
 ) {
   const { colunas, alunos } = await contexto(turmaId, turmaDisciplinaId, periodoId, chave);
@@ -126,6 +133,7 @@ export async function gravarGrelha(
   const colunasComNotas = colunas.filter((c) =>
     Object.values(notas).some((porColuna) => porColuna[c.id] !== undefined && porColuna[c.id] !== null)
   );
+  const dataDate = new Date(dataAvaliacao);
 
   return prisma.$transaction(async (tx) => {
     const existentes = await tx.instrumento.findMany({
@@ -143,6 +151,9 @@ export async function gravarGrelha(
       const existente = instrumentoDaColuna(existentes, coluna);
       if (existente?.perguntas[0]) {
         perguntaPorColuna.set(coluna.id, existente.perguntas[0].id);
+        if (existente.data.getTime() !== dataDate.getTime()) {
+          await tx.instrumento.update({ where: { id: existente.id }, data: { data: dataDate } });
+        }
       } else if (colunasComNotas.includes(coluna)) {
         const criado = await tx.instrumento.create({
           data: {
@@ -152,6 +163,7 @@ export async function gravarGrelha(
             subInstrumentoId: coluna.subId,
             nome: ocorrencia > 1 ? `${coluna.nome} (${ocorrencia})` : coluna.nome,
             ocorrencia,
+            data: dataDate,
             modo: 'ESCALA',
             escalaMax: ESCALA_GRELHA,
             ordem: coluna.ordem,

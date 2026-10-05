@@ -14,6 +14,7 @@ interface Grelha {
   periodo: { id: string; nome: string };
   ocorrencia: number;
   ocorrencias: number[];
+  data: string | null;
   escalaMax: number;
   colunas: Array<{ id: string; nome: string; peso: number; pesoDefinido: boolean }>;
   alunos: Array<{ id: string; numero: number; nome: string }>;
@@ -45,6 +46,7 @@ export default function GrelhaPage({
   const voltarHref = `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/instrumentos`;
 
   const [grelha, setGrelha] = useState<Grelha | null>(null);
+  const [dataAvaliacao, setDataAvaliacao] = useState('');
   const [valores, setValores] = useState<Valores>({});
   const [original, setOriginal] = useState<Valores>({});
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
@@ -61,6 +63,7 @@ export default function GrelhaPage({
     }
     const g: Grelha = await r.json();
     setGrelha(g);
+    setDataAvaliacao((g.data ?? new Date().toISOString()).slice(0, 10));
     const v = paraValores(g);
     setValores(v);
     setOriginal(v);
@@ -92,6 +95,10 @@ export default function GrelhaPage({
   async function guardar() {
     if (!grelha) return;
     setErro(null);
+    if (!dataAvaliacao) {
+      setErro('Indique a data desta avaliação.');
+      return;
+    }
     for (const [alunoId, porColuna] of Object.entries(valores)) {
       for (const texto of Object.values(porColuna)) {
         if (texto.trim() === '') continue;
@@ -104,7 +111,7 @@ export default function GrelhaPage({
       }
     }
     const notas = alteracoes();
-    if (Object.keys(notas).length === 0) {
+    if (Object.keys(notas).length === 0 && !dataMudou) {
       setGuardadoEm(new Date());
       return;
     }
@@ -112,7 +119,7 @@ export default function GrelhaPage({
     const res = await fetch(api, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notas }),
+      body: JSON.stringify({ notas, data: dataAvaliacao }),
     });
     setAGuardar(false);
     if (!res.ok) {
@@ -121,10 +128,12 @@ export default function GrelhaPage({
       return;
     }
     setOriginal(valores);
+    setGrelha((g) => (g ? { ...g, data: new Date(dataAvaliacao).toISOString() } : g));
     setGuardadoEm(new Date());
   }
 
-  const porGuardar = Object.keys(alteracoes()).length > 0;
+  const dataMudou = dataAvaliacao !== (grelha?.data ?? '').slice(0, 10);
+  const porGuardar = Object.keys(alteracoes()).length > 0 || dataMudou;
 
   /** Soma das notas já lançadas (ou em edição) de um aluno nesta grelha; null se nenhuma estiver preenchida. */
   function somaAluno(alunoId: string): number | null {
@@ -184,6 +193,24 @@ export default function GrelhaPage({
                 <Button type="button" onClick={guardar} loading={aGuardar} disabled={!porGuardar}>
                   Guardar notas
                 </Button>
+              </div>
+            </div>
+
+            <div className="mb-4 flex flex-wrap items-end gap-3">
+              <div>
+                <label htmlFor="data-avaliacao" className="mb-1 block text-xs font-medium text-slate-600">
+                  Data desta avaliação
+                </label>
+                <Input
+                  id="data-avaliacao"
+                  type="date"
+                  value={dataAvaliacao}
+                  onChange={(e) => {
+                    setDataAvaliacao(e.target.value);
+                    setGuardadoEm(null);
+                  }}
+                  className="w-40"
+                />
               </div>
             </div>
 

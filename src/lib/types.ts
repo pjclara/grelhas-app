@@ -179,7 +179,7 @@ export interface Instrumento {
   escalaMax: number;
   unidade: string | null;
   tema: string | null;
-  data: string | null;
+  data: string; // data da avaliação (ISO), obrigatória
   ordem: number;
   perguntas: Pergunta[];
   criterio?: Criterio;

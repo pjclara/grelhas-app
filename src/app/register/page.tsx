@@ -46,11 +46,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-slate-50 to-amber-50 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-white">
-            <GraduationCap className="h-5 w-5" />
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 via-violet-500 to-amber-400 text-white shadow-md">
+            <GraduationCap className="h-6 w-6" />
           </span>
           <h1 className="text-lg font-semibold text-slate-900">Criar conta</h1>
         </div>

@@ -15,6 +15,10 @@ import { PageLoading, Skeleton } from '@/components/ui/Spinner';
 import { anoLetivoAtual, type AnoLetivo, type Turma } from '@/lib/types';
 
 // Dica do que fazer a seguir numa turma, conforme o estado atual.
+// Cada turma com uma cor própria no topo do cartão (como etiquetas de disciplinas
+// num horário escolar), só para dar mais vida à lista — sem significado funcional.
+const CORES_TURMA = ['border-t-sky-400', 'border-t-violet-400', 'border-t-amber-400', 'border-t-emerald-400', 'border-t-rose-400'];
+
 function proximoPasso(t: Turma): string | null {
   if (!t.disciplinas || t.disciplinas.length === 0) {
     return 'Próximo passo: abra a turma e associe as disciplinas que leciona.';
@@ -102,11 +106,11 @@ export default function DashboardPage() {
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {turmas.map((t) => (
+          {turmas.map((t, i) => (
             <Link
               key={t.id}
               href={`/turmas/${t.id}`}
-              className="group rounded-lg border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+              className={`group rounded-lg border border-t-4 border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md ${CORES_TURMA[i % CORES_TURMA.length]}`}
             >
               <p className="font-semibold text-slate-900 group-hover:text-brand-700">{t.nome}</p>
               <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">

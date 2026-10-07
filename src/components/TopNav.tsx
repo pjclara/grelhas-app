@@ -2,7 +2,7 @@
 
 import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Menu, LogOut } from 'lucide-react';
+import { Menu, LogOut, GraduationCap } from 'lucide-react';
 
 interface TopNavProps {
   onMenuClick?: () => void;
@@ -28,7 +28,10 @@ export default function TopNav({ onMenuClick }: TopNavProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <Link href="/dashboard" className="text-sm font-semibold tracking-tight text-slate-900">
+        <Link href="/dashboard" className="flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-900">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 via-violet-500 to-amber-400 text-white shadow-sm">
+            <GraduationCap className="h-4 w-4" />
+          </span>
           Grelhas de Avaliação
         </Link>
       </div>

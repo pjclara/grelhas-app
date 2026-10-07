@@ -327,6 +327,27 @@ export default function InstrumentoPage({
     return resultado;
   }, [alunos, instrumento, notas]);
 
+  /** Média de cada pergunta entre os alunos com nota lançada nela; null se nenhum tiver. */
+  const mediaPorPergunta = useMemo(() => {
+    if (!instrumento) return {};
+    const resultado: Record<string, number | null> = {};
+    for (const pergunta of instrumento.perguntas) {
+      const valores = alunos
+        .map((aluno) => notas[aluno.id]?.[pergunta.id])
+        .filter((v): v is string => v !== undefined && v !== '')
+        .map(Number);
+      resultado[pergunta.id] = valores.length > 0 ? valores.reduce((acc, v) => acc + v, 0) / valores.length : null;
+    }
+    return resultado;
+  }, [alunos, instrumento, notas]);
+
+  /** Média da turma (soma/max de cada aluno com pelo menos uma nota lançada). */
+  const mediaTurma = useMemo(() => {
+    const comNota = Object.values(totais).filter((t) => t.preenchido);
+    if (comNota.length === 0) return null;
+    return comNota.reduce((acc, t) => acc + t.soma, 0) / comNota.length;
+  }, [totais]);
+
   async function guardar() {
     if (!instrumento) return;
     setAGuardar(true);
@@ -481,6 +502,27 @@ export default function InstrumentoPage({
                 );
               })}
             </tbody>
+            {alunos.length > 0 && (
+              <tfoot className="border-t-2 border-slate-200 bg-slate-50">
+                <tr>
+                  <td className="px-3 py-1.5" />
+                  <td className="px-3 py-1.5 font-medium text-slate-700">Média</td>
+                  {instrumento.perguntas.map((p) => (
+                    <td key={p.id} className="px-2 py-1.5 text-center tabular-nums text-slate-700">
+                      {mediaPorPergunta[p.id] != null ? mediaPorPergunta[p.id]!.toFixed(1) : '—'}
+                    </td>
+                  ))}
+                  <td className="px-3 py-1.5 text-center font-semibold text-slate-900">
+                    {mediaTurma != null
+                      ? `${mediaTurma.toFixed(1)}/${instrumento.perguntas.reduce(
+                          (acc, p) => acc + (instrumento.modo === 'ESCALA' ? instrumento.escalaMax : p.valorMax),
+                          0
+                        )}`
+                      : '—'}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
 

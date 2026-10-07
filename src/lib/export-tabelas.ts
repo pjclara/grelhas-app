@@ -157,15 +157,31 @@ export async function tabelaInstrumento(
   const alunos = matriculas.filter((m) => inscritos.has(m.alunoId) && m.aluno.ativo);
 
   const maxTotal = instrumento.perguntas.reduce((acc, p) => acc + p.valorMax, 0);
-  const linhas = alunos.map((m) => {
+  const porAluno = alunos.map((m) => {
     const porPergunta = instrumento.perguntas.map((p) => {
       const nota = p.notas.find((n) => n.alunoId === m.alunoId);
       return nota?.valor ?? null;
     });
     const comValor = porPergunta.filter((v): v is number => v !== null);
-    const total = comValor.length > 0 ? `${comValor.reduce((acc, v) => acc + v, 0)}/${maxTotal}` : null;
-    return [m.numero, m.aluno.nome, ...porPergunta, total];
+    const soma = comValor.length > 0 ? comValor.reduce((acc, v) => acc + v, 0) : null;
+    return { numero: m.numero, nome: m.aluno.nome, porPergunta, soma };
   });
+  const linhas: Array<Array<string | number | null>> = porAluno.map((a) => [
+    a.numero,
+    a.nome,
+    ...a.porPergunta,
+    a.soma != null ? `${a.soma}/${maxTotal}` : null,
+  ]);
+
+  // Última linha: média de cada pergunta (entre os alunos com nota lançada nela) e,
+  // na coluna Total, a média da turma.
+  const mediasPorPergunta = instrumento.perguntas.map((_, i) => {
+    const valores = porAluno.map((a) => a.porPergunta[i]).filter((v): v is number => v !== null);
+    return valores.length > 0 ? (valores.reduce((acc, v) => acc + v, 0) / valores.length).toFixed(1) : null;
+  });
+  const somasTurma = porAluno.map((a) => a.soma).filter((v): v is number => v !== null);
+  const mediaTurma = somasTurma.length > 0 ? somasTurma.reduce((acc, v) => acc + v, 0) / somasTurma.length : null;
+  linhas.push([null, 'Média', ...mediasPorPergunta, mediaTurma != null ? `${mediaTurma.toFixed(1)}/${maxTotal}` : null]);
 
   return {
     nomeBase: ['Notas', turmaDisciplina.turma.nome, turmaDisciplina.disciplina.nome, instrumento.nome],

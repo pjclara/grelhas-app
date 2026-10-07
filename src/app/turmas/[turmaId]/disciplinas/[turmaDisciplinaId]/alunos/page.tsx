@@ -8,6 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { ExportButtons } from '@/components/ui/ExportButtons';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
 import type { Aluno, AlunoTurma } from '@/lib/types';
@@ -127,32 +128,38 @@ export default function AlunosDisciplinaPage({
       />
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Alunos inscritos</h1>
-        {!aCarregar && alunosTurma.length > 0 && (
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              loading={aProcessarTodos}
-              disabled={alunosTurma.every((a) => inscricaoAtiva(a.id))}
-              onClick={inscreverTodos}
-            >
-              <UserPlus className="h-4 w-4" />
-              Inscrever todos
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              size="sm"
-              loading={aProcessarTodos}
-              disabled={alunosTurma.every((a) => !inscricaoAtiva(a.id))}
-              onClick={desinscreverTodos}
-            >
-              <UserMinus className="h-4 w-4" />
-              Desinscrever todos
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <ExportButtons
+            pdfHref={`/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/alunos/export/pdf`}
+            xlsxHref={`/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/alunos/export/xlsx`}
+          />
+          {!aCarregar && alunosTurma.length > 0 && (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                loading={aProcessarTodos}
+                disabled={alunosTurma.every((a) => inscricaoAtiva(a.id))}
+                onClick={inscreverTodos}
+              >
+                <UserPlus className="h-4 w-4" />
+                Inscrever todos
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                loading={aProcessarTodos}
+                disabled={alunosTurma.every((a) => !inscricaoAtiva(a.id))}
+                onClick={desinscreverTodos}
+              >
+                <UserMinus className="h-4 w-4" />
+                Desinscrever todos
+              </Button>
+            </>
+          )}
+        </div>
       </div>
       <p className="mb-6 text-sm text-slate-500">
         Só os alunos inscritos aqui recebem notas e aparecem no resumo desta disciplina. Um aluno

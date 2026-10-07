@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Plus } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
+import { ExportButtons } from '@/components/ui/ExportButtons';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
@@ -43,7 +44,8 @@ export default function GrelhaPage({
 }) {
   const chave = decodeURIComponent(params.chave);
   const [ocorrencia, setOcorrencia] = useState(1);
-  const api = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/grelhas/${encodeURIComponent(chave)}?ocorrencia=${ocorrencia}`;
+  const apiBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/grelhas/${encodeURIComponent(chave)}`;
+  const api = `${apiBase}?ocorrencia=${ocorrencia}`;
   const voltarHref = `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/instrumentos`;
 
   const [grelha, setGrelha] = useState<Grelha | null>(null);
@@ -206,6 +208,7 @@ export default function GrelhaPage({
                 </p>
               </div>
               <div className="flex items-center gap-3">
+                <ExportButtons pdfHref={`${apiBase}/export/pdf?ocorrencia=${ocorrencia}`} xlsxHref={`${apiBase}/export/xlsx?ocorrencia=${ocorrencia}`} />
                 {guardadoEm && !porGuardar && (
                   <span className="inline-flex items-center gap-1 text-sm text-emerald-700">
                     <CheckCircle2 className="h-4 w-4" /> Guardado

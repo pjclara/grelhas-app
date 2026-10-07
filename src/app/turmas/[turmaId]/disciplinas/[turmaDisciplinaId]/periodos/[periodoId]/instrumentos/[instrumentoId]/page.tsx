@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Mic, Square, CheckCircle2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
+import { ExportButtons } from '@/components/ui/ExportButtons';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
@@ -384,12 +385,18 @@ export default function InstrumentoPage({
         />
         <div className="mb-1 flex items-center justify-between">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{instrumento.nome}</h1>
-          {ditadoSuportado && (
-            <Button variant={aDitar ? 'danger' : 'primary'} onClick={() => (aDitar ? pararDitado() : iniciarDitado())}>
-              {aDitar ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-              {aDitar ? 'Parar ditado' : 'Ditar notas'}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <ExportButtons
+              pdfHref={`${disciplinaBase}/instrumentos/${instrumento.id}/export/pdf`}
+              xlsxHref={`${disciplinaBase}/instrumentos/${instrumento.id}/export/xlsx`}
+            />
+            {ditadoSuportado && (
+              <Button variant={aDitar ? 'danger' : 'primary'} onClick={() => (aDitar ? pararDitado() : iniciarDitado())}>
+                {aDitar ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {aDitar ? 'Parar ditado' : 'Ditar notas'}
+              </Button>
+            )}
+          </div>
         </div>
         <p className="mb-4 text-sm text-slate-500">
           {instrumento.criterio?.nome} ·{' '}

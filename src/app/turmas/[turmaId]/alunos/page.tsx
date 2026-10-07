@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
+import { ExportButtons } from '@/components/ui/ExportButtons';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
@@ -461,6 +462,10 @@ function proximoNumero(): number {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Alunos</h1>
         <div className="flex items-center gap-2">
+          <ExportButtons
+            pdfHref={`/api/turmas/${params.turmaId}/alunos/export/pdf`}
+            xlsxHref={`/api/turmas/${params.turmaId}/alunos/export/xlsx`}
+          />
           <input
             ref={fileInputRef}
             type="file"

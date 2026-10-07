@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -18,7 +17,16 @@ export default function CriteriosPage({
   const [criterios, setCriterios] = useState<Criterio[]>([]);
   const [aCarregar, setACarregar] = useState(true);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
+  const [nomes, setNomes] = useState<{ turma: string; disciplina: string } | null>(null);
   const base = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/criterios`;
+  const disciplinaHref = `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
+
+  useEffect(() => {
+    fetch(`/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((td) => setNomes(td ? { turma: td.turma?.nome ?? '…', disciplina: td.disciplina.nome } : null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.turmaId, params.turmaDisciplinaId]);
 
   async function carregar() {
     setACarregar(true);
@@ -46,12 +54,14 @@ export default function CriteriosPage({
 
   return (
     <AppShell>
-      <Link
-        href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`}
-        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline"
-      >
-        <ArrowLeft className="h-4 w-4" /> Voltar à disciplina
-      </Link>
+      <Breadcrumbs
+        items={[
+          { label: 'As minhas turmas', href: '/dashboard' },
+          { label: nomes?.turma ?? '…', href: `/turmas/${params.turmaId}` },
+          { label: nomes?.disciplina ?? '…', href: disciplinaHref },
+          { label: 'Critérios' },
+        ]}
+      />
       <h1 className="mb-2 text-2xl font-semibold tracking-tight text-slate-900">Critérios de avaliação</h1>
       {!aCarregar && !erroCarregar && criterios.length > 0 && (
         <div className="mb-6">

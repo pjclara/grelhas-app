@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageLoading } from '@/components/ui/Spinner';
 import type { Disciplina, TurmaDetalhe } from '@/lib/types';
@@ -105,9 +106,7 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
 
   return (
     <AppShell>
-      <Link href="/dashboard" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
-        <ArrowLeft className="h-4 w-4" /> As minhas turmas
-      </Link>
+      <Breadcrumbs items={[{ label: 'As minhas turmas', href: '/dashboard' }, { label: turma.nome }]} />
       <p className="text-sm text-slate-500">{turma.anoLetivo.nome}</p>
       <h1 className="mb-4 text-2xl font-semibold tracking-tight text-slate-900">{turma.nome}</h1>
 

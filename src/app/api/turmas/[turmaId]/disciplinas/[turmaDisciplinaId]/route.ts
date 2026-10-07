@@ -17,6 +17,7 @@ export async function GET(
       where: { id: params.turmaDisciplinaId },
       include: {
         disciplina: true,
+        turma: { select: { nome: true } },
         alunos: { include: { aluno: true } },
       },
     });

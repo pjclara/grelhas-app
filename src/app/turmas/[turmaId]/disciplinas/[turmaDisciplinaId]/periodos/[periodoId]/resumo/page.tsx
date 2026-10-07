@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, FileText, FileSpreadsheet } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
@@ -72,7 +73,14 @@ export default function ResumoPage({
   return (
     <AppShell width="full">
       <div className="mx-auto max-w-screen-2xl">
-        <BackLink href={voltarHref} />
+        <Breadcrumbs
+          items={[
+            { label: 'As minhas turmas', href: '/dashboard' },
+            { label: resumo.turma.nome, href: `/turmas/${params.turmaId}` },
+            { label: resumo.turma.disciplina, href: voltarHref },
+            { label: 'Resumo' },
+          ]}
+        />
         <p className="text-sm text-slate-500">
           {resumo.turma.disciplina} · {resumo.turma.anoLetivo} · {resumo.turma.nome}
         </p>

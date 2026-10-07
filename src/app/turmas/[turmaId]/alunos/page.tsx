@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRightLeft, FileUp, Mic, Square, Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import { ArrowRightLeft, FileUp, Mic, Square, Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +10,7 @@ import { Input, Select } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
@@ -99,6 +100,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   const [alunos, setAlunos] = useState<AlunoTurma[]>([]);
   const [aCarregar, setACarregar] = useState(true);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
+  const [turmaNome, setTurmaNome] = useState<string | null>(null);
   const [numero, setNumero] = useState('');
   const [numeroProcesso, setNumeroProcesso] = useState('');
   const [nome, setNome] = useState('');
@@ -155,6 +157,13 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
 
   useEffect(() => {
     carregar();
+  }, [params.turmaId]);
+
+  useEffect(() => {
+    fetch(`/api/turmas/${params.turmaId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((t) => setTurmaNome(t?.nome ?? null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.turmaId]);
 
   useEffect(() => {
@@ -442,9 +451,13 @@ function proximoNumero(): number {
 
   return (
     <AppShell>
-      <Link href={`/turmas/${params.turmaId}`} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
-        <ArrowLeft className="h-4 w-4" /> Voltar à turma
-      </Link>
+      <Breadcrumbs
+        items={[
+          { label: 'As minhas turmas', href: '/dashboard' },
+          { label: turmaNome ?? '…', href: `/turmas/${params.turmaId}` },
+          { label: 'Alunos' },
+        ]}
+      />
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Alunos</h1>
         <div className="flex items-center gap-2">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Plus } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
@@ -46,6 +47,7 @@ export default function GrelhaPage({
   const voltarHref = `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/instrumentos`;
 
   const [grelha, setGrelha] = useState<Grelha | null>(null);
+  const [nomes, setNomes] = useState<{ turma: string; disciplina: string } | null>(null);
   const [dataAvaliacao, setDataAvaliacao] = useState('');
   const [valores, setValores] = useState<Valores>({});
   const [original, setOriginal] = useState<Valores>({});
@@ -55,11 +57,18 @@ export default function GrelhaPage({
   const [guardadoEm, setGuardadoEm] = useState<Date | null>(null);
 
   async function carregar() {
-    const r = await fetch(api);
+    const [r, rtd] = await Promise.all([
+      fetch(api),
+      fetch(`/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`),
+    ]);
     if (!r.ok) {
       const body = await r.json().catch(() => ({}));
       setErroCarregar(body.error ?? 'Não foi possível carregar a grelha.');
       return;
+    }
+    if (rtd.ok) {
+      const td = await rtd.json();
+      setNomes({ turma: td.turma?.nome ?? '…', disciplina: td.disciplina.nome });
     }
     const g: Grelha = await r.json();
     setGrelha(g);
@@ -163,19 +172,32 @@ export default function GrelhaPage({
   return (
     <AppShell width="full">
       <div className="mx-auto max-w-screen-2xl">
-        <Link
-          href={voltarHref}
-          className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" /> Voltar aos instrumentos
-        </Link>
-
         {erroCarregar ? (
-          <Alert tone="danger">{erroCarregar}</Alert>
+          <>
+            <Link
+              href={voltarHref}
+              className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline"
+            >
+              <ArrowLeft className="h-4 w-4" /> Voltar aos instrumentos
+            </Link>
+            <Alert tone="danger">{erroCarregar}</Alert>
+          </>
         ) : !grelha ? (
           <PageLoading />
         ) : (
           <>
+            <Breadcrumbs
+              items={[
+                { label: 'As minhas turmas', href: '/dashboard' },
+                { label: nomes?.turma ?? '…', href: `/turmas/${params.turmaId}` },
+                {
+                  label: nomes?.disciplina ?? '…',
+                  href: `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`,
+                },
+                { label: 'Instrumentos', href: voltarHref },
+                { label: grelha.nome },
+              ]}
+            />
             <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{grelha.nome}</h1>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Mic, Square, CheckCircle2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
@@ -76,6 +77,7 @@ export default function InstrumentoPage({
   const [aGuardar, setAGuardar] = useState(false);
   const [guardadoEm, setGuardadoEm] = useState<Date | null>(null);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
+  const [nomes, setNomes] = useState<{ turma: string; disciplina: string } | null>(null);
 
   const [aDitar, setADitar] = useState(false);
   const [ultimoOuvido, setUltimoOuvido] = useState<string | null>(null);
@@ -91,13 +93,18 @@ export default function InstrumentoPage({
   const disciplinaBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
 
   async function carregar() {
-    const [ri, ra] = await Promise.all([
+    const [ri, ra, rtd] = await Promise.all([
       fetch(`${disciplinaBase}/instrumentos/${params.instrumentoId}`),
       fetch(`${disciplinaBase}/alunos`),
+      fetch(disciplinaBase),
     ]);
     if (!ri.ok || !ra.ok) {
       setErroCarregar('Não foi possível carregar o instrumento.');
       return;
+    }
+    if (rtd.ok) {
+      const td = await rtd.json();
+      setNomes({ turma: td.turma?.nome ?? '…', disciplina: td.disciplina.nome });
     }
     const inst = await ri.json();
     const inscricoes: Inscricao[] = await ra.json();
@@ -363,9 +370,18 @@ export default function InstrumentoPage({
   return (
     <AppShell width="full">
       <div className="mx-auto max-w-6xl">
-        <Link href={voltarHref} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
-          <ArrowLeft className="h-4 w-4" /> Voltar aos instrumentos
-        </Link>
+        <Breadcrumbs
+          items={[
+            { label: 'As minhas turmas', href: '/dashboard' },
+            { label: nomes?.turma ?? '…', href: `/turmas/${params.turmaId}` },
+            {
+              label: nomes?.disciplina ?? '…',
+              href: `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`,
+            },
+            { label: 'Instrumentos', href: voltarHref },
+            { label: instrumento.nome },
+          ]}
+        />
         <div className="mb-1 flex items-center justify-between">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{instrumento.nome}</h1>
           {ditadoSuportado && (

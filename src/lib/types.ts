@@ -77,6 +77,9 @@ export interface TurmaDisciplina {
   id: string;
   turmaId: string;
   disciplina: Disciplina;
+  // Só presente quando devolvido por GET /api/turmas/[turmaId]/disciplinas/[turmaDisciplinaId]
+  // (usado para breadcrumbs — ver src/components/ui/Breadcrumbs.tsx).
+  turma?: { nome: string };
   // Preenchido quando a disciplina é SEMESTRAL: o período (semestre) escolhido
   // para esta turma. Null = disciplina anual (ambos os períodos).
   periodoId: string | null;

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Pencil, Trash2, Table2, ExternalLink } from 'lucide-react';
+import { Plus, Pencil, Trash2, Table2, ExternalLink } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Input';
@@ -29,6 +30,7 @@ export default function InstrumentosPage({
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [nomes, setNomes] = useState<{ turma: string; disciplina: string } | null>(null);
 
   const [nome, setNome] = useState('');
   const [criterioId, setCriterioId] = useState('');
@@ -63,9 +65,10 @@ export default function InstrumentosPage({
 
   async function carregar() {
     setACarregar(true);
-    const [ri, rc] = await Promise.all([
+    const [ri, rc, rtd] = await Promise.all([
       fetch(`${disciplinaBase}/instrumentos?periodoId=${params.periodoId}`),
       fetch(`${disciplinaBase}/criterios`),
+      fetch(disciplinaBase),
     ]);
     if (!ri.ok || !rc.ok) {
       setErroCarregar('Não foi possível carregar os instrumentos.');
@@ -75,6 +78,10 @@ export default function InstrumentosPage({
     setErroCarregar(null);
     setInstrumentos(await ri.json());
     setCriterios(await rc.json());
+    if (rtd.ok) {
+      const td = await rtd.json();
+      setNomes({ turma: td.turma?.nome ?? '…', disciplina: td.disciplina.nome });
+    }
     setACarregar(false);
   }
 
@@ -218,12 +225,17 @@ export default function InstrumentosPage({
 
   return (
     <AppShell>
-      <Link
-        href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`}
-        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline"
-      >
-        <ArrowLeft className="h-4 w-4" /> Voltar à disciplina
-      </Link>
+      <Breadcrumbs
+        items={[
+          { label: 'As minhas turmas', href: '/dashboard' },
+          { label: nomes?.turma ?? '…', href: `/turmas/${params.turmaId}` },
+          {
+            label: nomes?.disciplina ?? '…',
+            href: `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`,
+          },
+          { label: 'Instrumentos' },
+        ]}
+      />
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Instrumentos de avaliação</h1>
         <Button onClick={() => (mostrarForm ? fecharForm() : abrirNovo())}>

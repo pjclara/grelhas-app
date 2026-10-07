@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Users, ClipboardList, FileBarChart } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
@@ -74,7 +75,13 @@ export default function TurmaDisciplinaPage({
 
   return (
     <AppShell>
-      <BackLink turmaId={params.turmaId} />
+      <Breadcrumbs
+        items={[
+          { label: 'As minhas turmas', href: '/dashboard' },
+          { label: turmaDisciplina.turma?.nome ?? '…', href: `/turmas/${params.turmaId}` },
+          { label: turmaDisciplina.disciplina.nome },
+        ]}
+      />
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{turmaDisciplina.disciplina.nome}</h1>
       <p className="mb-4 text-sm text-slate-500">
         {turmaDisciplina.disciplina.periodicidade === 'SEMESTRAL'

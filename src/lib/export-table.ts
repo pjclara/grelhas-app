@@ -20,6 +20,8 @@ export interface TabelaExport {
    * vermelho (ex.: total abaixo do mínimo). Linhas/colunas em falta = sem alerta.
    */
   alertas?: boolean[][];
+  /** Notas de rodapé (ex.: legenda de um "*"), uma por linha, a seguir à tabela. */
+  notas?: string[];
 }
 
 const VERMELHO_ALERTA = { argb: 'FFDC2626' };
@@ -58,6 +60,14 @@ export async function gerarXlsxTabela(t: TabelaExport) {
   t.cabecalho.forEach((_, i) => {
     sheet.getColumn(i + 1).width = t.largurasXlsx?.[i] ?? 16;
   });
+
+  if (t.notas && t.notas.length > 0) {
+    sheet.addRow([]);
+    for (const nota of t.notas) {
+      const notaRow = sheet.addRow([nota]);
+      notaRow.font = { italic: true, size: 9, color: { argb: 'FF64748B' } };
+    }
+  }
 
   return workbook.xlsx.writeBuffer();
 }
@@ -98,6 +108,18 @@ export async function gerarPdfTabela(t: TabelaExport) {
     const valores = linha.map((v) => (v == null ? '—' : String(v)));
     y = desenharLinhaTabela(page, valores, colunas, y, font, false, t.alertas?.[idx]);
   });
+
+  if (t.notas && t.notas.length > 0) {
+    y -= 6;
+    for (const nota of t.notas) {
+      if (y < MARGIN + 14) {
+        page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        y = PAGE_HEIGHT - MARGIN;
+      }
+      page.drawText(nota, { x: MARGIN, y, size: 7, font, color: rgb(0.4, 0.45, 0.5) });
+      y -= 12;
+    }
+  }
 
   return pdfDoc.save();
 }

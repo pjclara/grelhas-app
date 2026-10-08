@@ -327,16 +327,24 @@ export default function InstrumentoPage({
     return resultado;
   }, [alunos, instrumento, notas]);
 
-  /** Média de cada pergunta entre os alunos com nota lançada nela; null se nenhum tiver. */
+  /**
+   * Média de cada pergunta entre os alunos com nota lançada nela (ignorando
+   * notas acima do valor máximo da pergunta, provavelmente lançadas por
+   * engano); `incompleta` assinala que alguma nota foi ignorada por isso.
+   */
   const mediaPorPergunta = useMemo(() => {
     if (!instrumento) return {};
-    const resultado: Record<string, number | null> = {};
+    const resultado: Record<string, { media: number | null; incompleta: boolean }> = {};
     for (const pergunta of instrumento.perguntas) {
-      const valores = alunos
+      const todas = alunos
         .map((aluno) => notas[aluno.id]?.[pergunta.id])
         .filter((v): v is string => v !== undefined && v !== '')
         .map(Number);
-      resultado[pergunta.id] = valores.length > 0 ? valores.reduce((acc, v) => acc + v, 0) / valores.length : null;
+      const validas = todas.filter((v) => v <= pergunta.valorMax);
+      resultado[pergunta.id] = {
+        media: validas.length > 0 ? validas.reduce((acc, v) => acc + v, 0) / validas.length : null,
+        incompleta: validas.length !== todas.length,
+      };
     }
     return resultado;
   }, [alunos, instrumento, notas]);
@@ -450,7 +458,7 @@ export default function InstrumentoPage({
                 {instrumento.perguntas.map((p) => (
                   <th key={p.id} className="px-2 py-2 text-center">
                     {p.codigo}
-                    <div className="text-xs font-normal normal-case text-slate-400">/{p.valorMax}</div>
+                    <div className="text-xs font-normal normal-case text-slate-400">{p.valorMax}</div>
                   </th>
                 ))}
                 <th className="px-3 py-2 text-center">Total</th>
@@ -512,13 +520,15 @@ export default function InstrumentoPage({
                   <td className="px-3 py-1.5" />
                   <td className="px-3 py-1.5 font-medium text-slate-700">Ponderação</td>
                   {instrumento.perguntas.map((p) => {
-                    const pct = mediaPorPergunta[p.id] != null ? (mediaPorPergunta[p.id]! / p.valorMax) * 100 : null;
+                    const info = mediaPorPergunta[p.id];
+                    const pct = info?.media != null ? (info.media / p.valorMax) * 100 : null;
                     return (
                       <td
                         key={p.id}
                         className={`px-2 py-1.5 text-center tabular-nums ${pct != null && pct < 50 ? 'font-semibold text-red-600' : 'text-slate-700'}`}
+                        title={info?.incompleta ? 'Nem todas as notas foram consideradas (acima do valor máximo da pergunta)' : undefined}
                       >
-                        {pct != null ? `${pct.toFixed(1)}%` : '—'}
+                        {pct != null ? `${pct.toFixed(1)}%${info?.incompleta ? '*' : ''}` : '—'}
                       </td>
                     );
                   })}
@@ -534,6 +544,12 @@ export default function InstrumentoPage({
             )}
           </table>
         </div>
+        {Object.values(mediaPorPergunta).some((info) => info.incompleta) && (
+          <p className="mt-1.5 text-xs text-slate-400">
+            * Nem todas as notas foram consideradas para a ponderação desta pergunta (havia notas acima do valor
+            máximo).
+          </p>
+        )}
 
         <div className="mt-4 flex items-center gap-3">
           <Button onClick={guardar} loading={aGuardar}>

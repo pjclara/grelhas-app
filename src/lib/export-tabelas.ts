@@ -173,15 +173,31 @@ export async function tabelaInstrumento(
     a.soma != null ? `${a.soma}/${maxTotal}` : null,
   ]);
 
-  // Última linha: média de cada pergunta (entre os alunos com nota lançada nela) e,
-  // na coluna Total, a média da turma.
-  const mediasPorPergunta = instrumento.perguntas.map((_, i) => {
+  // Última linha: ponderação de cada pergunta (média entre os alunos com nota lançada
+  // nela, a dividir pelo valor máximo da pergunta) e, na coluna Total, a ponderação da
+  // turma — ambas em %, destacadas a vermelho quando abaixo de 50%.
+  const pctPorPergunta = instrumento.perguntas.map((p, i) => {
     const valores = porAluno.map((a) => a.porPergunta[i]).filter((v): v is number => v !== null);
-    return valores.length > 0 ? (valores.reduce((acc, v) => acc + v, 0) / valores.length).toFixed(1) : null;
+    if (valores.length === 0 || p.valorMax === 0) return null;
+    return ((valores.reduce((acc, v) => acc + v, 0) / valores.length) / p.valorMax) * 100;
   });
   const somasTurma = porAluno.map((a) => a.soma).filter((v): v is number => v !== null);
-  const mediaTurma = somasTurma.length > 0 ? somasTurma.reduce((acc, v) => acc + v, 0) / somasTurma.length : null;
-  linhas.push([null, 'Média', ...mediasPorPergunta, mediaTurma != null ? `${mediaTurma.toFixed(1)}/${maxTotal}` : null]);
+  const pctTurma =
+    somasTurma.length > 0 && maxTotal > 0
+      ? (somasTurma.reduce((acc, v) => acc + v, 0) / somasTurma.length / maxTotal) * 100
+      : null;
+  linhas.push([
+    null,
+    'Ponderação',
+    ...pctPorPergunta.map((p) => (p != null ? `${p.toFixed(1)}%` : null)),
+    pctTurma != null ? `${pctTurma.toFixed(1)}%` : null,
+  ]);
+  const ultimaLinhaAlerta = [
+    false,
+    false,
+    ...pctPorPergunta.map((p) => p != null && p < 50),
+    pctTurma != null && pctTurma < 50,
+  ];
 
   return {
     nomeBase: ['Notas', turmaDisciplina.turma.nome, turmaDisciplina.disciplina.nome, instrumento.nome],
@@ -192,6 +208,7 @@ export async function tabelaInstrumento(
       linhas,
       largurasPdf: [28, 150, ...instrumento.perguntas.map(() => 70), 60],
       largurasXlsx: [6, 28, ...instrumento.perguntas.map(() => 14), 12],
+      ultimaLinhaAlerta,
     },
   };
 }

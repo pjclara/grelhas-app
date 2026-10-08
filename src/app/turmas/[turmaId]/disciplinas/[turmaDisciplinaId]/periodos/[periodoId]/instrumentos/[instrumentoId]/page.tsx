@@ -506,20 +506,32 @@ export default function InstrumentoPage({
               <tfoot className="border-t-2 border-slate-200 bg-slate-50">
                 <tr>
                   <td className="px-3 py-1.5" />
-                  <td className="px-3 py-1.5 font-medium text-slate-700">Média</td>
-                  {instrumento.perguntas.map((p) => (
-                    <td key={p.id} className="px-2 py-1.5 text-center tabular-nums text-slate-700">
-                      {mediaPorPergunta[p.id] != null ? mediaPorPergunta[p.id]!.toFixed(1) : '—'}
-                    </td>
-                  ))}
-                  <td className="px-3 py-1.5 text-center font-semibold text-slate-900">
-                    {mediaTurma != null
-                      ? `${mediaTurma.toFixed(1)}/${instrumento.perguntas.reduce(
-                          (acc, p) => acc + (instrumento.modo === 'ESCALA' ? instrumento.escalaMax : p.valorMax),
-                          0
-                        )}`
-                      : '—'}
-                  </td>
+                  <td className="px-3 py-1.5 font-medium text-slate-700">Ponderação</td>
+                  {instrumento.perguntas.map((p) => {
+                    const pct = mediaPorPergunta[p.id] != null ? (mediaPorPergunta[p.id]! / p.valorMax) * 100 : null;
+                    return (
+                      <td
+                        key={p.id}
+                        className={`px-2 py-1.5 text-center tabular-nums ${pct != null && pct < 50 ? 'font-semibold text-red-600' : 'text-slate-700'}`}
+                      >
+                        {pct != null ? `${pct.toFixed(1)}%` : '—'}
+                      </td>
+                    );
+                  })}
+                  {(() => {
+                    const maxTurma = instrumento.perguntas.reduce(
+                      (acc, p) => acc + (instrumento.modo === 'ESCALA' ? instrumento.escalaMax : p.valorMax),
+                      0
+                    );
+                    const pctTurma = mediaTurma != null && maxTurma > 0 ? (mediaTurma / maxTurma) * 100 : null;
+                    return (
+                      <td
+                        className={`px-3 py-1.5 text-center font-semibold ${pctTurma != null && pctTurma < 50 ? 'text-red-600' : 'text-slate-900'}`}
+                      >
+                        {pctTurma != null ? `${pctTurma.toFixed(1)}%` : '—'}
+                      </td>
+                    );
+                  })()}
                 </tr>
               </tfoot>
             )}

@@ -15,7 +15,15 @@ export interface TabelaExport {
   largurasPdf?: number[];
   /** Largura de cada coluna no Excel (caracteres). Por omissão, 16 para todas. */
   largurasXlsx?: number[];
+  /**
+   * Para a última linha de `linhas`: por coluna, true = destacar a célula a
+   * vermelho (ex.: ponderação abaixo de 50%). Mesmo tamanho de `cabecalho`.
+   */
+  ultimaLinhaAlerta?: boolean[];
 }
+
+const VERMELHO_ALERTA = { argb: 'FFDC2626' };
+const VERMELHO_ALERTA_PDF = rgb(0.86, 0.15, 0.15);
 
 export async function gerarXlsxTabela(t: TabelaExport) {
   const workbook = new ExcelJS.Workbook();
@@ -40,7 +48,14 @@ export async function gerarXlsxTabela(t: TabelaExport) {
     cell.border = { bottom: { style: 'thin' } };
   });
 
-  for (const linha of t.linhas) sheet.addRow(linha);
+  t.linhas.forEach((linha, idx) => {
+    const row = sheet.addRow(linha);
+    if (t.ultimaLinhaAlerta && idx === t.linhas.length - 1) {
+      t.ultimaLinhaAlerta.forEach((alerta, i) => {
+        if (alerta) row.getCell(i + 1).font = { color: VERMELHO_ALERTA, bold: true };
+      });
+    }
+  });
 
   t.cabecalho.forEach((_, i) => {
     sheet.getColumn(i + 1).width = t.largurasXlsx?.[i] ?? 16;
@@ -76,15 +91,16 @@ export async function gerarPdfTabela(t: TabelaExport) {
 
   desenharCabecalhoPagina();
 
-  for (const linha of t.linhas) {
+  t.linhas.forEach((linha, idx) => {
     if (y < MARGIN + 30) {
       page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
       y = PAGE_HEIGHT - MARGIN;
       desenharCabecalhoPagina();
     }
     const valores = linha.map((v) => (v == null ? '—' : String(v)));
-    y = desenharLinhaTabela(page, valores, colunas, y, font, false);
-  }
+    const alerta = t.ultimaLinhaAlerta && idx === t.linhas.length - 1 ? t.ultimaLinhaAlerta : undefined;
+    y = desenharLinhaTabela(page, valores, colunas, y, font, false, alerta);
+  });
 
   return pdfDoc.save();
 }
@@ -95,13 +111,15 @@ function desenharLinhaTabela(
   colunas: Array<{ titulo: string; largura: number }>,
   y: number,
   font: PDFFont,
-  cabecalho: boolean
+  cabecalho: boolean,
+  alerta?: boolean[]
 ): number {
   let x = MARGIN;
   const alturaLinha = 16;
   for (let i = 0; i < colunas.length; i++) {
     const texto = truncar(valores[i] ?? '', colunas[i].largura, font, 8);
-    page.drawText(texto, { x: x + 2, y, size: 8, font, color: rgb(0.1, 0.1, 0.1) });
+    const cor = alerta?.[i] ? VERMELHO_ALERTA_PDF : rgb(0.1, 0.1, 0.1);
+    page.drawText(texto, { x: x + 2, y, size: 8, font, color: cor });
     x += colunas[i].largura;
   }
   if (cabecalho) {

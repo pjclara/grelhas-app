@@ -16,10 +16,10 @@ export interface TabelaExport {
   /** Largura de cada coluna no Excel (caracteres). Por omissão, 16 para todas. */
   largurasXlsx?: number[];
   /**
-   * Para a última linha de `linhas`: por coluna, true = destacar a célula a
-   * vermelho (ex.: ponderação abaixo de 50%). Mesmo tamanho de `cabecalho`.
+   * Mesmo formato de `linhas`: true numa posição = destacar essa célula a
+   * vermelho (ex.: total abaixo do mínimo). Linhas/colunas em falta = sem alerta.
    */
-  ultimaLinhaAlerta?: boolean[];
+  alertas?: boolean[][];
 }
 
 const VERMELHO_ALERTA = { argb: 'FFDC2626' };
@@ -50,11 +50,9 @@ export async function gerarXlsxTabela(t: TabelaExport) {
 
   t.linhas.forEach((linha, idx) => {
     const row = sheet.addRow(linha);
-    if (t.ultimaLinhaAlerta && idx === t.linhas.length - 1) {
-      t.ultimaLinhaAlerta.forEach((alerta, i) => {
-        if (alerta) row.getCell(i + 1).font = { color: VERMELHO_ALERTA, bold: true };
-      });
-    }
+    t.alertas?.[idx]?.forEach((alerta, i) => {
+      if (alerta) row.getCell(i + 1).font = { color: VERMELHO_ALERTA, bold: true };
+    });
   });
 
   t.cabecalho.forEach((_, i) => {
@@ -98,8 +96,7 @@ export async function gerarPdfTabela(t: TabelaExport) {
       desenharCabecalhoPagina();
     }
     const valores = linha.map((v) => (v == null ? '—' : String(v)));
-    const alerta = t.ultimaLinhaAlerta && idx === t.linhas.length - 1 ? t.ultimaLinhaAlerta : undefined;
-    y = desenharLinhaTabela(page, valores, colunas, y, font, false, alerta);
+    y = desenharLinhaTabela(page, valores, colunas, y, font, false, t.alertas?.[idx]);
   });
 
   return pdfDoc.save();

@@ -495,8 +495,12 @@ export default function InstrumentoPage({
                         </td>
                       );
                     })}
-                    <td className="px-3 py-1.5 text-center font-medium text-slate-900">
-                      {total?.preenchido ? `${total.soma}/${total.max}` : '—'}
+                    <td
+                      className={`px-3 py-1.5 text-center font-medium ${
+                        total?.preenchido && total.soma < 100 ? 'text-red-600' : 'text-slate-900'
+                      }`}
+                    >
+                      {total?.preenchido ? total.soma : '—'}
                     </td>
                   </tr>
                 );
@@ -518,20 +522,13 @@ export default function InstrumentoPage({
                       </td>
                     );
                   })}
-                  {(() => {
-                    const maxTurma = instrumento.perguntas.reduce(
-                      (acc, p) => acc + (instrumento.modo === 'ESCALA' ? instrumento.escalaMax : p.valorMax),
-                      0
-                    );
-                    const pctTurma = mediaTurma != null && maxTurma > 0 ? (mediaTurma / maxTurma) * 100 : null;
-                    return (
-                      <td
-                        className={`px-3 py-1.5 text-center font-semibold ${pctTurma != null && pctTurma < 50 ? 'text-red-600' : 'text-slate-900'}`}
-                      >
-                        {pctTurma != null ? `${pctTurma.toFixed(1)}%` : '—'}
-                      </td>
-                    );
-                  })()}
+                  <td
+                    className={`px-3 py-1.5 text-center font-semibold ${
+                      mediaTurma != null && mediaTurma < 100 ? 'text-red-600' : 'text-slate-900'
+                    }`}
+                  >
+                    {mediaTurma != null ? mediaTurma.toFixed(1) : '—'}
+                  </td>
                 </tr>
               </tfoot>
             )}

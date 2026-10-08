@@ -166,38 +166,38 @@ export async function tabelaInstrumento(
     const soma = comValor.length > 0 ? comValor.reduce((acc, v) => acc + v, 0) : null;
     return { numero: m.numero, nome: m.aluno.nome, porPergunta, soma };
   });
-  const linhas: Array<Array<string | number | null>> = porAluno.map((a) => [
-    a.numero,
-    a.nome,
-    ...a.porPergunta,
-    a.soma != null ? `${a.soma}/${maxTotal}` : null,
+  // Coluna Total: só o total do aluno (sem "/máximo"), a vermelho se abaixo de 100.
+  const linhas: Array<Array<string | number | null>> = porAluno.map((a) => [a.numero, a.nome, ...a.porPergunta, a.soma]);
+  const alertas: boolean[][] = porAluno.map((a) => [
+    false,
+    false,
+    ...a.porPergunta.map(() => false),
+    a.soma != null && a.soma < 100,
   ]);
 
   // Última linha: ponderação de cada pergunta (média entre os alunos com nota lançada
-  // nela, a dividir pelo valor máximo da pergunta) e, na coluna Total, a ponderação da
-  // turma — ambas em %, destacadas a vermelho quando abaixo de 50%.
+  // nela, a dividir pelo valor máximo da pergunta, em %) e, na coluna Total, a média
+  // da turma (sem percentagem). Ambas a vermelho — perguntas abaixo de 50%, Total
+  // abaixo de 100.
   const pctPorPergunta = instrumento.perguntas.map((p, i) => {
     const valores = porAluno.map((a) => a.porPergunta[i]).filter((v): v is number => v !== null);
     if (valores.length === 0 || p.valorMax === 0) return null;
     return ((valores.reduce((acc, v) => acc + v, 0) / valores.length) / p.valorMax) * 100;
   });
   const somasTurma = porAluno.map((a) => a.soma).filter((v): v is number => v !== null);
-  const pctTurma =
-    somasTurma.length > 0 && maxTotal > 0
-      ? (somasTurma.reduce((acc, v) => acc + v, 0) / somasTurma.length / maxTotal) * 100
-      : null;
+  const mediaTurma = somasTurma.length > 0 ? somasTurma.reduce((acc, v) => acc + v, 0) / somasTurma.length : null;
   linhas.push([
     null,
     'Ponderação',
     ...pctPorPergunta.map((p) => (p != null ? `${p.toFixed(1)}%` : null)),
-    pctTurma != null ? `${pctTurma.toFixed(1)}%` : null,
+    mediaTurma != null ? mediaTurma.toFixed(1) : null,
   ]);
-  const ultimaLinhaAlerta = [
+  alertas.push([
     false,
     false,
     ...pctPorPergunta.map((p) => p != null && p < 50),
-    pctTurma != null && pctTurma < 50,
-  ];
+    mediaTurma != null && mediaTurma < 100,
+  ]);
 
   return {
     nomeBase: ['Notas', turmaDisciplina.turma.nome, turmaDisciplina.disciplina.nome, instrumento.nome],
@@ -208,7 +208,7 @@ export async function tabelaInstrumento(
       linhas,
       largurasPdf: [28, 150, ...instrumento.perguntas.map(() => 70), 60],
       largurasXlsx: [6, 28, ...instrumento.perguntas.map(() => 14), 12],
-      ultimaLinhaAlerta,
+      alertas,
     },
   };
 }

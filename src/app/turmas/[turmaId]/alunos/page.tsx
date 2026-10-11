@@ -511,9 +511,9 @@ function proximoNumero(): number {
         <div className="mb-4 space-y-2">
           <Alert tone="info">
             A ouvir… diga o nome do aluno para o adicionar com o número seguinte automático, ou
-            "número 5 Maria Silva" para indicar o número. Diga "apagar último" para desfazer ou
-            "parar" para terminar.
-            {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: "{ultimoOuvido}"</span>}
+            &quot;número 5 Maria Silva&quot; para indicar o número. Diga &quot;apagar último&quot; para desfazer ou
+            &quot;parar&quot; para terminar.
+            {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: &quot;{ultimoOuvido}&quot;</span>}
           </Alert>
           {ultimoAdicionado && <Alert tone="success">Adicionado: {ultimoAdicionado}</Alert>}
           {avisoDitado && <Alert tone="warning">{avisoDitado}</Alert>}

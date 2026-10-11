@@ -435,10 +435,10 @@ export default function InstrumentoPage({
         {aDitar && (
           <div className="mb-4 space-y-2">
             <Alert tone="info">
-              A ouvir… diga um número para preencher a célula selecionada e avançar. Diga "aluno número 3
-              pergunta 2a" para saltar diretamente para essa célula, ou "seguinte", "anterior", "apagar",
-              "parar" para navegar.
-              {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: "{ultimoOuvido}"</span>}
+              A ouvir… diga um número para preencher a célula selecionada e avançar. Diga &quot;aluno número 3
+              pergunta 2a&quot; para saltar diretamente para essa célula, ou &quot;seguinte&quot;, &quot;anterior&quot;, &quot;apagar&quot;,
+              &quot;parar&quot; para navegar.
+              {ultimoOuvido && <span className="ml-2 text-brand-500">Ouvido: &quot;{ultimoOuvido}&quot;</span>}
             </Alert>
             {avisoDitado && <Alert tone="warning">{avisoDitado}</Alert>}
           </div>

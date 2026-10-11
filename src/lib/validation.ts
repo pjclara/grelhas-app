@@ -43,6 +43,13 @@ export const turmaSchema = z.object({
   nivelEnsino: z.string().min(1).optional().nullable(),
 });
 
+export const turmaCorSchema = z.object({
+  cor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida')
+    .nullable(),
+});
+
 export const turmaDisciplinaSchema = z.object({
   disciplinaId: z.string().min(1),
 });

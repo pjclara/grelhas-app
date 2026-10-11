@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
-import { Plus, X, Users, BookOpen, Lightbulb } from 'lucide-react';
+import { Plus, X, Users, BookOpen, Lightbulb, Palette, Check } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
@@ -14,11 +14,16 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageLoading, Skeleton } from '@/components/ui/Spinner';
 import { anoLetivoAtual, type AnoLetivo, type Turma } from '@/lib/types';
 
-// Dica do que fazer a seguir numa turma, conforme o estado atual.
-// Cada turma com uma cor própria no topo do cartão (como etiquetas de disciplinas
-// num horário escolar), só para dar mais vida à lista — sem significado funcional.
-const CORES_TURMA = ['border-t-sky-400', 'border-t-violet-400', 'border-t-amber-400', 'border-t-emerald-400', 'border-t-rose-400'];
+// Cada turma tem uma cor própria no topo do cartão (como etiquetas de disciplinas
+// num horário escolar). O professor pode escolher a cor; sem escolha, usa-se uma
+// cor automática por rotação (mesma paleta).
+const PALETA_CORES = ['#38bdf8', '#a78bfa', '#fbbf24', '#34d399', '#fb7185', '#818cf8', '#2dd4bf', '#fb923c'];
 
+function corDaTurma(t: Turma, i: number): string {
+  return t.cor ?? PALETA_CORES[i % PALETA_CORES.length];
+}
+
+// Dica do que fazer a seguir numa turma, conforme o estado atual.
 function proximoPasso(t: Turma): string | null {
   if (!t.disciplinas || t.disciplinas.length === 0) {
     return 'Próximo passo: abra a turma e associe as disciplinas que leciona.';
@@ -35,6 +40,19 @@ export default function DashboardPage() {
   const [aCarregar, setACarregar] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
+  const [pickerAbertoId, setPickerAbertoId] = useState<string | null>(null);
+
+  async function escolherCor(turmaId: string, cor: string | null) {
+    const anterior = turmas;
+    setTurmas((ts) => ts.map((t) => (t.id === turmaId ? { ...t, cor } : t)));
+    setPickerAbertoId(null);
+    const res = await fetch(`/api/turmas/${turmaId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cor }),
+    });
+    if (!res.ok) setTurmas(anterior);
+  }
 
   async function carregarTudo() {
     setACarregar(true);
@@ -85,7 +103,7 @@ export default function DashboardPage() {
       {erroCarregar ? (
         <Alert tone="danger">{erroCarregar}</Alert>
       ) : aCarregar ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex flex-col gap-3">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-28" />
           ))}
@@ -105,34 +123,80 @@ export default function DashboardPage() {
           />
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex flex-col gap-3">
           {turmas.map((t, i) => (
-            <Link
-              key={t.id}
-              href={`/turmas/${t.id}`}
-              className={`group rounded-lg border border-t-4 border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md ${CORES_TURMA[i % CORES_TURMA.length]}`}
-            >
-              <p className="font-semibold text-slate-900 group-hover:text-brand-700">{t.nome}</p>
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
-                <BookOpen className="h-3.5 w-3.5 shrink-0" />
-                {t.disciplinas && t.disciplinas.length > 0
-                  ? t.disciplinas.map((td) => td.disciplina.nome).join(', ')
-                  : 'Sem disciplinas associadas'}
-              </p>
-              <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-                <span>{t.anoLetivo.nome}</span>
-                <span className="flex items-center gap-1">
-                  <Users className="h-3.5 w-3.5" />
-                  {t._count?.matriculas ?? 0} alunos
-                </span>
-              </div>
-              {proximoPasso(t) && (
-                <p className="mt-3 flex items-start gap-1.5 rounded-md bg-brand-50 px-2 py-1.5 text-xs text-brand-700">
-                  <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  {proximoPasso(t)}
+            <div key={t.id} className="relative">
+              <Link
+                href={`/turmas/${t.id}`}
+                className="group block rounded-lg border border-t-4 border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+                style={{ borderTopColor: corDaTurma(t, i) }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold text-slate-900 group-hover:text-brand-700">{t.nome}</p>
+                  <button
+                    type="button"
+                    aria-label="Escolher cor da turma"
+                    title="Escolher cor da turma"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setPickerAbertoId((id) => (id === t.id ? null : t.id));
+                    }}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200"
+                    style={{ backgroundColor: corDaTurma(t, i) }}
+                  >
+                    <Palette className="h-3 w-3 text-white/90 opacity-0 transition-opacity group-hover:opacity-100" />
+                  </button>
+                </div>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+                  <BookOpen className="h-3.5 w-3.5 shrink-0" />
+                  {t.disciplinas && t.disciplinas.length > 0
+                    ? t.disciplinas.map((td) => td.disciplina.nome).join(', ')
+                    : 'Sem disciplinas associadas'}
                 </p>
+                <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+                  <span>{t.anoLetivo.nome}</span>
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {t._count?.matriculas ?? 0} alunos
+                  </span>
+                </div>
+                {proximoPasso(t) && (
+                  <p className="mt-3 flex items-start gap-1.5 rounded-md bg-brand-50 px-2 py-1.5 text-xs text-brand-700">
+                    <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    {proximoPasso(t)}
+                  </p>
+                )}
+              </Link>
+
+              {pickerAbertoId === t.id && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setPickerAbertoId(null)} />
+                  <div className="absolute right-3 top-10 z-20 flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-md">
+                    {PALETA_CORES.map((cor) => (
+                      <button
+                        key={cor}
+                        type="button"
+                        aria-label={`Usar cor ${cor}`}
+                        onClick={() => escolherCor(t.id, cor)}
+                        className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200"
+                        style={{ backgroundColor: cor }}
+                      >
+                        {t.cor === cor && <Check className="h-3.5 w-3.5 text-white" />}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => escolherCor(t.id, null)}
+                      title="Cor automática"
+                      className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-slate-300 text-[10px] text-slate-400"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </>
               )}
-            </Link>
+            </div>
           ))}
         </div>
       )}

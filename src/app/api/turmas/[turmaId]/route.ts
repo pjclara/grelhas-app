@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireUserId } from '@/lib/auth';
 import { assertTurmaOwnership } from '@/lib/turma-access';
 import { handleApiError } from '@/lib/api-helpers';
+import { turmaCorSchema } from '@/lib/validation';
 
 export async function GET(_req: NextRequest, { params }: { params: { turmaId: string } }) {
   try {
@@ -25,6 +26,22 @@ export async function GET(_req: NextRequest, { params }: { params: { turmaId: st
     const { matriculas, ...turmaSemMatriculas } = turma;
     const alunos = matriculas.map((m) => ({ ...m.aluno, numero: m.numero }));
     return NextResponse.json({ ...turmaSemMatriculas, alunos });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: { turmaId: string } }) {
+  try {
+    const userId = await requireUserId();
+    await assertTurmaOwnership(params.turmaId, userId);
+    const data = turmaCorSchema.parse(await req.json());
+
+    const turma = await prisma.turma.update({
+      where: { id: params.turmaId },
+      data: { cor: data.cor },
+    });
+    return NextResponse.json(turma);
   } catch (error) {
     return handleApiError(error);
   }

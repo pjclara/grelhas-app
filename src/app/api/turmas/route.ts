@@ -19,7 +19,7 @@ export async function GET() {
         disciplinas: { include: { disciplina: true } },
         _count: { select: { matriculas: { where: { ativa: true } } } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ anoLetivo: { nome: 'desc' } }, { nome: 'asc' }],
     });
     return NextResponse.json(turmas);
   } catch (error) {

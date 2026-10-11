@@ -214,6 +214,7 @@ model Turma {
   nome        String // ex: "9.º F"
   nivelEnsino String? // ex: "3.º ciclo" (rótulo; o ciclo efetivo é cicloId)
   cicloId     String?
+  cor         String? // cor de fundo escolhida pelo professor (hex, ex: "#38bdf8"); null = cor automática
   createdAt   DateTime @default(now())
 
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)

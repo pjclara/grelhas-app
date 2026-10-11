@@ -67,6 +67,7 @@ export interface Turma {
   id: string;
   nome: string;
   nivelEnsino: string | null;
+  cor: string | null;
   anoLetivo: AnoLetivo;
   _count?: { matriculas: number };
   disciplinas?: TurmaDisciplina[];

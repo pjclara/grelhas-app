@@ -211,7 +211,7 @@ export async function tabelaInstrumento(
     tabela: {
       titulo: `${instrumento.nome} — ${turmaDisciplina.disciplina.nome}`,
       subtitulo: `Turma ${turmaDisciplina.turma.nome}`,
-      cabecalho: ['Nº', 'Nome', ...instrumento.perguntas.map((p) => `${p.codigo} (${p.valorMax})`), 'Total'],
+      cabecalho: ['Nº', 'Nome', ...instrumento.perguntas.map((p) => `${p.codigo} (${p.valorMax})`), `Total (${maxTotal})`],
       linhas,
       largurasPdf: [28, 150, ...instrumento.perguntas.map(() => 70), 60],
       largurasXlsx: [6, 28, ...instrumento.perguntas.map(() => 14), 12],

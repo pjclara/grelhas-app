@@ -305,13 +305,17 @@ export default function InstrumentoPage({
     };
   }, []);
 
+  const instrumentoMax = useMemo(() => {
+    if (!instrumento) return 0;
+    return instrumento.modo === 'ESCALA'
+      ? instrumento.escalaMax * instrumento.perguntas.length
+      : instrumento.perguntas.reduce((acc, p) => acc + p.valorMax, 0);
+  }, [instrumento]);
+
   const totais = useMemo(() => {
     if (!instrumento) return {};
     const resultado: Record<string, { soma: number; max: number; preenchido: boolean }> = {};
-    const max =
-      instrumento.modo === 'ESCALA'
-        ? instrumento.escalaMax * instrumento.perguntas.length
-        : instrumento.perguntas.reduce((acc, p) => acc + p.valorMax, 0);
+    const max = instrumentoMax;
     for (const aluno of alunos) {
       let soma = 0;
       let preenchido = false;
@@ -461,7 +465,10 @@ export default function InstrumentoPage({
                     <div className="text-xs font-normal normal-case text-slate-400">{p.valorMax}</div>
                   </th>
                 ))}
-                <th className="px-3 py-2 text-center">Total</th>
+                <th className="px-3 py-2 text-center">
+                  Total
+                  <div className="text-xs font-normal normal-case text-slate-400">{instrumentoMax}</div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

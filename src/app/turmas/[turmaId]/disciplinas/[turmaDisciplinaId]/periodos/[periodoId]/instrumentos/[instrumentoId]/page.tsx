@@ -455,17 +455,17 @@ export default function InstrumentoPage({
 
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="grelha min-w-full text-sm">
-            <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <thead className="text-xs font-medium uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-3 py-2 text-left">Nº</th>
-                <th className="px-3 py-2 text-left">Nome</th>
+                <th className="sticky top-14 z-20 bg-slate-50 px-3 py-2 text-left">Nº</th>
+                <th className="sticky top-14 z-20 bg-slate-50 px-3 py-2 text-left">Nome</th>
                 {instrumento.perguntas.map((p) => (
-                  <th key={p.id} className="px-2 py-2 text-center">
+                  <th key={p.id} className="sticky top-14 z-20 bg-slate-50 px-2 py-2 text-center">
                     {p.codigo}
                     <div className="text-xs font-normal normal-case text-slate-400">{p.valorMax}</div>
                   </th>
                 ))}
-                <th className="px-3 py-2 text-center">
+                <th className="sticky top-14 z-20 bg-slate-50 px-3 py-2 text-center">
                   Total
                   <div className="text-xs font-normal normal-case text-slate-400">{instrumentoMax}</div>
                 </th>

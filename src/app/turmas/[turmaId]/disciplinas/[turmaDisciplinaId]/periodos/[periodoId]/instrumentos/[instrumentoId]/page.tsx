@@ -93,6 +93,7 @@ export default function InstrumentoPage({
   const recognitionRef = useRef<SpeechRecognitionInstance>(null);
   const flatCellsRef = useRef<CelulaGrelha[]>([]);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const celulaSelecionadaRef = useRef(0);
 
   const disciplinaBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
 
@@ -288,7 +289,8 @@ export default function InstrumentoPage({
     recognitionRef.current = recognition;
     ditandoRef.current = true;
     setADitar(true);
-    setActiveIndex(0);
+    const max = flatCellsRef.current.length - 1;
+    setActiveIndex(Math.min(Math.max(celulaSelecionadaRef.current, 0), Math.max(max, 0)));
     setUltimoOuvido(null);
     setAvisoDitado(null);
     recognition.start();
@@ -499,6 +501,9 @@ export default function InstrumentoPage({
                             step="0.5"
                             value={notas[aluno.id]?.[p.id] ?? ''}
                             onChange={(e) => atualizarNota(aluno.id, p.id, e.target.value)}
+                            onFocus={() => {
+                              celulaSelecionadaRef.current = cellIndex;
+                            }}
                             aria-label={`Nota de ${aluno.nome} na pergunta ${p.codigo}`}
                             aria-invalid={excedeu}
                             title={excedeu ? `Acima do máximo da pergunta (${p.valorMax})` : undefined}

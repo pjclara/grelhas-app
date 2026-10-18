@@ -544,40 +544,60 @@ export default function InstrumentoPage({
   }, [alunos, instrumento, notas]);
 
   /**
-   * Média de cada pergunta entre os alunos com nota lançada nela (ignorando
-   * notas acima do valor máximo da pergunta, provavelmente lançadas por
-   * engano); `incompleta` assinala que alguma nota foi ignorada por isso.
+   * Alunos com pelo menos uma nota acima do valor máximo de alguma pergunta
+   * (ex.: fez uma versão diferente do teste) — são excluídos por inteiro da
+   * Ponderação e da Média da turma, para não distorcerem as estatísticas das
+   * restantes perguntas, mesmo nas que responderam normalmente.
    */
+  const alunosExcluidos = useMemo(() => {
+    const excluidos = new Set<string>();
+    if (!instrumento) return excluidos;
+    for (const aluno of alunos) {
+      for (const pergunta of instrumento.perguntas) {
+        const v = notas[aluno.id]?.[pergunta.id];
+        if (v !== undefined && v !== '' && Number(v) > pergunta.valorMax) {
+          excluidos.add(aluno.id);
+          break;
+        }
+      }
+    }
+    return excluidos;
+  }, [alunos, instrumento, notas]);
+
+  const alunosParaEstatisticas = useMemo(
+    () => alunos.filter((aluno) => !alunosExcluidos.has(aluno.id)),
+    [alunos, alunosExcluidos]
+  );
+
+  /** Média de cada pergunta entre os alunos sem notas inválidas no instrumento. */
   const mediaPorPergunta = useMemo(() => {
     if (!instrumento) return {};
-    const resultado: Record<string, { media: number | null; incompleta: boolean }> = {};
+    const resultado: Record<string, { media: number | null }> = {};
     for (const pergunta of instrumento.perguntas) {
-      const todas = alunos
+      const valores = alunosParaEstatisticas
         .map((aluno) => notas[aluno.id]?.[pergunta.id])
         .filter((v): v is string => v !== undefined && v !== '')
         .map(Number);
-      const validas = todas.filter((v) => v <= pergunta.valorMax);
       resultado[pergunta.id] = {
-        media: validas.length > 0 ? validas.reduce((acc, v) => acc + v, 0) / validas.length : null,
-        incompleta: validas.length !== todas.length,
+        media: valores.length > 0 ? valores.reduce((acc, v) => acc + v, 0) / valores.length : null,
       };
     }
     return resultado;
-  }, [alunos, instrumento, notas]);
+  }, [alunosParaEstatisticas, instrumento, notas]);
 
-  /** Média da turma (soma/max de cada aluno com pelo menos uma nota lançada). */
+  /** Média da turma (soma/max), só com alunos sem notas inválidas no instrumento. */
   const mediaTurma = useMemo(() => {
-    const comNota = Object.values(totais).filter((t) => t.preenchido);
+    const comNota = alunosParaEstatisticas.map((a) => totais[a.id]).filter((t) => t?.preenchido);
     if (comNota.length === 0) return null;
     return comNota.reduce((acc, t) => acc + t.soma, 0) / comNota.length;
-  }, [totais]);
+  }, [alunosParaEstatisticas, totais]);
 
-  /** % de alunos da turma com nota negativa (soma abaixo de 50% do máximo) neste instrumento. */
+  /** % de alunos da turma com nota negativa (soma abaixo de 50% do máximo), só entre os sem notas inválidas. */
   const percentNegativasTurma = useMemo(() => {
-    const comNota = Object.values(totais).filter((t) => t.preenchido);
+    const comNota = alunosParaEstatisticas.map((a) => totais[a.id]).filter((t) => t?.preenchido);
     if (comNota.length === 0) return null;
     return (comNota.filter((t) => t.soma < t.max / 2).length / comNota.length) * 100;
-  }, [totais]);
+  }, [alunosParaEstatisticas, totais]);
 
   async function guardar() {
     if (!instrumento) return;
@@ -838,10 +858,21 @@ export default function InstrumentoPage({
             <tbody className="divide-y divide-slate-100">
               {alunos.map((aluno) => {
                 const total = totais[aluno.id];
+                const excluido = alunosExcluidos.has(aluno.id);
                 return (
                   <tr key={aluno.id} className="hover:bg-slate-50/70">
                     <td className="px-3 py-1.5 tabular-nums text-slate-500">{aluno.numero}</td>
-                    <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">{aluno.nome}</td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">
+                      {aluno.nome}
+                      {excluido && (
+                        <span
+                          className="ml-1.5 inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
+                          title="Tem uma nota acima do valor máximo nalguma pergunta; as suas notas não contam para a Ponderação nem para a Média da turma."
+                        >
+                          excluído(a)
+                        </span>
+                      )}
+                    </td>
                     {instrumento.perguntas.map((p, pIdx) => {
                       const cellKey = `${aluno.id}:${p.id}`;
                       const cellIndex = alunos.indexOf(aluno) * instrumento.perguntas.length + pIdx;
@@ -901,9 +932,8 @@ export default function InstrumentoPage({
                       <td
                         key={p.id}
                         className={`px-2 py-1.5 text-center tabular-nums ${pct != null && pct < 50 ? 'font-semibold text-red-600' : 'text-slate-700'}`}
-                        title={info?.incompleta ? 'Nem todas as notas foram consideradas (acima do valor máximo da pergunta)' : undefined}
                       >
-                        {pct != null ? `${pct.toFixed(1)}%${info?.incompleta ? '*' : ''}` : '—'}
+                        {pct != null ? `${pct.toFixed(1)}%` : '—'}
                       </td>
                     );
                   })}
@@ -919,10 +949,12 @@ export default function InstrumentoPage({
             )}
           </table>
         </div>
-        {Object.values(mediaPorPergunta).some((info) => info.incompleta) && (
+        {alunosExcluidos.size > 0 && (
           <p className="mt-1.5 text-xs text-slate-400">
-            * Nem todas as notas foram consideradas para a ponderação desta pergunta (havia notas acima do valor
-            máximo).
+            {alunosExcluidos.size === 1 ? '1 aluno não conta' : `${alunosExcluidos.size} alunos não contam`} para a
+            Ponderação nem para a Média da turma, por ter{alunosExcluidos.size === 1 ? '' : 'em'} uma nota acima do
+            valor máximo nalguma pergunta (ex.: versão diferente do teste) — assinalado{alunosExcluidos.size === 1 ? '' : 's'} a
+            laranja.
           </p>
         )}
 

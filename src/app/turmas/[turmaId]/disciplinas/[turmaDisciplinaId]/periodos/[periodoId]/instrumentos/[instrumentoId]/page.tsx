@@ -76,7 +76,10 @@ const DEZENAS: Record<string, number> = {
 
 /** Tenta ler um número ditado por extenso (0 a 50), incluindo compostos como "quarenta e sete". */
 function extrairNumeroPorExtenso(transcript: string): string | null {
-  const palavras = transcript.split(/\s+/);
+  // remove pontuação (ex.: "nove." no fim de uma frase ditada) antes de comparar palavras
+  const palavras = transcript
+    .split(/\s+/)
+    .map((p) => p.replace(/[^a-zà-úA-ZÀ-Ú]/g, ''));
   for (let i = 0; i < palavras.length; i++) {
     const palavra = palavras[i];
     if (palavra in DEZENAS) {
@@ -224,11 +227,13 @@ export default function InstrumentoPage({
   }, [activeIndex, aDitar]);
 
   function avancarCelula(delta: number) {
-    setActiveIndex((i) => {
-      const max = flatCellsRef.current.length - 1;
-      if (max < 0) return 0;
-      return Math.min(Math.max(i + delta, 0), max);
-    });
+    const max = flatCellsRef.current.length - 1;
+    // Usa activeIndexRef (já sincronizado) em vez do estado, para que números
+    // ditados em sequência rápida não leiam um índice desatualizado antes de
+    // o React re-renderizar.
+    const novo = max < 0 ? 0 : Math.min(Math.max(activeIndexRef.current + delta, 0), max);
+    activeIndexRef.current = novo;
+    setActiveIndex(novo);
   }
 
   /** Salta diretamente para a célula referida por "aluno [número] X" e/ou "pergunta/questão/item Y". */
@@ -269,7 +274,9 @@ export default function InstrumentoPage({
       return;
     }
     setAvisoDitado(null);
-    setActiveIndex(alunoIdx * numPerguntas + perguntaIdx);
+    const novo = alunoIdx * numPerguntas + perguntaIdx;
+    activeIndexRef.current = novo;
+    setActiveIndex(novo);
   }
 
   function processarTranscript(transcriptBruto: string) {
@@ -318,11 +325,12 @@ export default function InstrumentoPage({
     }
     const recognition: SpeechRecognitionInstance = new SpeechRecognitionCtor();
     recognition.lang = 'pt-PT';
-    // Em modo contínuo, o reconhecedor por vezes funde um número repetido
-    // (ex.: "5", "5") no resultado anterior e não chega a disparar um novo
-    // "onresult" — reiniciar uma sessão nova a cada frase (via onend, abaixo)
-    // garante que cada número ditado é tratado como entrada independente.
-    recognition.continuous = false;
+    // Modo contínuo: parar/reiniciar a sessão a cada frase (como "continuous = false"
+    // faria) perdia números ditados depressa a seguir uns aos outros, por não haver
+    // microfone ativo durante o reinício. O índice da célula atual é mantido em
+    // activeIndexRef e atualizado de forma síncrona (ver avancarCelula/navegarParaCelula),
+    // para que números repetidos ou em sequência rápida nunca leiam um índice desatualizado.
+    recognition.continuous = true;
     recognition.interimResults = false;
 
     recognition.onresult = (event: any) => {

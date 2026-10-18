@@ -261,7 +261,11 @@ export default function InstrumentoPage({
     }
     const recognition: SpeechRecognitionInstance = new SpeechRecognitionCtor();
     recognition.lang = 'pt-PT';
-    recognition.continuous = true;
+    // Em modo contínuo, o reconhecedor por vezes funde um número repetido
+    // (ex.: "5", "5") no resultado anterior e não chega a disparar um novo
+    // "onresult" — reiniciar uma sessão nova a cada frase (via onend, abaixo)
+    // garante que cada número ditado é tratado como entrada independente.
+    recognition.continuous = false;
     recognition.interimResults = false;
 
     recognition.onresult = (event: any) => {

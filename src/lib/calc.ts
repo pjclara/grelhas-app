@@ -84,13 +84,7 @@ export function calcularInstrumento(
 
   for (const pergunta of instrumento.perguntas) {
     const valor = notas[pergunta.id];
-    const valorMaxItem = instrumento.modo === 'ESCALA' ? instrumento.escalaMax : pergunta.valorMax;
-    // Nota acima do máximo do item: a pergunta não se aplica a este aluno (ex.: versão
-    // diferente do teste) — excluída do total em vez de penalizar como errada.
-    if (valor !== null && valor !== undefined && valor > valorMaxItem) {
-      continue;
-    }
-    max += valorMaxItem;
+    max += instrumento.modo === 'ESCALA' ? instrumento.escalaMax : pergunta.valorMax;
     if (valor !== null && valor !== undefined) {
       algumPreenchido = true;
       soma += valor;

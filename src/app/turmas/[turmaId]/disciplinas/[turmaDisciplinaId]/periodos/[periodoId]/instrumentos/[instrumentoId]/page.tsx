@@ -527,21 +527,15 @@ export default function InstrumentoPage({
   const totais = useMemo(() => {
     if (!instrumento) return {};
     const resultado: Record<string, { soma: number; max: number; preenchido: boolean }> = {};
+    const max = instrumentoMax;
     for (const aluno of alunos) {
       let soma = 0;
-      let max = 0;
       let preenchido = false;
       for (const pergunta of instrumento.perguntas) {
-        const valorMaxItem = instrumento.modo === 'ESCALA' ? instrumento.escalaMax : pergunta.valorMax;
         const v = notas[aluno.id]?.[pergunta.id];
-        const numero = v !== undefined && v !== '' ? Number(v) : null;
-        // Nota acima do máximo do item: pergunta não se aplica a este aluno (ex.: versão
-        // diferente do teste) — excluída do total, tal como já é feito na Ponderação.
-        if (numero !== null && numero > valorMaxItem) continue;
-        max += valorMaxItem;
-        if (numero !== null) {
+        if (v !== undefined && v !== '') {
           preenchido = true;
-          soma += numero;
+          soma += Number(v);
         }
       }
       resultado[aluno.id] = { soma, max, preenchido };
@@ -571,11 +565,11 @@ export default function InstrumentoPage({
     return resultado;
   }, [alunos, instrumento, notas]);
 
-  /** Média da turma em percentagem (soma/max de cada aluno com pelo menos uma nota lançada). */
+  /** Média da turma (soma/max de cada aluno com pelo menos uma nota lançada). */
   const mediaTurma = useMemo(() => {
-    const comNota = Object.values(totais).filter((t) => t.preenchido && t.max > 0);
+    const comNota = Object.values(totais).filter((t) => t.preenchido);
     if (comNota.length === 0) return null;
-    return comNota.reduce((acc, t) => acc + (t.soma / t.max) * 100, 0) / comNota.length;
+    return comNota.reduce((acc, t) => acc + t.soma, 0) / comNota.length;
   }, [totais]);
 
   /** % de alunos da turma com nota negativa (soma abaixo de 50% do máximo) neste instrumento. */
@@ -886,7 +880,7 @@ export default function InstrumentoPage({
                     })}
                     <td
                       className={`px-3 py-1.5 text-center font-medium ${
-                        total?.preenchido && total.soma < total.max / 2 ? 'text-red-600' : 'text-slate-900'
+                        total?.preenchido && total.soma < 100 ? 'text-red-600' : 'text-slate-900'
                       }`}
                     >
                       {total?.preenchido ? total.soma : '—'}

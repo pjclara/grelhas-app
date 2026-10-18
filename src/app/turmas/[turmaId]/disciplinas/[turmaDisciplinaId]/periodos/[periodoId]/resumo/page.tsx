@@ -70,6 +70,16 @@ export default function ResumoPage({
     instrumentos: resumo.instrumentos.filter((i) => i.criterioId === c.id).sort((a, b) => a.ordem - b.ordem),
   }));
 
+  // % de alunos com nota negativa (< 50%) no instrumento, para destacar no cabeçalho da coluna.
+  const resultados = resumo.resultados;
+  function percentNegativasInstrumento(instrumentoId: string): number | null {
+    const valores = resultados
+      .map((r) => r.porInstrumento.find((x) => x.instrumentoId === instrumentoId)?.percent)
+      .filter((v): v is number => v != null);
+    if (valores.length === 0) return null;
+    return (valores.filter((v) => v < 50).length / valores.length) * 100;
+  }
+
   return (
     <AppShell width="full">
       <div className="mx-auto max-w-screen-2xl">
@@ -130,11 +140,22 @@ export default function ResumoPage({
                 {instrumentosPorCriterio.flatMap(({ criterio: c, instrumentos }) =>
                   instrumentos.length > 0
                     ? [
-                        ...instrumentos.map((i) => (
-                          <th key={i.id} className="whitespace-nowrap px-2 py-1 text-center text-xs font-normal normal-case text-slate-500">
-                            {i.nome}
-                          </th>
-                        )),
+                        ...instrumentos.map((i) => {
+                          const pctNegativas = percentNegativasInstrumento(i.id);
+                          return (
+                            <th key={i.id} className="whitespace-nowrap px-2 py-1 text-center text-xs font-normal normal-case text-slate-500">
+                              {pctNegativas != null && (
+                                <span
+                                  className="mr-1 inline-flex items-center rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-600"
+                                  title="% de alunos com nota negativa neste instrumento"
+                                >
+                                  {pctNegativas.toFixed(0)}%
+                                </span>
+                              )}
+                              {i.nome}
+                            </th>
+                          );
+                        }),
                         <th key={`${c.id}-media`} className="px-2 py-1 text-center text-xs font-medium normal-case text-slate-600">
                           Média
                         </th>,

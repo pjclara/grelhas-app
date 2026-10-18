@@ -138,25 +138,35 @@ export default function TurmaDisciplinaPage({
         </Card>
 
         {periodosRelevantes.map((periodo) => (
-          <Card key={periodo.id} className="p-4">
-            <h2 className="font-semibold text-slate-900">{periodo.nome}</h2>
-            <div className="mt-3 flex flex-col gap-2 text-sm">
+          <div key={periodo.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
+            <h2 className="mb-3 font-semibold text-slate-900">{periodo.nome}</h2>
+            <div className="flex flex-col gap-2">
               <Link
                 href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${periodo.id}/instrumentos`}
-                className="flex items-center gap-1.5 text-brand-600 hover:underline"
+                className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
               >
-                <ClipboardList className="h-3.5 w-3.5" />
-                Instrumentos e lançamento de notas
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+                  <ClipboardList className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Instrumentos</p>
+                  <p className="text-xs text-slate-500">Criar instrumentos e lançar notas</p>
+                </div>
               </Link>
               <Link
                 href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${periodo.id}/resumo`}
-                className="flex items-center gap-1.5 text-brand-600 hover:underline"
+                className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
               >
-                <FileBarChart className="h-3.5 w-3.5" />
-                Resumo e nota final
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+                  <FileBarChart className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Resumo</p>
+                  <p className="text-xs text-slate-500">Nota final e nível de cada aluno</p>
+                </div>
               </Link>
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     </AppShell>

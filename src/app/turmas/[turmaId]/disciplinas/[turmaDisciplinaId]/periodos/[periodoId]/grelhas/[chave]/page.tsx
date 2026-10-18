@@ -163,6 +163,17 @@ export default function GrelhaPage({
     return algumaPreenchida ? soma : null;
   }
 
+  /** % de alunos da turma com soma negativa (abaixo de 50% do máximo) nesta grelha. */
+  const percentNegativasTurma = (() => {
+    if (!grelha) return null;
+    const max = grelha.colunas.length * grelha.escalaMax;
+    const somas = grelha.alunos
+      .map((a) => somaAluno(a.id))
+      .filter((s): s is number => s != null);
+    if (somas.length === 0 || max === 0) return null;
+    return (somas.filter((s) => s < max / 2).length / somas.length) * 100;
+  })();
+
   function mudarOcorrencia(n: number) {
     if (n === ocorrencia) return;
     if (porGuardar && !confirm('Há alterações por guardar nesta avaliação. Descartá-las?')) return;
@@ -295,6 +306,14 @@ export default function GrelhaPage({
                         <div className="text-xs font-normal normal-case text-slate-400">
                           máx. {grelha.colunas.length * grelha.escalaMax}
                         </div>
+                        {percentNegativasTurma != null && (
+                          <div
+                            className="mt-0.5 text-xs font-semibold normal-case text-red-600"
+                            title="% de alunos da turma com nota negativa nesta grelha"
+                          >
+                            {percentNegativasTurma.toFixed(0)}% negativas
+                          </div>
+                        )}
                       </th>
                     </tr>
                   </thead>

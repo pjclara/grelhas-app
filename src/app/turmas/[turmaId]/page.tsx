@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Users, BookOpen, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Plus, Users, BookOpen, Lightbulb } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -63,17 +63,6 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
     }
     setDisciplinaId('');
     setMostrarForm(false);
-    carregar();
-  }
-
-  async function removerDisciplina(turmaDisciplinaId: string, nome: string) {
-    if (
-      !confirm(
-        `Remover "${nome}" desta turma? Isto apaga os critérios, instrumentos, notas e inscrições dessa disciplina. Esta ação não pode ser desfeita.`
-      )
-    )
-      return;
-    await fetch(`/api/turmas/${params.turmaId}/disciplinas/${turmaDisciplinaId}`, { method: 'DELETE' });
     carregar();
   }
 
@@ -186,23 +175,12 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {turma.disciplinas.map((td) => (
-          <div key={td.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
-            <div className="flex items-start justify-between gap-2">
-              <Link
-                href={`/turmas/${turma.id}/disciplinas/${td.id}`}
-                className="font-semibold text-slate-900 hover:text-brand-700"
-              >
-                {td.disciplina.nome}
-              </Link>
-              <button
-                onClick={() => removerDisciplina(td.id, td.disciplina.nome)}
-                aria-label="Remover disciplina"
-                title="Apaga também critérios, instrumentos, notas e inscrições desta disciplina nesta turma"
-                className="rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
+          <Link
+            key={td.id}
+            href={`/turmas/${turma.id}/disciplinas/${td.id}`}
+            className="rounded-lg border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+          >
+            <p className="font-semibold text-slate-900">{td.disciplina.nome}</p>
             <p className="mt-1 text-xs text-slate-400">
               {td.disciplina.ciclos.length > 0 ? td.disciplina.ciclos.map((dc) => dc.ciclo.nome).join(', ') : '—'}
               {td.disciplina.periodicidade === 'SEMESTRAL' && ` · ${nomeSemestre(td.disciplina.semestre)}`}
@@ -211,7 +189,7 @@ export default function TurmaPage({ params }: { params: { turmaId: string } }) {
               <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               Abra para definir critérios e inscrever alunos.
             </p>
-          </div>
+          </Link>
         ))}
         {turma.disciplinas.length === 0 && (
           <div className="sm:col-span-2 lg:col-span-3">

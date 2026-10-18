@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Users, ClipboardList, FileBarChart } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Users, ClipboardList, FileBarChart, Trash2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
 import type { AlunoTurma, Periodo, TurmaDisciplinaDetalhe } from '@/lib/types';
@@ -22,6 +24,7 @@ export default function TurmaDisciplinaPage({
 }: {
   params: { turmaId: string; turmaDisciplinaId: string };
 }) {
+  const router = useRouter();
   const [turmaDisciplina, setTurmaDisciplina] = useState<TurmaDisciplinaDetalhe | null>(null);
   const [periodos, setPeriodos] = useState<Periodo[]>([]);
   const [inscricoes, setInscricoes] = useState<Inscricao[]>([]);
@@ -45,6 +48,24 @@ export default function TurmaDisciplinaPage({
     }
     carregar();
   }, [params.turmaId, params.turmaDisciplinaId]);
+
+  async function removerDisciplina() {
+    if (!turmaDisciplina) return;
+    if (
+      !confirm(
+        `Remover "${turmaDisciplina.disciplina.nome}" desta turma? Isto apaga os critérios, instrumentos, notas e inscrições dessa disciplina. Esta ação não pode ser desfeita.`
+      )
+    )
+      return;
+    const res = await fetch(`/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      alert('Não foi possível remover a disciplina.');
+      return;
+    }
+    router.push(`/turmas/${params.turmaId}`);
+  }
 
   const alunosInscritos = inscricoes.filter((i) => i.ativo).map((i) => i.aluno);
   // Disciplina semestral: só mostra o período do semestre definido no catálogo.
@@ -82,7 +103,18 @@ export default function TurmaDisciplinaPage({
           { label: turmaDisciplina.disciplina.nome },
         ]}
       />
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{turmaDisciplina.disciplina.nome}</h1>
+      <div className="mb-1 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{turmaDisciplina.disciplina.nome}</h1>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={removerDisciplina}
+          title="Apaga também critérios, instrumentos, notas e inscrições desta disciplina nesta turma"
+        >
+          <Trash2 className="h-4 w-4 text-red-500" />
+          Remover disciplina
+        </Button>
+      </div>
       <p className="mb-4 text-sm text-slate-500">
         {turmaDisciplina.disciplina.periodicidade === 'SEMESTRAL'
           ? `Semestral — ${turmaDisciplina.disciplina.semestre === 2 ? '2.º Semestre' : '1.º Semestre'}`

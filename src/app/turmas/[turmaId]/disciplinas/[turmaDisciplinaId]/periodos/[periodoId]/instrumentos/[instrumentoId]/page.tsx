@@ -572,6 +572,13 @@ export default function InstrumentoPage({
     return comNota.reduce((acc, t) => acc + t.soma, 0) / comNota.length;
   }, [totais]);
 
+  /** % de alunos da turma com nota negativa (soma abaixo de 50% do máximo) neste instrumento. */
+  const percentNegativasTurma = useMemo(() => {
+    const comNota = Object.values(totais).filter((t) => t.preenchido);
+    if (comNota.length === 0) return null;
+    return (comNota.filter((t) => t.soma < t.max / 2).length / comNota.length) * 100;
+  }, [totais]);
+
   async function guardar() {
     if (!instrumento) return;
     setAGuardar(true);
@@ -817,6 +824,14 @@ export default function InstrumentoPage({
                 <th className="sticky top-0 z-20 bg-slate-50 px-3 py-2 text-center">
                   Total
                   <div className="text-xs font-normal normal-case text-slate-400">{instrumentoMax}</div>
+                  {percentNegativasTurma != null && (
+                    <div
+                      className="mt-0.5 text-xs font-semibold normal-case text-red-600"
+                      title="% de alunos da turma com nota negativa neste instrumento"
+                    >
+                      {percentNegativasTurma.toFixed(0)}% negativas
+                    </div>
+                  )}
                 </th>
               </tr>
             </thead>

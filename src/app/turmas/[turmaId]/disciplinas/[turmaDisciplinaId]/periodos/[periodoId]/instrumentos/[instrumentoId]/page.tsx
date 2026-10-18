@@ -38,7 +38,10 @@ const PALAVRAS_LIMPAR = ['apagar', 'limpar', 'vazio'];
 function extrairNumero(transcript: string): string | null {
   const normalizado = transcript.replace(',', '.');
   const match = normalizado.match(/-?\d+(?:\.\d+)?/);
-  return match ? match[0] : null;
+  if (match) return match[0];
+  // Alguns reconhecedores transcrevem "zero" falado como a palavra em vez do dígito.
+  if (/\bzero\b/.test(normalizado)) return '0';
+  return null;
 }
 
 /** Normaliza um código de pergunta para comparação (minúsculas, sem pontos/espaços). */

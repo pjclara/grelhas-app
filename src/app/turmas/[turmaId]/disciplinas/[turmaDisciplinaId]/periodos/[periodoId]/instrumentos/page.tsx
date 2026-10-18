@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Table2, ExternalLink } from 'lucide-react';
+import { Plus, Pencil, Trash2, Table2, ExternalLink, Eye } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
@@ -29,7 +29,6 @@ export default function InstrumentosPage({
   const [aCarregar, setACarregar] = useState(true);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
-  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nomes, setNomes] = useState<{ turma: string; disciplina: string } | null>(null);
 
   const [nome, setNome] = useState('');
@@ -136,7 +135,6 @@ export default function InstrumentosPage({
   }
 
   function abrirNovo() {
-    setEditandoId(null);
     setNome('');
     setCriterioId('');
     setModo('PONTOS');
@@ -148,24 +146,8 @@ export default function InstrumentosPage({
     setMostrarForm(true);
   }
 
-  function iniciarEdicao(instrumento: Instrumento) {
-    setEditandoId(instrumento.id);
-    setNome(instrumento.nome);
-    setCriterioId(instrumento.criterioId);
-    setModo(instrumento.modo);
-    setEscalaMax(String(instrumento.escalaMax));
-    setTema(instrumento.tema ?? '');
-    setData(instrumento.data.slice(0, 10));
-    setPerguntas(
-      instrumento.perguntas.map((p) => ({ id: p.id, codigo: p.codigo, valorMax: String(p.valorMax) }))
-    );
-    setErro(null);
-    setMostrarForm(true);
-  }
-
   function fecharForm() {
     setMostrarForm(false);
-    setEditandoId(null);
   }
 
   async function guardarInstrumento(e: React.FormEvent) {
@@ -189,7 +171,7 @@ export default function InstrumentosPage({
       escalaMax: Number(escalaMax) || 5,
       tema: tema || null,
       data,
-      ordem: editandoId ? undefined : instrumentos.length,
+      ordem: instrumentos.length,
       perguntas: perguntasValidas.map((p, idx) => ({
         id: p.id,
         codigo: p.codigo,
@@ -197,20 +179,14 @@ export default function InstrumentosPage({
         ordem: idx,
       })),
     };
-    const res = editandoId
-      ? await fetch(`${disciplinaBase}/instrumentos/${editandoId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(corpo),
-        })
-      : await fetch(`${disciplinaBase}/instrumentos`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(corpo),
-        });
+    const res = await fetch(`${disciplinaBase}/instrumentos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    });
     setAGravar(false);
     if (!res.ok) {
-      setErro(editandoId ? 'Não foi possível guardar as alterações.' : 'Não foi possível criar o instrumento.');
+      setErro('Não foi possível criar o instrumento.');
       return;
     }
     fecharForm();
@@ -357,7 +333,7 @@ export default function InstrumentosPage({
 
           {erro && <Alert tone="danger">{erro}</Alert>}
           <Button type="submit" loading={aGravar}>
-            {editandoId ? 'Guardar alterações' : 'Criar instrumento'}
+            Criar instrumento
           </Button>
         </Card>
       )}
@@ -404,14 +380,25 @@ export default function InstrumentosPage({
                 </p>
               </div>
               <div className="flex gap-1">
-                <Button size="sm" variant="ghost" onClick={() => iniciarEdicao(i)} aria-label="Editar">
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                <Link
+                  href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/instrumentos/${i.id}?ver=1`}
+                >
+                  <Button size="sm" variant="ghost" aria-label="Ver" title="Ver notas sem editar">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link
+                  href={`/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/instrumentos/${i.id}`}
+                >
+                  <Button size="sm" variant="ghost" aria-label="Editar tabela" title="Editar tabela de notas">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </Link>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => remover(i.id)}
-                  aria-label="Remover"
+                  aria-label="Apagar instrumento"
                   title="Apaga também todas as notas lançadas neste instrumento"
                 >
                   <Trash2 className="h-4 w-4 text-red-500" />

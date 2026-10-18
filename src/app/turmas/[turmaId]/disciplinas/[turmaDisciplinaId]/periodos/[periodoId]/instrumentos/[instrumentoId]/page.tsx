@@ -2,17 +2,27 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Mic, Square, CheckCircle2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { ArrowLeft, Mic, Square, CheckCircle2, Eye, Settings2, Plus, Trash2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { ExportButtons } from '@/components/ui/ExportButtons';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Input, Select, Textarea } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
-import type { AlunoTurma, Instrumento } from '@/lib/types';
+import type { AlunoTurma, Criterio, Instrumento, ModoAvaliacao } from '@/lib/types';
 
 interface NotaValor {
   [perguntaId: string]: string; // string para permitir campo vazio no input
+}
+
+interface PerguntaForm {
+  id?: string;
+  codigo: string;
+  valorMax: string;
 }
 
 interface CelulaGrelha {
@@ -135,6 +145,8 @@ export default function InstrumentoPage({
 }: {
   params: { turmaId: string; turmaDisciplinaId: string; periodoId: string; instrumentoId: string };
 }) {
+  const searchParams = useSearchParams();
+  const soVer = searchParams.get('ver') === '1';
   const [instrumento, setInstrumento] = useState<Instrumento | null>(null);
   const [alunos, setAlunos] = useState<AlunoTurma[]>([]);
   const [notas, setNotas] = useState<Record<string, NotaValor>>({});
@@ -142,6 +154,19 @@ export default function InstrumentoPage({
   const [guardadoEm, setGuardadoEm] = useState<Date | null>(null);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
   const [nomes, setNomes] = useState<{ turma: string; disciplina: string } | null>(null);
+  const [criterios, setCriterios] = useState<Criterio[]>([]);
+
+  const [mostrarEdicao, setMostrarEdicao] = useState(false);
+  const [nomeEdicao, setNomeEdicao] = useState('');
+  const [criterioIdEdicao, setCriterioIdEdicao] = useState('');
+  const [modoEdicao, setModoEdicao] = useState<ModoAvaliacao>('PONTOS');
+  const [escalaMaxEdicao, setEscalaMaxEdicao] = useState('5');
+  const [temaEdicao, setTemaEdicao] = useState('');
+  const [dataEdicao, setDataEdicao] = useState('');
+  const [perguntasEdicao, setPerguntasEdicao] = useState<PerguntaForm[]>([]);
+  const [colagemEdicao, setColagemEdicao] = useState('');
+  const [erroEdicao, setErroEdicao] = useState<string | null>(null);
+  const [aGravarEdicao, setAGravarEdicao] = useState(false);
 
   const [aDitar, setADitar] = useState(false);
   const [ultimoOuvido, setUltimoOuvido] = useState<string | null>(null);
@@ -158,10 +183,11 @@ export default function InstrumentoPage({
   const disciplinaBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
 
   async function carregar() {
-    const [ri, ra, rtd] = await Promise.all([
+    const [ri, ra, rtd, rc] = await Promise.all([
       fetch(`${disciplinaBase}/instrumentos/${params.instrumentoId}`),
       fetch(`${disciplinaBase}/alunos`),
       fetch(disciplinaBase),
+      fetch(`${disciplinaBase}/criterios`),
     ]);
     if (!ri.ok || !ra.ok) {
       setErroCarregar('Não foi possível carregar o instrumento.');
@@ -170,6 +196,9 @@ export default function InstrumentoPage({
     if (rtd.ok) {
       const td = await rtd.json();
       setNomes({ turma: td.turma?.nome ?? '…', disciplina: td.disciplina.nome });
+    }
+    if (rc.ok) {
+      setCriterios(await rc.json());
     }
     const inst = await ri.json();
     const inscricoes: Inscricao[] = await ra.json();
@@ -198,6 +227,115 @@ export default function InstrumentoPage({
 
   function atualizarNota(alunoId: string, perguntaId: string, valor: string) {
     setNotas((prev) => ({ ...prev, [alunoId]: { ...prev[alunoId], [perguntaId]: valor } }));
+  }
+
+  const criteriosUtilizaveis = criterios.filter((c) => !c.semInstrumentos && c.avaliacao !== 'GRELHA');
+
+  function abrirEdicao() {
+    if (!instrumento) return;
+    setNomeEdicao(instrumento.nome);
+    setCriterioIdEdicao(instrumento.criterioId);
+    setModoEdicao(instrumento.modo);
+    setEscalaMaxEdicao(String(instrumento.escalaMax));
+    setTemaEdicao(instrumento.tema ?? '');
+    setDataEdicao(instrumento.data.slice(0, 10));
+    setPerguntasEdicao(
+      instrumento.perguntas.map((p) => ({ id: p.id, codigo: p.codigo, valorMax: String(p.valorMax) }))
+    );
+    setColagemEdicao('');
+    setErroEdicao(null);
+    setMostrarEdicao(true);
+  }
+
+  function fecharEdicao() {
+    setMostrarEdicao(false);
+  }
+
+  function atualizarPerguntaEdicao(i: number, campo: keyof PerguntaForm, valor: string) {
+    setPerguntasEdicao((prev) => prev.map((p, idx) => (idx === i ? { ...p, [campo]: valor } : p)));
+  }
+
+  function adicionarPerguntaEdicao() {
+    setPerguntasEdicao((prev) => [...prev, { codigo: '', valorMax: '' }]);
+  }
+
+  function removerPerguntaEdicao(i: number) {
+    setPerguntasEdicao((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  // Aceita o mesmo formato colado de uma folha de cálculo usado na criação de instrumentos.
+  function aplicarColagemEdicao() {
+    const linhas = colagemEdicao
+      .split(/\r?\n/)
+      .map((l) => l.split(/\t|;/).map((c) => c.trim()))
+      .filter((cels) => cels.some((c) => c !== ''));
+    const numero = (s: string) => {
+      const n = Number(s.replace(',', '.'));
+      return s !== '' && Number.isFinite(n) ? n : null;
+    };
+    let novas: PerguntaForm[] = [];
+    if (linhas.length === 2 && linhas[0].length > 2) {
+      const [itens, pontos] = linhas.map((l) => l.slice(1));
+      novas = itens
+        .map((codigo, i) => ({ codigo, valor: numero(pontos[i] ?? '') }))
+        .filter((p) => p.codigo !== '' && p.valor !== null && p.codigo.toLowerCase() !== 'total')
+        .map((p) => ({ codigo: p.codigo, valorMax: String(p.valor) }));
+    } else {
+      novas = linhas
+        .map(([codigo, valor]) => ({ codigo, valor: numero(valor ?? '') }))
+        .filter((p) => p.codigo !== '' && p.valor !== null && p.codigo.toLowerCase() !== 'total')
+        .map((p) => ({ codigo: p.codigo, valorMax: String(p.valor) }));
+    }
+    if (novas.length === 0) {
+      setErroEdicao('Não foi possível ler as linhas coladas. Cole uma linha de itens e uma linha de pontos, copiadas do Excel.');
+      return;
+    }
+    setErroEdicao(null);
+    setPerguntasEdicao(novas);
+    setColagemEdicao('');
+  }
+
+  async function guardarEdicao(e: React.FormEvent) {
+    e.preventDefault();
+    if (!instrumento) return;
+    setErroEdicao(null);
+    if (!nomeEdicao || !criterioIdEdicao || !dataEdicao || perguntasEdicao.length === 0) {
+      setErroEdicao('Preencha nome, critério, data da avaliação e pelo menos uma pergunta/item.');
+      return;
+    }
+    const perguntasValidas = perguntasEdicao.filter((p) => p.codigo && p.valorMax);
+    if (perguntasValidas.length === 0) {
+      setErroEdicao('Adicione pelo menos uma pergunta/item com valor máximo.');
+      return;
+    }
+    setAGravarEdicao(true);
+    const corpo = {
+      periodoId: params.periodoId,
+      criterioId: criterioIdEdicao,
+      nome: nomeEdicao,
+      modo: modoEdicao,
+      escalaMax: Number(escalaMaxEdicao) || 5,
+      tema: temaEdicao || null,
+      data: dataEdicao,
+      perguntas: perguntasValidas.map((p, idx) => ({
+        id: p.id,
+        codigo: p.codigo,
+        valorMax: Number(p.valorMax),
+        ordem: idx,
+      })),
+    };
+    const res = await fetch(`${disciplinaBase}/instrumentos/${instrumento.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    });
+    setAGravarEdicao(false);
+    if (!res.ok) {
+      setErroEdicao('Não foi possível guardar as alterações.');
+      return;
+    }
+    fecharEdicao();
+    carregar();
   }
 
   // Lista plana de células (aluno × pergunta) pela ordem em que aparecem na grelha,
@@ -497,11 +635,24 @@ export default function InstrumentoPage({
               pdfHref={`${disciplinaBase}/instrumentos/${instrumento.id}/export/pdf`}
               xlsxHref={`${disciplinaBase}/instrumentos/${instrumento.id}/export/xlsx`}
             />
-            {ditadoSuportado && (
-              <Button variant={aDitar ? 'danger' : 'primary'} onClick={() => (aDitar ? pararDitado() : iniciarDitado())}>
-                {aDitar ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                {aDitar ? 'Parar ditado' : 'Ditar notas'}
-              </Button>
+            {soVer ? (
+              <span className="flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600">
+                <Eye className="h-4 w-4" />
+                Modo de visualização
+              </span>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={() => (mostrarEdicao ? fecharEdicao() : abrirEdicao())}>
+                  <Settings2 className="h-4 w-4" />
+                  Editar instrumento
+                </Button>
+                {ditadoSuportado && (
+                  <Button variant={aDitar ? 'danger' : 'primary'} onClick={() => (aDitar ? pararDitado() : iniciarDitado())}>
+                    {aDitar ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    {aDitar ? 'Parar ditado' : 'Ditar notas'}
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -510,7 +661,131 @@ export default function InstrumentoPage({
           {instrumento.modo === 'PONTOS' ? 'pontos por pergunta' : `escala de 1 a ${instrumento.escalaMax}`}
         </p>
 
-        {aDitar && (
+        {mostrarEdicao && (
+          <Card as="form" onSubmit={guardarEdicao} className="mb-6 space-y-4 p-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="nome-instrumento-edicao">Nome</Label>
+                <Input
+                  id="nome-instrumento-edicao"
+                  value={nomeEdicao}
+                  onChange={(e) => setNomeEdicao(e.target.value)}
+                  placeholder="ex: Teste de Avaliação 1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="criterio-edicao">Critério</Label>
+                <Select id="criterio-edicao" value={criterioIdEdicao} onChange={(e) => setCriterioIdEdicao(e.target.value)}>
+                  <option value="">Selecionar…</option>
+                  {criteriosUtilizaveis.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.grupo} — {c.nome}
+                      {c.pesoDefinido === false ? '' : ` (${Math.round(c.peso * 1000) / 10}%)`}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="modo-edicao">Modo de avaliação</Label>
+                <Select id="modo-edicao" value={modoEdicao} onChange={(e) => setModoEdicao(e.target.value as ModoAvaliacao)}>
+                  <option value="PONTOS">Pontos por pergunta (ex.: teste)</option>
+                  <option value="ESCALA">Escala (ex.: 1 a 5)</option>
+                </Select>
+              </div>
+              {modoEdicao === 'ESCALA' && (
+                <div>
+                  <Label htmlFor="escala-max-edicao">Escala máxima</Label>
+                  <Input
+                    id="escala-max-edicao"
+                    type="number"
+                    value={escalaMaxEdicao}
+                    onChange={(e) => setEscalaMaxEdicao(e.target.value)}
+                  />
+                </div>
+              )}
+              <div>
+                <Label htmlFor="data-instrumento-edicao">Data da avaliação</Label>
+                <Input
+                  id="data-instrumento-edicao"
+                  type="date"
+                  value={dataEdicao}
+                  onChange={(e) => setDataEdicao(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="tema-edicao">Tema (opcional)</Label>
+                <Input id="tema-edicao" value={temaEdicao} onChange={(e) => setTemaEdicao(e.target.value)} />
+              </div>
+            </div>
+
+            <div>
+              <Label>{modoEdicao === 'PONTOS' ? 'Perguntas' : 'Itens da escala'}</Label>
+              <div className="mb-3">
+                <Label htmlFor="colagem-edicao">Colar da folha de cálculo (opcional)</Label>
+                <Textarea
+                  id="colagem-edicao"
+                  rows={3}
+                  value={colagemEdicao}
+                  onChange={(e) => setColagemEdicao(e.target.value)}
+                  placeholder={'Item\t1\t2a\t2b\t3\t4\tTotal\nPontos\t40\t50\t10\t30\t70\t200'}
+                  className="font-mono"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Substitui as linhas abaixo; pode rever e corrigir antes de guardar.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-2"
+                  onClick={aplicarColagemEdicao}
+                  disabled={!colagemEdicao.trim()}
+                >
+                  Preencher linhas
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {perguntasEdicao.map((p, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      placeholder="Código (ex: 2.1.)"
+                      value={p.codigo}
+                      onChange={(e) => atualizarPerguntaEdicao(i, 'codigo', e.target.value)}
+                      className="w-40"
+                    />
+                    <Input
+                      type="number"
+                      placeholder={modoEdicao === 'PONTOS' ? 'Pontos máx.' : 'Escala máx.'}
+                      value={p.valorMax}
+                      onChange={(e) => atualizarPerguntaEdicao(i, 'valorMax', e.target.value)}
+                      className="w-32"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removerPerguntaEdicao(i)}
+                      aria-label="Remover linha"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button type="button" variant="secondary" size="sm" className="mt-2" onClick={adicionarPerguntaEdicao}>
+                <Plus className="h-4 w-4" />
+                Adicionar linha
+              </Button>
+            </div>
+
+            {erroEdicao && <Alert tone="danger">{erroEdicao}</Alert>}
+            <Button type="submit" loading={aGravarEdicao}>
+              Guardar alterações
+            </Button>
+          </Card>
+        )}
+
+        {!soVer && aDitar && (
           <div className="mb-4 space-y-2">
             <Alert tone="info">
               A ouvir… diga um número para preencher a célula selecionada e avançar. Diga &quot;aluno número 3
@@ -521,7 +796,7 @@ export default function InstrumentoPage({
             {avisoDitado && <Alert tone="warning">{avisoDitado}</Alert>}
           </div>
         )}
-        {!ditadoSuportado && (
+        {!soVer && !ditadoSuportado && (
           <p className="mb-4 text-xs text-slate-400">
             Ditado por voz não suportado neste navegador (funciona no Chrome/Edge).
           </p>
@@ -573,10 +848,11 @@ export default function InstrumentoPage({
                             onFocus={() => {
                               celulaSelecionadaRef.current = cellIndex;
                             }}
+                            disabled={soVer}
                             aria-label={`Nota de ${aluno.nome} na pergunta ${p.codigo}`}
                             aria-invalid={excedeu}
                             title={excedeu ? `Acima do máximo da pergunta (${p.valorMax})` : undefined}
-                            className={`w-16 rounded-md border px-1 py-1 text-center text-sm transition-colors duration-150 focus:outline-none focus:ring-2 ${
+                            className={`w-16 rounded-md border px-1 py-1 text-center text-sm transition-colors duration-150 focus:outline-none focus:ring-2 disabled:bg-slate-50 disabled:text-slate-500 ${
                               excedeu
                                 ? 'border-red-500 bg-red-50 text-red-700 focus:ring-red-500/30'
                                 : `focus:ring-brand-500/30 ${
@@ -635,17 +911,19 @@ export default function InstrumentoPage({
           </p>
         )}
 
-        <div className="mt-4 flex items-center gap-3">
-          <Button onClick={guardar} loading={aGuardar}>
-            {aGuardar ? 'A guardar…' : 'Guardar notas'}
-          </Button>
-          {guardadoEm && (
-            <span className="flex items-center gap-1.5 text-sm text-emerald-600">
-              <CheckCircle2 className="h-4 w-4" />
-              Guardado às {guardadoEm.toLocaleTimeString('pt-PT')}
-            </span>
-          )}
-        </div>
+        {!soVer && (
+          <div className="mt-4 flex items-center gap-3">
+            <Button onClick={guardar} loading={aGuardar}>
+              {aGuardar ? 'A guardar…' : 'Guardar notas'}
+            </Button>
+            {guardadoEm && (
+              <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+                <CheckCircle2 className="h-4 w-4" />
+                Guardado às {guardadoEm.toLocaleTimeString('pt-PT')}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </AppShell>
   );

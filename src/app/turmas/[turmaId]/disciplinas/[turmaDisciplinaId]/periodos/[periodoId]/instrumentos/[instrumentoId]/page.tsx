@@ -34,34 +34,71 @@ const PALAVRAS_RECUAR = ['anterior', 'voltar', 'recuar'];
 const PALAVRAS_PARAR = ['parar', 'terminar', 'sair', 'para'];
 const PALAVRAS_LIMPAR = ['apagar', 'limpar', 'vazio'];
 
-// Alguns reconhecedores transcrevem números pequenos ditados por extenso em
-// vez de dígito (ex.: "nove" em vez de "9") — mapeamos as palavras mais
-// usadas ao ditar notas (0-10).
-const PALAVRAS_NUMERO: Record<string, string> = {
-  zero: '0',
-  um: '1',
-  uma: '1',
-  dois: '2',
-  duas: '2',
-  três: '3',
-  quatro: '4',
-  cinco: '5',
-  seis: '6',
-  sete: '7',
-  oito: '8',
-  nove: '9',
-  dez: '10',
+// Alguns reconhecedores transcrevem números ditados por extenso em vez de
+// dígito (ex.: "nove" em vez de "9"). As notas vão de 0 a 50, por isso é
+// preciso reconhecer também compostos tipo "quarenta e sete".
+const UNIDADES: Record<string, number> = {
+  zero: 0,
+  um: 1,
+  uma: 1,
+  dois: 2,
+  duas: 2,
+  três: 3,
+  quatro: 4,
+  cinco: 5,
+  seis: 6,
+  sete: 7,
+  oito: 8,
+  nove: 9,
 };
+const DEZEN_ESPECIAIS: Record<string, number> = {
+  dez: 10,
+  onze: 11,
+  doze: 12,
+  treze: 13,
+  catorze: 14,
+  quatorze: 14,
+  quinze: 15,
+  dezasseis: 16,
+  dezesseis: 16,
+  dezassete: 17,
+  dezessete: 17,
+  dezoito: 18,
+  dezanove: 19,
+  dezenove: 19,
+};
+const DEZENAS: Record<string, number> = {
+  vinte: 20,
+  trinta: 30,
+  quarenta: 40,
+  cinquenta: 50,
+};
+
+/** Tenta ler um número ditado por extenso (0 a 50), incluindo compostos como "quarenta e sete". */
+function extrairNumeroPorExtenso(transcript: string): string | null {
+  const palavras = transcript.split(/\s+/);
+  for (let i = 0; i < palavras.length; i++) {
+    const palavra = palavras[i];
+    if (palavra in DEZENAS) {
+      const base = DEZENAS[palavra];
+      const unidade = palavras[i + 2];
+      if (palavras[i + 1] === 'e' && unidade in UNIDADES) {
+        return String(base + UNIDADES[unidade]);
+      }
+      return String(base);
+    }
+    if (palavra in DEZEN_ESPECIAIS) return String(DEZEN_ESPECIAIS[palavra]);
+    if (palavra in UNIDADES) return String(UNIDADES[palavra]);
+  }
+  return null;
+}
 
 /** Extrai o primeiro número (com vírgula ou ponto decimal) de uma frase ditada. */
 function extrairNumero(transcript: string): string | null {
   const normalizado = transcript.replace(',', '.');
   const match = normalizado.match(/-?\d+(?:\.\d+)?/);
   if (match) return match[0];
-  for (const [palavra, digito] of Object.entries(PALAVRAS_NUMERO)) {
-    if (new RegExp(`\\b${palavra}\\b`).test(normalizado)) return digito;
-  }
-  return null;
+  return extrairNumeroPorExtenso(normalizado);
 }
 
 /** Normaliza um código de pergunta para comparação (minúsculas, sem pontos/espaços). */

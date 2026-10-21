@@ -299,14 +299,14 @@ export default function GrelhaPage({
             {grelha.alunos.length === 0 ? (
               <Alert tone="warning">Esta disciplina ainda não tem alunos inscritos.</Alert>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+              <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <thead className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                     <tr>
-                      <th className="px-3 py-2">Nº</th>
-                      <th className="px-3 py-2">Nome</th>
+                      <th className="sticky top-0 z-20 bg-slate-50 px-3 py-2">Nº</th>
+                      <th className="sticky top-0 z-20 bg-slate-50 px-3 py-2">Nome</th>
                       {grelha.colunas.map((c) => (
-                        <th key={c.id} className="px-3 py-2 text-center">
+                        <th key={c.id} className="sticky top-0 z-20 bg-slate-50 px-3 py-2 text-center">
                           {c.nome}
                           {c.pesoDefinido && (
                             <div className="text-xs font-normal normal-case text-slate-400">
@@ -315,7 +315,7 @@ export default function GrelhaPage({
                           )}
                         </th>
                       ))}
-                      <th className="px-3 py-2 text-center">
+                      <th className="sticky top-0 z-20 bg-slate-50 px-3 py-2 text-center">
                         Soma
                         <div className="text-xs font-normal normal-case text-slate-400">
                           máx. {grelha.colunas.length * grelha.escalaMax}

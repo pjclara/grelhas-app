@@ -10,6 +10,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Spinner';
 import CriterioForm, { valoresDeCriterio, type CriterioPayload } from '../../CriterioForm';
+import { limparRascunho } from '@/lib/rascunho';
 import type { CriterioCatalogo } from '@/lib/types';
 
 export default function EditarCriterioPage({ params }: { params: { criterioId: string } }) {
@@ -55,6 +56,7 @@ export default function EditarCriterioPage({ params }: { params: { criterioId: s
       setErro(body.error ?? 'Não foi possível guardar o critério.');
       return;
     }
+    limparRascunho(`draft:criterio:${params.criterioId}`);
     router.push(`/criterios/${params.criterioId}`);
   }
 
@@ -102,6 +104,7 @@ export default function EditarCriterioPage({ params }: { params: { criterioId: s
           erro={erro}
           textoSubmeter="Guardar alterações"
           cancelarHref={`/criterios/${params.criterioId}`}
+          draftKey={`draft:criterio:${params.criterioId}`}
         />
       )}
     </AppShell>

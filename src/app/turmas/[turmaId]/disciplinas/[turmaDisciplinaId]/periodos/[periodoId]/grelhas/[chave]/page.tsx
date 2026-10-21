@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
+import { lerRascunho, limparRascunho, useGuardarRascunho } from '@/lib/rascunho';
 
 interface Grelha {
   nome: string;
@@ -47,6 +48,7 @@ export default function GrelhaPage({
   const apiBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/grelhas/${encodeURIComponent(chave)}`;
   const api = `${apiBase}?ocorrencia=${ocorrencia}`;
   const voltarHref = `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/instrumentos`;
+  const draftKeyGrelha = `draft:grelha:${params.turmaId}:${params.turmaDisciplinaId}:${params.periodoId}:${chave}:${ocorrencia}`;
 
   const [grelha, setGrelha] = useState<Grelha | null>(null);
   const [nomes, setNomes] = useState<{ turma: string; disciplina: string } | null>(null);
@@ -57,6 +59,8 @@ export default function GrelhaPage({
   const [erro, setErro] = useState<string | null>(null);
   const [aGuardar, setAGuardar] = useState(false);
   const [guardadoEm, setGuardadoEm] = useState<Date | null>(null);
+
+  useGuardarRascunho(grelha ? draftKeyGrelha : undefined, valores);
 
   async function carregar() {
     const [r, rtd] = await Promise.all([
@@ -76,8 +80,18 @@ export default function GrelhaPage({
     setGrelha(g);
     setDataAvaliacao((g.data ?? new Date().toISOString()).slice(0, 10));
     const v = paraValores(g);
-    setValores(v);
     setOriginal(v);
+    // Sobrepõe um rascunho local (notas ainda não guardadas) sobre o que vem do servidor.
+    const rascunho = lerRascunho<Valores | null>(draftKeyGrelha, null);
+    if (rascunho) {
+      const mesclado: Valores = { ...v };
+      for (const alunoId of Object.keys(v)) {
+        if (rascunho[alunoId]) mesclado[alunoId] = { ...v[alunoId], ...rascunho[alunoId] };
+      }
+      setValores(mesclado);
+    } else {
+      setValores(v);
+    }
   }
 
   useEffect(() => {
@@ -138,6 +152,7 @@ export default function GrelhaPage({
       setErro(body.error ?? 'Não foi possível guardar as notas.');
       return;
     }
+    limparRascunho(draftKeyGrelha);
     setOriginal(valores);
     setGrelha((g) => (g ? { ...g, data: new Date(dataAvaliacao).toISOString() } : g));
     setGuardadoEm(new Date());

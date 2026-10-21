@@ -10,6 +10,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Spinner';
 import DisciplinaForm, { type DisciplinaFormValues } from '../../DisciplinaForm';
+import { limparRascunho } from '@/lib/rascunho';
 import type { Disciplina } from '@/lib/types';
 
 export default function EditarDisciplinaPage({ params }: { params: { disciplinaId: string } }) {
@@ -53,6 +54,7 @@ export default function EditarDisciplinaPage({ params }: { params: { disciplinaI
       setErro(body.error ?? 'Não foi possível guardar (nome já usado?).');
       return;
     }
+    limparRascunho(`draft:disciplina:${params.disciplinaId}`);
     router.push(`/disciplinas/${params.disciplinaId}`);
   }
 
@@ -107,6 +109,7 @@ export default function EditarDisciplinaPage({ params }: { params: { disciplinaI
           erro={erro}
           textoSubmeter="Guardar alterações"
           cancelarHref={`/disciplinas/${params.disciplinaId}`}
+          draftKey={`draft:disciplina:${params.disciplinaId}`}
         />
       )}
     </AppShell>

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
+import { lerRascunho, useGuardarRascunho } from '@/lib/rascunho';
 import type { AnoLetivo, Ciclo, CriterioCatalogo, GrupoDisciplinar, TipoCriterio } from '@/lib/types';
 
 interface SubFormValues {
@@ -56,6 +57,8 @@ interface CriterioFormProps {
   erro: string | null;
   textoSubmeter: string;
   cancelarHref?: string;
+  /** Chave única para guardar automaticamente um rascunho deste formulário em localStorage. */
+  draftKey?: string;
 }
 
 const TOLERANCIA = 0.1; // pontos percentuais
@@ -148,12 +151,15 @@ export default function CriterioForm({
   erro,
   textoSubmeter,
   cancelarHref = '/criterios',
+  draftKey,
 }: CriterioFormProps) {
-  const [form, setForm] = useState<CriterioFormValues>(valoresIniciais ?? estadoVazio());
+  const [form, setForm] = useState<CriterioFormValues>(() => lerRascunho(draftKey, valoresIniciais ?? estadoVazio()));
   const [anos, setAnos] = useState<AnoLetivo[]>([]);
   const [ciclos, setCiclos] = useState<Ciclo[]>([]);
   const [grupos, setGrupos] = useState<GrupoDisciplinar[]>([]);
   const [erroLocal, setErroLocal] = useState<string | null>(null);
+
+  useGuardarRascunho(draftKey, form);
 
   useEffect(() => {
     Promise.all([
@@ -170,10 +176,6 @@ export default function CriterioForm({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (valoresIniciais) setForm(valoresIniciais);
-  }, [valoresIniciais]);
 
   const especifico = form.tipo === 'ESPECIFICO';
 

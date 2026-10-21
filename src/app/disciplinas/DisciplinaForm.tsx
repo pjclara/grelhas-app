@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { CreatableSelect } from '@/components/ui/CreatableSelect';
+import { lerRascunho, useGuardarRascunho } from '@/lib/rascunho';
 import type { AnoEscolaridade, Ciclo, GrupoDisciplinar, Periodicidade } from '@/lib/types';
 
 export interface DisciplinaFormValues {
@@ -26,6 +27,8 @@ interface DisciplinaFormProps {
   erro: string | null;
   textoSubmeter: string;
   cancelarHref?: string;
+  /** Chave única para guardar automaticamente um rascunho deste formulário em localStorage. */
+  draftKey?: string;
 }
 
 function estadoVazio(): DisciplinaFormValues {
@@ -40,12 +43,17 @@ export default function DisciplinaForm({
   erro,
   textoSubmeter,
   cancelarHref = '/disciplinas',
+  draftKey,
 }: DisciplinaFormProps) {
-  const [form, setForm] = useState<DisciplinaFormValues>(valoresIniciais ?? estadoVazio());
+  const [form, setForm] = useState<DisciplinaFormValues>(() =>
+    lerRascunho(draftKey, valoresIniciais ?? estadoVazio())
+  );
   const [grupos, setGrupos] = useState<GrupoDisciplinar[]>([]);
   const [ciclos, setCiclos] = useState<Ciclo[]>([]);
   const [anos, setAnos] = useState<AnoEscolaridade[]>([]);
   const [erroLocal, setErroLocal] = useState<string | null>(null);
+
+  useGuardarRascunho(draftKey, form);
 
   useEffect(() => {
     Promise.all([
@@ -58,10 +66,6 @@ export default function DisciplinaForm({
       setAnos(a);
     });
   }, []);
-
-  useEffect(() => {
-    if (valoresIniciais) setForm(valoresIniciais);
-  }, [valoresIniciais]);
 
   async function criarGrupo(nome: string): Promise<GrupoDisciplinar> {
     const res = await fetch('/api/grupos-disciplinares', {

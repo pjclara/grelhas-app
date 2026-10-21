@@ -8,6 +8,9 @@ import { ArrowLeft } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Alert } from '@/components/ui/Alert';
 import DisciplinaForm, { type DisciplinaFormValues } from '../DisciplinaForm';
+import { limparRascunho } from '@/lib/rascunho';
+
+const DRAFT_KEY = 'draft:disciplina:nova';
 
 export default function NovaDisciplinaPage() {
   const { data: session, status } = useSession();
@@ -32,6 +35,7 @@ export default function NovaDisciplinaPage() {
       return;
     }
     const nova = await res.json();
+    limparRascunho(DRAFT_KEY);
     router.push(`/disciplinas/${nova.id}`);
   }
 
@@ -45,7 +49,7 @@ export default function NovaDisciplinaPage() {
       {status !== 'loading' && !isAdmin ? (
         <Alert tone="danger">Apenas administradores podem criar disciplinas.</Alert>
       ) : (
-        <DisciplinaForm aoSubmeter={criar} aEnviar={aEnviar} erro={erro} textoSubmeter="Criar disciplina" />
+        <DisciplinaForm aoSubmeter={criar} aEnviar={aEnviar} erro={erro} textoSubmeter="Criar disciplina" draftKey={DRAFT_KEY} />
       )}
     </AppShell>
   );

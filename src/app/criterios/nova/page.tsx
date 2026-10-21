@@ -8,6 +8,9 @@ import { ArrowLeft } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Alert } from '@/components/ui/Alert';
 import CriterioForm, { type CriterioPayload } from '../CriterioForm';
+import { limparRascunho } from '@/lib/rascunho';
+
+const DRAFT_KEY = 'draft:criterio:nova';
 
 export default function NovoCriterioPage() {
   const { data: session, status } = useSession();
@@ -32,6 +35,7 @@ export default function NovoCriterioPage() {
       return;
     }
     const novo = await res.json();
+    limparRascunho(DRAFT_KEY);
     router.push(`/criterios/${novo.id}`);
   }
 
@@ -48,7 +52,7 @@ export default function NovoCriterioPage() {
       {status !== 'loading' && !isAdmin ? (
         <Alert tone="danger">Apenas administradores podem criar critérios.</Alert>
       ) : (
-        <CriterioForm aoSubmeter={criar} aEnviar={aEnviar} erro={erro} textoSubmeter="Criar critério" />
+        <CriterioForm aoSubmeter={criar} aEnviar={aEnviar} erro={erro} textoSubmeter="Criar critério" draftKey={DRAFT_KEY} />
       )}
     </AppShell>
   );

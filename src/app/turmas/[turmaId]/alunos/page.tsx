@@ -15,8 +15,16 @@ import { ExportButtons } from '@/components/ui/ExportButtons';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
+import { lerRascunho, limparRascunho, useGuardarRascunho } from '@/lib/rascunho';
 import type { AlunoTurma, Medida, TipoMedida, Turma } from '@/lib/types';
 import type { LinhaAlunoPdf } from '@/lib/importar-alunos-pdf';
+
+interface DraftAluno {
+  numero: string;
+  numeroProcesso: string;
+  nome: string;
+  medidaIds: string[];
+}
 
 interface ResultadoImportacao {
   importados: number;
@@ -140,6 +148,21 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   const alunosRef = useRef<AlunoTurma[]>([]);
   const ultimoAdicionadoIdRef = useRef<string | null>(null);
 
+  const draftKeyAluno = `draft:aluno-novo:${params.turmaId}`;
+
+  useEffect(() => {
+    const draft = lerRascunho<DraftAluno | null>(draftKeyAluno, null);
+    if (draft) {
+      setNumero(draft.numero);
+      setNumeroProcesso(draft.numeroProcesso);
+      setNome(draft.nome);
+      setMedidaIds(draft.medidaIds);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKeyAluno]);
+
+  useGuardarRascunho<DraftAluno>(draftKeyAluno, { numero, numeroProcesso, nome, medidaIds });
+
   async function carregar() {
     setACarregar(true);
     const r = await fetch(`/api/turmas/${params.turmaId}/alunos`);
@@ -208,6 +231,7 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
       setErro('Não foi possível adicionar (número ou nº de processo já usado?).');
       return;
     }
+    limparRascunho(draftKeyAluno);
     setNumero('');
     setNumeroProcesso('');
     setNome('');

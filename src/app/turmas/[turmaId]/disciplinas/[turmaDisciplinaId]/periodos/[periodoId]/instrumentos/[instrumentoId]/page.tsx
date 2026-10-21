@@ -13,6 +13,7 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
+import { lerRascunho, limparRascunho, useGuardarRascunho } from '@/lib/rascunho';
 import type { AlunoTurma, Criterio, Instrumento, ModoAvaliacao } from '@/lib/types';
 
 interface NotaValor {
@@ -34,6 +35,16 @@ interface Inscricao {
   alunoId: string;
   ativo: boolean;
   aluno: AlunoTurma;
+}
+
+interface DraftEdicaoInstrumento {
+  nome: string;
+  criterioId: string;
+  modo: ModoAvaliacao;
+  escalaMax: string;
+  tema: string;
+  data: string;
+  perguntas: PerguntaForm[];
 }
 
 // A Web Speech API não está nos tipos padrão do TS DOM; usamos `any` para o objeto de reconhecimento.
@@ -181,6 +192,22 @@ export default function InstrumentoPage({
   const celulaSelecionadaRef = useRef(0);
 
   const disciplinaBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
+  const draftKeyNotas = `draft:notas:${params.instrumentoId}`;
+  const draftKeyEdicao = `draft:instrumento-editar:${params.instrumentoId}`;
+
+  useGuardarRascunho(instrumento ? draftKeyNotas : undefined, notas);
+  useGuardarRascunho(
+    mostrarEdicao ? draftKeyEdicao : undefined,
+    {
+      nome: nomeEdicao,
+      criterioId: criterioIdEdicao,
+      modo: modoEdicao,
+      escalaMax: escalaMaxEdicao,
+      tema: temaEdicao,
+      data: dataEdicao,
+      perguntas: perguntasEdicao,
+    } as DraftEdicaoInstrumento
+  );
 
   async function carregar() {
     const [ri, ra, rtd, rc] = await Promise.all([
@@ -217,6 +244,13 @@ export default function InstrumentoPage({
         iniciais[aluno.id][pergunta.id] = nota?.valor != null ? String(nota.valor) : '';
       }
     }
+    // Sobrepõe um rascunho local (notas ainda não guardadas) sobre o que vem do servidor.
+    const rascunho = lerRascunho<Record<string, NotaValor> | null>(draftKeyNotas, null);
+    if (rascunho) {
+      for (const alunoId of Object.keys(iniciais)) {
+        if (rascunho[alunoId]) iniciais[alunoId] = { ...iniciais[alunoId], ...rascunho[alunoId] };
+      }
+    }
     setNotas(iniciais);
   }
 
@@ -233,15 +267,22 @@ export default function InstrumentoPage({
 
   function abrirEdicao() {
     if (!instrumento) return;
-    setNomeEdicao(instrumento.nome);
-    setCriterioIdEdicao(instrumento.criterioId);
-    setModoEdicao(instrumento.modo);
-    setEscalaMaxEdicao(String(instrumento.escalaMax));
-    setTemaEdicao(instrumento.tema ?? '');
-    setDataEdicao(instrumento.data.slice(0, 10));
-    setPerguntasEdicao(
-      instrumento.perguntas.map((p) => ({ id: p.id, codigo: p.codigo, valorMax: String(p.valorMax) }))
-    );
+    const base: DraftEdicaoInstrumento = lerRascunho<DraftEdicaoInstrumento | null>(draftKeyEdicao, null) ?? {
+      nome: instrumento.nome,
+      criterioId: instrumento.criterioId,
+      modo: instrumento.modo,
+      escalaMax: String(instrumento.escalaMax),
+      tema: instrumento.tema ?? '',
+      data: instrumento.data.slice(0, 10),
+      perguntas: instrumento.perguntas.map((p) => ({ id: p.id, codigo: p.codigo, valorMax: String(p.valorMax) })),
+    };
+    setNomeEdicao(base.nome);
+    setCriterioIdEdicao(base.criterioId);
+    setModoEdicao(base.modo);
+    setEscalaMaxEdicao(base.escalaMax);
+    setTemaEdicao(base.tema);
+    setDataEdicao(base.data);
+    setPerguntasEdicao(base.perguntas);
     setColagemEdicao('');
     setErroEdicao(null);
     setMostrarEdicao(true);
@@ -334,6 +375,7 @@ export default function InstrumentoPage({
       setErroEdicao('Não foi possível guardar as alterações.');
       return;
     }
+    limparRascunho(draftKeyEdicao);
     fecharEdicao();
     carregar();
   }
@@ -616,7 +658,10 @@ export default function InstrumentoPage({
       body: JSON.stringify({ notas: payload }),
     });
     setAGuardar(false);
-    if (res.ok) setGuardadoEm(new Date());
+    if (res.ok) {
+      limparRascunho(draftKeyNotas);
+      setGuardadoEm(new Date());
+    }
   }
 
   const voltarHref = `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/instrumentos`;

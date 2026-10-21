@@ -11,12 +11,35 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
+import { lerRascunho, limparRascunho, useGuardarRascunho } from '@/lib/rascunho';
 import type { Criterio, Instrumento, ModoAvaliacao } from '@/lib/types';
 
 interface PerguntaForm {
   id?: string;
   codigo: string;
   valorMax: string;
+}
+
+interface DraftInstrumento {
+  nome: string;
+  criterioId: string;
+  modo: ModoAvaliacao;
+  escalaMax: string;
+  tema: string;
+  data: string;
+  perguntas: PerguntaForm[];
+}
+
+function estadoVazioInstrumento(): DraftInstrumento {
+  return {
+    nome: '',
+    criterioId: '',
+    modo: 'PONTOS',
+    escalaMax: '5',
+    tema: '',
+    data: new Date().toISOString().slice(0, 10),
+    perguntas: [{ codigo: '1.', valorMax: '' }],
+  };
 }
 
 export default function InstrumentosPage({
@@ -43,6 +66,9 @@ export default function InstrumentosPage({
   const [aGravar, setAGravar] = useState(false);
 
   const disciplinaBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
+  const draftKeyInstrumento = `draft:instrumento-novo:${params.periodoId}`;
+
+  useGuardarRascunho<DraftInstrumento>(draftKeyInstrumento, { nome, criterioId, modo, escalaMax, tema, data, perguntas });
 
   // Critérios gerais e sub-instrumentos avaliam-se em grelhas (tabela alunos × colunas);
   // os instrumentos de recolha específicos sem sub-instrumentos, em instrumentos com perguntas.
@@ -135,13 +161,14 @@ export default function InstrumentosPage({
   }
 
   function abrirNovo() {
-    setNome('');
-    setCriterioId('');
-    setModo('PONTOS');
-    setEscalaMax('5');
-    setTema('');
-    setData(new Date().toISOString().slice(0, 10));
-    setPerguntas([{ codigo: '1.', valorMax: '' }]);
+    const base = lerRascunho<DraftInstrumento | null>(draftKeyInstrumento, null) ?? estadoVazioInstrumento();
+    setNome(base.nome);
+    setCriterioId(base.criterioId);
+    setModo(base.modo);
+    setEscalaMax(base.escalaMax);
+    setTema(base.tema);
+    setData(base.data);
+    setPerguntas(base.perguntas);
     setErro(null);
     setMostrarForm(true);
   }
@@ -189,6 +216,7 @@ export default function InstrumentosPage({
       setErro('Não foi possível criar o instrumento.');
       return;
     }
+    limparRascunho(draftKeyInstrumento);
     fecharForm();
     carregar();
   }

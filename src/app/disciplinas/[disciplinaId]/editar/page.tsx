@@ -10,7 +10,6 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Spinner';
 import DisciplinaForm, { type DisciplinaFormValues } from '../../DisciplinaForm';
-import { limparRascunho } from '@/lib/rascunho';
 import type { Disciplina } from '@/lib/types';
 
 export default function EditarDisciplinaPage({ params }: { params: { disciplinaId: string } }) {
@@ -40,21 +39,28 @@ export default function EditarDisciplinaPage({ params }: { params: { disciplinaI
       });
   }, [params.disciplinaId]);
 
-  async function guardar(valores: DisciplinaFormValues) {
-    setErro(null);
-    setAEnviar(true);
+  async function gravarAlteracoes(valores: DisciplinaFormValues): Promise<{ ok: boolean; erro?: string }> {
     const res = await fetch(`/api/disciplinas/${params.disciplinaId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(valores),
     });
-    setAEnviar(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setErro(body.error ?? 'Não foi possível guardar (nome já usado?).');
+      return { ok: false, erro: body.error ?? 'Não foi possível guardar (nome já usado?).' };
+    }
+    return { ok: true };
+  }
+
+  async function guardar(valores: DisciplinaFormValues) {
+    setErro(null);
+    setAEnviar(true);
+    const resultado = await gravarAlteracoes(valores);
+    setAEnviar(false);
+    if (!resultado.ok) {
+      setErro(resultado.erro ?? 'Não foi possível guardar.');
       return;
     }
-    limparRascunho(`draft:disciplina:${params.disciplinaId}`);
     router.push(`/disciplinas/${params.disciplinaId}`);
   }
 
@@ -105,11 +111,11 @@ export default function EditarDisciplinaPage({ params }: { params: { disciplinaI
             semestre: disciplina.semestre,
           }}
           aoSubmeter={guardar}
+          aoAutoGuardar={gravarAlteracoes}
           aEnviar={aEnviar}
           erro={erro}
           textoSubmeter="Guardar alterações"
           cancelarHref={`/disciplinas/${params.disciplinaId}`}
-          draftKey={`draft:disciplina:${params.disciplinaId}`}
         />
       )}
     </AppShell>

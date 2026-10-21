@@ -15,16 +15,9 @@ import { ExportButtons } from '@/components/ui/ExportButtons';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Spinner';
 import { TableContainer, Table, THead, TBody, Tr, Th, Td } from '@/components/ui/Table';
-import { lerRascunho, limparRascunho, useGuardarRascunho } from '@/lib/rascunho';
+import { useAutoGuardar } from '@/lib/auto-guardar';
 import type { AlunoTurma, Medida, TipoMedida, Turma } from '@/lib/types';
 import type { LinhaAlunoPdf } from '@/lib/importar-alunos-pdf';
-
-interface DraftAluno {
-  numero: string;
-  numeroProcesso: string;
-  nome: string;
-  medidaIds: string[];
-}
 
 interface ResultadoImportacao {
   importados: number;
@@ -148,20 +141,34 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
   const alunosRef = useRef<AlunoTurma[]>([]);
   const ultimoAdicionadoIdRef = useRef<string | null>(null);
 
-  const draftKeyAluno = `draft:aluno-novo:${params.turmaId}`;
+  // Guarda o id do aluno depois da primeira gravação automática em segundo plano,
+  // para que as gravações seguintes (incluindo a submissão manual) atualizem o
+  // mesmo registo em vez de criar um duplicado.
+  const idCriadoRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    const draft = lerRascunho<DraftAluno | null>(draftKeyAluno, null);
-    if (draft) {
-      setNumero(draft.numero);
-      setNumeroProcesso(draft.numeroProcesso);
-      setNome(draft.nome);
-      setMedidaIds(draft.medidaIds);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftKeyAluno]);
+  async function guardarAluno(): Promise<{ ok: boolean; id?: string; erro?: string }> {
+    const corpo = { numero: Number(numero), numeroProcesso: numeroProcesso.trim(), nome, medidaIds };
+    const res = await fetch(
+      idCriadoRef.current
+        ? `/api/turmas/${params.turmaId}/alunos/${idCriadoRef.current}`
+        : `/api/turmas/${params.turmaId}/alunos`,
+      {
+        method: idCriadoRef.current ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo),
+      }
+    );
+    if (!res.ok) return { ok: false, erro: 'Não foi possível guardar (número ou nº de processo já usado?).' };
+    const dados = await res.json();
+    idCriadoRef.current = dados.id;
+    return { ok: true, id: dados.id };
+  }
 
-  useGuardarRascunho<DraftAluno>(draftKeyAluno, { numero, numeroProcesso, nome, medidaIds });
+  useAutoGuardar(
+    { numero, numeroProcesso, nome, medidaIds },
+    mostrarFormulario && Boolean(numero) && numeroProcesso.trim() !== '' && Boolean(nome),
+    guardarAluno
+  );
 
   async function carregar() {
     setACarregar(true);
@@ -222,16 +229,12 @@ export default function AlunosPage({ params }: { params: { turmaId: string } }) 
       setErro('Indique número, nº de processo e nome.');
       return;
     }
-    const res = await fetch(`/api/turmas/${params.turmaId}/alunos`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero: Number(numero), numeroProcesso: numeroProcesso.trim(), nome, medidaIds }),
-    });
-    if (!res.ok) {
-      setErro('Não foi possível adicionar (número ou nº de processo já usado?).');
+    const resultado = await guardarAluno();
+    if (!resultado.ok) {
+      setErro(resultado.erro ?? 'Não foi possível adicionar o aluno.');
       return;
     }
-    limparRascunho(draftKeyAluno);
+    idCriadoRef.current = null;
     setNumero('');
     setNumeroProcesso('');
     setNome('');

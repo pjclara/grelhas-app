@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -8,9 +8,7 @@ import { ArrowLeft } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Alert } from '@/components/ui/Alert';
 import CriterioForm, { type CriterioPayload } from '../CriterioForm';
-import { limparRascunho } from '@/lib/rascunho';
-
-const DRAFT_KEY = 'draft:criterio:nova';
+import type { CriterioCatalogo } from '@/lib/types';
 
 export default function NovoCriterioPage() {
   const { data: session, status } = useSession();
@@ -19,24 +17,41 @@ export default function NovoCriterioPage() {
 
   const [erro, setErro] = useState<string | null>(null);
   const [aEnviar, setAEnviar] = useState(false);
+  // Guarda o id do critério depois da primeira gravação automática em segundo
+  // plano, para que as gravações seguintes (incluindo a submissão manual) atualizem
+  // o mesmo registo em vez de criar um duplicado.
+  const idCriadoRef = useRef<string | null>(null);
+
+  async function guardarCriterio(payload: CriterioPayload): Promise<{ ok: boolean; dados?: CriterioCatalogo; erro?: string }> {
+    const res = await fetch(idCriadoRef.current ? `/api/criterios/${idCriadoRef.current}` : '/api/criterios', {
+      method: idCriadoRef.current ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { ok: false, erro: body.error ?? 'Não foi possível guardar o critério.' };
+    }
+    const dados: CriterioCatalogo = await res.json();
+    idCriadoRef.current = dados.id;
+    return { ok: true, dados };
+  }
 
   async function criar(payload: CriterioPayload) {
     setErro(null);
     setAEnviar(true);
-    const res = await fetch('/api/criterios', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    const resultado = await guardarCriterio(payload);
     setAEnviar(false);
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setErro(body.error ?? 'Não foi possível criar o critério.');
+    if (!resultado.ok || !resultado.dados) {
+      setErro(resultado.erro ?? 'Não foi possível criar o critério.');
       return;
     }
-    const novo = await res.json();
-    limparRascunho(DRAFT_KEY);
-    router.push(`/criterios/${novo.id}`);
+    router.push(`/criterios/${resultado.dados.id}`);
+  }
+
+  async function autoGuardar(payload: CriterioPayload) {
+    const resultado = await guardarCriterio(payload);
+    return resultado.ok ? resultado.dados : undefined;
   }
 
   return (
@@ -52,7 +67,13 @@ export default function NovoCriterioPage() {
       {status !== 'loading' && !isAdmin ? (
         <Alert tone="danger">Apenas administradores podem criar critérios.</Alert>
       ) : (
-        <CriterioForm aoSubmeter={criar} aEnviar={aEnviar} erro={erro} textoSubmeter="Criar critério" draftKey={DRAFT_KEY} />
+        <CriterioForm
+          aoSubmeter={criar}
+          aoAutoGuardar={autoGuardar}
+          aEnviar={aEnviar}
+          erro={erro}
+          textoSubmeter="Criar critério"
+        />
       )}
     </AppShell>
   );

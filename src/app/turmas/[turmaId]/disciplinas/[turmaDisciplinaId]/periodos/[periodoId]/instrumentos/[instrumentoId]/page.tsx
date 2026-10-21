@@ -13,7 +13,7 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
-import { lerRascunho, limparRascunho, useGuardarRascunho } from '@/lib/rascunho';
+import { useAutoGuardar } from '@/lib/auto-guardar';
 import type { AlunoTurma, Criterio, Instrumento, ModoAvaliacao } from '@/lib/types';
 
 interface NotaValor {
@@ -192,12 +192,9 @@ export default function InstrumentoPage({
   const celulaSelecionadaRef = useRef(0);
 
   const disciplinaBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
-  const draftKeyNotas = `draft:notas:${params.instrumentoId}`;
-  const draftKeyEdicao = `draft:instrumento-editar:${params.instrumentoId}`;
 
-  useGuardarRascunho(instrumento ? draftKeyNotas : undefined, notas);
-  useGuardarRascunho(
-    mostrarEdicao ? draftKeyEdicao : undefined,
+  useAutoGuardar(notas, instrumento !== null, guardar);
+  useAutoGuardar(
     {
       nome: nomeEdicao,
       criterioId: criterioIdEdicao,
@@ -206,7 +203,9 @@ export default function InstrumentoPage({
       tema: temaEdicao,
       data: dataEdicao,
       perguntas: perguntasEdicao,
-    } as DraftEdicaoInstrumento
+    },
+    mostrarEdicao && perguntasValidasEdicao() !== null,
+    autoGuardarEdicao
   );
 
   async function carregar() {
@@ -244,13 +243,6 @@ export default function InstrumentoPage({
         iniciais[aluno.id][pergunta.id] = nota?.valor != null ? String(nota.valor) : '';
       }
     }
-    // Sobrepõe um rascunho local (notas ainda não guardadas) sobre o que vem do servidor.
-    const rascunho = lerRascunho<Record<string, NotaValor> | null>(draftKeyNotas, null);
-    if (rascunho) {
-      for (const alunoId of Object.keys(iniciais)) {
-        if (rascunho[alunoId]) iniciais[alunoId] = { ...iniciais[alunoId], ...rascunho[alunoId] };
-      }
-    }
     setNotas(iniciais);
   }
 
@@ -276,7 +268,7 @@ export default function InstrumentoPage({
 
   function abrirEdicao() {
     if (!instrumento) return;
-    const base: DraftEdicaoInstrumento = lerRascunho<DraftEdicaoInstrumento | null>(draftKeyEdicao, null) ?? {
+    const base: DraftEdicaoInstrumento = {
       nome: instrumento.nome,
       criterioId: instrumento.criterioId,
       modo: instrumento.modo,
@@ -345,20 +337,17 @@ export default function InstrumentoPage({
     setColagemEdicao('');
   }
 
-  async function guardarEdicao(e: React.FormEvent) {
-    e.preventDefault();
-    if (!instrumento) return;
-    setErroEdicao(null);
-    if (!nomeEdicao || !criterioIdEdicao || !dataEdicao || perguntasEdicao.length === 0) {
-      setErroEdicao('Preencha nome, critério, data da avaliação e pelo menos uma pergunta/item.');
-      return;
-    }
-    const perguntasValidas = perguntasEdicao.filter((p) => p.codigo && p.valorMax);
-    if (perguntasValidas.length === 0) {
-      setErroEdicao('Adicione pelo menos uma pergunta/item com valor máximo.');
-      return;
-    }
-    setAGravarEdicao(true);
+  /** `null` se os campos mínimos para gravar ainda não estiverem preenchidos. */
+  function perguntasValidasEdicao(): PerguntaForm[] | null {
+    if (!nomeEdicao || !criterioIdEdicao || !dataEdicao || perguntasEdicao.length === 0) return null;
+    const validas = perguntasEdicao.filter((p) => p.codigo && p.valorMax);
+    return validas.length > 0 ? validas : null;
+  }
+
+  async function salvarEdicaoInstrumento(
+    validas: PerguntaForm[]
+  ): Promise<{ ok: boolean; dados?: Instrumento; erro?: string }> {
+    if (!instrumento) return { ok: false };
     const corpo = {
       periodoId: params.periodoId,
       criterioId: criterioIdEdicao,
@@ -367,7 +356,7 @@ export default function InstrumentoPage({
       escalaMax: Number(escalaMaxEdicao) || 5,
       tema: temaEdicao || null,
       data: dataEdicao,
-      perguntas: perguntasValidas.map((p, idx) => ({
+      perguntas: validas.map((p, idx) => ({
         id: p.id,
         codigo: p.codigo,
         valorMax: Number(p.valorMax),
@@ -379,14 +368,47 @@ export default function InstrumentoPage({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(corpo),
     });
-    setAGravarEdicao(false);
-    if (!res.ok) {
-      setErroEdicao('Não foi possível guardar as alterações.');
+    if (!res.ok) return { ok: false, erro: 'Não foi possível guardar as alterações.' };
+    return { ok: true, dados: await res.json() };
+  }
+
+  /** Repõe no formulário os ids que o servidor atribuiu a perguntas novas, por posição entre
+   * as perguntas válidas enviadas — evita duplicá-las (ou apagar as já existentes e as suas
+   * notas, já que o PATCH sincroniza pelas ids recebidas) na gravação automática seguinte. */
+  function mesclarIdsPerguntasEdicao(validas: PerguntaForm[], respostaOrdenada: Array<{ id: string }>) {
+    const porId = new Map(validas.map((p, i) => [p, respostaOrdenada[i]?.id]));
+    setPerguntasEdicao((prev) => prev.map((p) => (porId.has(p) ? { ...p, id: porId.get(p) ?? p.id } : p)));
+  }
+
+  async function guardarEdicao(e: React.FormEvent) {
+    e.preventDefault();
+    setErroEdicao(null);
+    const validas = perguntasValidasEdicao();
+    if (!validas) {
+      setErroEdicao('Preencha nome, critério, data da avaliação e pelo menos uma pergunta/item com valor máximo.');
       return;
     }
-    limparRascunho(draftKeyEdicao);
+    setAGravarEdicao(true);
+    const resultado = await salvarEdicaoInstrumento(validas);
+    setAGravarEdicao(false);
+    if (!resultado.ok) {
+      setErroEdicao(resultado.erro ?? 'Não foi possível guardar as alterações.');
+      return;
+    }
     fecharEdicao();
     carregar();
+  }
+
+  async function autoGuardarEdicao() {
+    const validas = perguntasValidasEdicao();
+    if (!validas) return;
+    const resultado = await salvarEdicaoInstrumento(validas);
+    if (resultado.ok && resultado.dados) {
+      mesclarIdsPerguntasEdicao(
+        validas,
+        [...resultado.dados.perguntas].sort((a, b) => a.ordem - b.ordem)
+      );
+    }
   }
 
   // Lista plana de células (aluno × pergunta) pela ordem em que aparecem na grelha,
@@ -667,10 +689,7 @@ export default function InstrumentoPage({
       body: JSON.stringify({ notas: payload }),
     });
     setAGuardar(false);
-    if (res.ok) {
-      limparRascunho(draftKeyNotas);
-      setGuardadoEm(new Date());
-    }
+    if (res.ok) setGuardadoEm(new Date());
   }
 
   const voltarHref = `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}/periodos/${params.periodoId}/instrumentos`;

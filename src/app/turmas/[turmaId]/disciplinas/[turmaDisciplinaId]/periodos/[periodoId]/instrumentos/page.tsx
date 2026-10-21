@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Pencil, Trash2, Table2, ExternalLink, Eye } from 'lucide-react';
 import AppShell from '@/components/AppShell';
@@ -11,7 +11,7 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
-import { lerRascunho, limparRascunho, useGuardarRascunho } from '@/lib/rascunho';
+import { useAutoGuardar } from '@/lib/auto-guardar';
 import type { Criterio, Instrumento, ModoAvaliacao } from '@/lib/types';
 
 interface PerguntaForm {
@@ -66,9 +66,10 @@ export default function InstrumentosPage({
   const [aGravar, setAGravar] = useState(false);
 
   const disciplinaBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
-  const draftKeyInstrumento = `draft:instrumento-novo:${params.periodoId}`;
-
-  useGuardarRascunho<DraftInstrumento>(draftKeyInstrumento, { nome, criterioId, modo, escalaMax, tema, data, perguntas });
+  // Guarda o id do instrumento depois da primeira gravação automática em segundo
+  // plano, para que as gravações seguintes (incluindo a submissão manual) atualizem
+  // o mesmo registo em vez de criar um duplicado.
+  const idCriadoRef = useRef<string | null>(null);
 
   // Critérios gerais e sub-instrumentos avaliam-se em grelhas (tabela alunos × colunas);
   // os instrumentos de recolha específicos sem sub-instrumentos, em instrumentos com perguntas.
@@ -161,7 +162,7 @@ export default function InstrumentosPage({
   }
 
   function abrirNovo() {
-    const base = lerRascunho<DraftInstrumento | null>(draftKeyInstrumento, null) ?? estadoVazioInstrumento();
+    const base = estadoVazioInstrumento();
     setNome(base.nome);
     setCriterioId(base.criterioId);
     setModo(base.modo);
@@ -169,6 +170,7 @@ export default function InstrumentosPage({
     setTema(base.tema);
     setData(base.data);
     setPerguntas(base.perguntas);
+    idCriadoRef.current = null;
     setErro(null);
     setMostrarForm(true);
   }
@@ -177,19 +179,16 @@ export default function InstrumentosPage({
     setMostrarForm(false);
   }
 
-  async function guardarInstrumento(e: React.FormEvent) {
-    e.preventDefault();
-    setErro(null);
-    if (!nome || !criterioId || !data || perguntas.length === 0) {
-      setErro('Preencha nome, critério, data da avaliação e pelo menos uma pergunta/item.');
-      return;
-    }
-    const perguntasValidas = perguntas.filter((p) => p.codigo && p.valorMax);
-    if (perguntasValidas.length === 0) {
-      setErro('Adicione pelo menos uma pergunta/item com valor máximo.');
-      return;
-    }
-    setAGravar(true);
+  /** `null` se os campos mínimos para gravar ainda não estiverem preenchidos. */
+  function perguntasValidas(): PerguntaForm[] | null {
+    if (!nome || !criterioId || !data || perguntas.length === 0) return null;
+    const validas = perguntas.filter((p) => p.codigo && p.valorMax);
+    return validas.length > 0 ? validas : null;
+  }
+
+  async function salvarInstrumento(
+    validas: PerguntaForm[]
+  ): Promise<{ ok: boolean; dados?: Instrumento; erro?: string }> {
     const corpo = {
       periodoId: params.periodoId,
       criterioId,
@@ -199,27 +198,72 @@ export default function InstrumentosPage({
       tema: tema || null,
       data,
       ordem: instrumentos.length,
-      perguntas: perguntasValidas.map((p, idx) => ({
+      perguntas: validas.map((p, idx) => ({
         id: p.id,
         codigo: p.codigo,
         valorMax: Number(p.valorMax),
         ordem: idx,
       })),
     };
-    const res = await fetch(`${disciplinaBase}/instrumentos`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(corpo),
-    });
-    setAGravar(false);
-    if (!res.ok) {
-      setErro('Não foi possível criar o instrumento.');
+    const res = await fetch(
+      idCriadoRef.current ? `${disciplinaBase}/instrumentos/${idCriadoRef.current}` : `${disciplinaBase}/instrumentos`,
+      {
+        method: idCriadoRef.current ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo),
+      }
+    );
+    if (!res.ok) return { ok: false, erro: 'Não foi possível guardar o instrumento.' };
+    const dados: Instrumento = await res.json();
+    idCriadoRef.current = dados.id;
+    return { ok: true, dados };
+  }
+
+  /** Repõe no formulário os ids que o servidor atribuiu às perguntas novas, por posição
+   * entre as perguntas válidas enviadas — evita duplicá-las (ou apagar as já existentes,
+   * já que o PATCH sincroniza pelas ids recebidas) na gravação automática seguinte. */
+  function mesclarIdsPerguntas(validas: PerguntaForm[], respostaOrdenada: Array<{ id: string }>) {
+    const porId = new Map(validas.map((p, i) => [p, respostaOrdenada[i]?.id]));
+    setPerguntas((prev) => prev.map((p) => (porId.has(p) ? { ...p, id: porId.get(p) ?? p.id } : p)));
+  }
+
+  async function guardarInstrumento(e: React.FormEvent) {
+    e.preventDefault();
+    setErro(null);
+    const validas = perguntasValidas();
+    if (!validas) {
+      setErro('Preencha nome, critério, data da avaliação e pelo menos uma pergunta/item com valor máximo.');
       return;
     }
-    limparRascunho(draftKeyInstrumento);
+    setAGravar(true);
+    const resultado = await salvarInstrumento(validas);
+    setAGravar(false);
+    if (!resultado.ok) {
+      setErro(resultado.erro ?? 'Não foi possível criar o instrumento.');
+      return;
+    }
+    idCriadoRef.current = null;
     fecharForm();
     carregar();
   }
+
+  async function autoGuardarInstrumento() {
+    const validas = perguntasValidas();
+    if (!validas) return;
+    const resultado = await salvarInstrumento(validas);
+    if (resultado.ok && resultado.dados) {
+      mesclarIdsPerguntas(
+        validas,
+        [...resultado.dados.perguntas].sort((a, b) => a.ordem - b.ordem)
+      );
+    }
+  }
+
+  useAutoGuardar(
+    { nome, criterioId, modo, escalaMax, tema, data, perguntas },
+    mostrarForm && perguntasValidas() !== null,
+    autoGuardarInstrumento
+  );
 
   async function remover(id: string) {
     if (!confirm('Remover este instrumento e todas as notas lançadas nele?')) return;

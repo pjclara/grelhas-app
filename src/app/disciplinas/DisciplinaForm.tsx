@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { CreatableSelect } from '@/components/ui/CreatableSelect';
-import { lerRascunho, useGuardarRascunho } from '@/lib/rascunho';
+import { useAutoGuardar } from '@/lib/auto-guardar';
 import type { AnoEscolaridade, Ciclo, GrupoDisciplinar, Periodicidade } from '@/lib/types';
 
 export interface DisciplinaFormValues {
@@ -27,12 +27,22 @@ interface DisciplinaFormProps {
   erro: string | null;
   textoSubmeter: string;
   cancelarHref?: string;
-  /** Chave única para guardar automaticamente um rascunho deste formulário em localStorage. */
-  draftKey?: string;
+  /** Gravação automática em segundo plano (sem navegar), 5 min depois da última alteração. */
+  aoAutoGuardar?: (valores: DisciplinaFormValues) => Promise<unknown>;
 }
 
 function estadoVazio(): DisciplinaFormValues {
   return { nome: '', grupoDisciplinarId: '', cicloIds: [], anoEscolaridadeIds: [], periodicidade: 'ANUAL', semestre: null };
+}
+
+/** Mensagem de validação em falta, ou `null` se o formulário estiver pronto a submeter/gravar. */
+function erroValidacao(form: DisciplinaFormValues): string | null {
+  if (!form.nome.trim()) return 'Indique o nome da disciplina.';
+  if (!form.grupoDisciplinarId) return 'Escolha o grupo disciplinar.';
+  if (form.cicloIds.length === 0) return 'Selecione pelo menos um ciclo.';
+  if (form.anoEscolaridadeIds.length === 0) return 'Selecione pelo menos um ano de escolaridade.';
+  if (form.periodicidade === 'SEMESTRAL' && !form.semestre) return 'Indique se é no 1.º ou no 2.º semestre.';
+  return null;
 }
 
 /** Formulário de disciplina partilhado entre /disciplinas/nova e /disciplinas/[id]/editar. */
@@ -43,17 +53,15 @@ export default function DisciplinaForm({
   erro,
   textoSubmeter,
   cancelarHref = '/disciplinas',
-  draftKey,
+  aoAutoGuardar,
 }: DisciplinaFormProps) {
-  const [form, setForm] = useState<DisciplinaFormValues>(() =>
-    lerRascunho(draftKey, valoresIniciais ?? estadoVazio())
-  );
+  const [form, setForm] = useState<DisciplinaFormValues>(valoresIniciais ?? estadoVazio());
   const [grupos, setGrupos] = useState<GrupoDisciplinar[]>([]);
   const [ciclos, setCiclos] = useState<Ciclo[]>([]);
   const [anos, setAnos] = useState<AnoEscolaridade[]>([]);
   const [erroLocal, setErroLocal] = useState<string | null>(null);
 
-  useGuardarRascunho(draftKey, form);
+  useAutoGuardar(form, Boolean(aoAutoGuardar) && erroValidacao(form) === null, () => aoAutoGuardar?.(form));
 
   useEffect(() => {
     Promise.all([
@@ -114,27 +122,9 @@ export default function DisciplinaForm({
 
   function submeter(e: React.FormEvent) {
     e.preventDefault();
-    setErroLocal(null);
-    if (!form.nome.trim()) {
-      setErroLocal('Indique o nome da disciplina.');
-      return;
-    }
-    if (!form.grupoDisciplinarId) {
-      setErroLocal('Escolha o grupo disciplinar.');
-      return;
-    }
-    if (form.cicloIds.length === 0) {
-      setErroLocal('Selecione pelo menos um ciclo.');
-      return;
-    }
-    if (form.anoEscolaridadeIds.length === 0) {
-      setErroLocal('Selecione pelo menos um ano de escolaridade.');
-      return;
-    }
-    if (form.periodicidade === 'SEMESTRAL' && !form.semestre) {
-      setErroLocal('Indique se é no 1.º ou no 2.º semestre.');
-      return;
-    }
+    const mensagem = erroValidacao(form);
+    setErroLocal(mensagem);
+    if (mensagem) return;
     aoSubmeter({ ...form, nome: form.nome.trim(), semestre: form.periodicidade === 'SEMESTRAL' ? form.semestre : null });
   }
 

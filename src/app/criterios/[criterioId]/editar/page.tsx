@@ -10,7 +10,6 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Spinner';
 import CriterioForm, { valoresDeCriterio, type CriterioPayload } from '../../CriterioForm';
-import { limparRascunho } from '@/lib/rascunho';
 import type { CriterioCatalogo } from '@/lib/types';
 
 export default function EditarCriterioPage({ params }: { params: { criterioId: string } }) {
@@ -42,22 +41,34 @@ export default function EditarCriterioPage({ params }: { params: { criterioId: s
 
   const valoresIniciais = useMemo(() => (criterio ? valoresDeCriterio(criterio) : undefined), [criterio]);
 
-  async function guardar(payload: CriterioPayload) {
-    setErro(null);
-    setAEnviar(true);
+  async function gravarAlteracoes(payload: CriterioPayload): Promise<{ ok: boolean; dados?: CriterioCatalogo; erro?: string }> {
     const res = await fetch(`/api/criterios/${params.criterioId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    setAEnviar(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setErro(body.error ?? 'Não foi possível guardar o critério.');
+      return { ok: false, erro: body.error ?? 'Não foi possível guardar o critério.' };
+    }
+    return { ok: true, dados: await res.json() };
+  }
+
+  async function guardar(payload: CriterioPayload) {
+    setErro(null);
+    setAEnviar(true);
+    const resultado = await gravarAlteracoes(payload);
+    setAEnviar(false);
+    if (!resultado.ok) {
+      setErro(resultado.erro ?? 'Não foi possível guardar o critério.');
       return;
     }
-    limparRascunho(`draft:criterio:${params.criterioId}`);
     router.push(`/criterios/${params.criterioId}`);
+  }
+
+  async function autoGuardar(payload: CriterioPayload) {
+    const resultado = await gravarAlteracoes(payload);
+    return resultado.ok ? resultado.dados : undefined;
   }
 
   async function remover() {
@@ -100,11 +111,11 @@ export default function EditarCriterioPage({ params }: { params: { criterioId: s
         <CriterioForm
           valoresIniciais={valoresIniciais}
           aoSubmeter={guardar}
+          aoAutoGuardar={autoGuardar}
           aEnviar={aEnviar}
           erro={erro}
           textoSubmeter="Guardar alterações"
           cancelarHref={`/criterios/${params.criterioId}`}
-          draftKey={`draft:criterio:${params.criterioId}`}
         />
       )}
     </AppShell>

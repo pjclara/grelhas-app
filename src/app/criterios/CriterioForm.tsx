@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
-import { lerRascunho, useGuardarRascunho } from '@/lib/rascunho';
+import { useAutoGuardar } from '@/lib/auto-guardar';
 import type { AnoLetivo, Ciclo, CriterioCatalogo, GrupoDisciplinar, TipoCriterio } from '@/lib/types';
 
 interface SubFormValues {
@@ -57,8 +57,13 @@ interface CriterioFormProps {
   erro: string | null;
   textoSubmeter: string;
   cancelarHref?: string;
-  /** Chave única para guardar automaticamente um rascunho deste formulário em localStorage. */
-  draftKey?: string;
+  /**
+   * Gravação automática em segundo plano (sem navegar), 5 min depois da última
+   * alteração. Deve devolver o critério gravado (para repor os ids atribuídos
+   * pelo servidor aos instrumentos/sub-instrumentos novos, evitando duplicá-los
+   * na gravação automática seguinte).
+   */
+  aoAutoGuardar?: (payload: CriterioPayload) => Promise<CriterioCatalogo | void>;
 }
 
 const TOLERANCIA = 0.1; // pontos percentuais
@@ -130,6 +135,48 @@ function erroPesosIrmaos(itens: { peso: string }[], totalPai: string): string | 
   return null;
 }
 
+/** Mensagem de validação em falta, ou `null` se o formulário estiver pronto a submeter/gravar. */
+function erroValidacao(form: CriterioFormValues): string | null {
+  const especifico = form.tipo === 'ESPECIFICO';
+  if (!form.anoLetivoId) return 'Escolha o ano letivo.';
+  if (!form.cicloId) return 'Escolha o ciclo.';
+  if (form.nome.trim().length < 2) return 'Indique o nome do critério.';
+  if (!numeroValido(form.peso)) return 'Indique o peso do critério (0 a 100%).';
+  if (especifico && !form.grupoDisciplinarId) return 'Escolha o grupo disciplinar do critério específico.';
+
+  for (const ir of form.instrumentosRecolha) {
+    if (!ir.nome.trim()) return `Indique o nome de todos os instrumentos.`;
+    for (const s of ir.subInstrumentos) {
+      if (!s.nome.trim()) return `Indique o nome de todos os sub-instrumentos de "${ir.nome}".`;
+    }
+    const erroSub = erroPesosIrmaos(ir.subInstrumentos, ir.peso);
+    if (erroSub) return `Sub-instrumentos de "${ir.nome}": ${erroSub}`;
+  }
+  const erroInstrumentos = erroPesosIrmaos(form.instrumentosRecolha, form.peso);
+  if (erroInstrumentos) return `Instrumentos de recolha: ${erroInstrumentos}`;
+  return null;
+}
+
+function paraPayload(form: CriterioFormValues): CriterioPayload {
+  const especifico = form.tipo === 'ESPECIFICO';
+  return {
+    anoLetivoId: form.anoLetivoId,
+    cicloId: form.cicloId,
+    nome: form.nome.trim(),
+    peso: paraFracao(form.peso) ?? 0,
+    tipo: form.tipo,
+    grupoDisciplinarId: especifico ? form.grupoDisciplinarId : null,
+    instrumentosRecolha: form.instrumentosRecolha.map((ir) => ({
+      id: ir.id,
+      nome: ir.nome.trim(),
+      peso: paraFracao(ir.peso),
+      subInstrumentos: especifico
+        ? ir.subInstrumentos.map((s) => ({ id: s.id, nome: s.nome.trim(), peso: paraFracao(s.peso) }))
+        : [],
+    })),
+  };
+}
+
 function SomaPesos({ itens, totalPai }: { itens: { peso: string }[]; totalPai: string }) {
   const comPeso = itens.filter((i) => i.peso.trim() !== '');
   if (comPeso.length === 0) return null;
@@ -151,15 +198,35 @@ export default function CriterioForm({
   erro,
   textoSubmeter,
   cancelarHref = '/criterios',
-  draftKey,
+  aoAutoGuardar,
 }: CriterioFormProps) {
-  const [form, setForm] = useState<CriterioFormValues>(() => lerRascunho(draftKey, valoresIniciais ?? estadoVazio()));
+  const [form, setForm] = useState<CriterioFormValues>(valoresIniciais ?? estadoVazio());
   const [anos, setAnos] = useState<AnoLetivo[]>([]);
   const [ciclos, setCiclos] = useState<Ciclo[]>([]);
   const [grupos, setGrupos] = useState<GrupoDisciplinar[]>([]);
   const [erroLocal, setErroLocal] = useState<string | null>(null);
 
-  useGuardarRascunho(draftKey, form);
+  // Depois de gravar automaticamente, repõe no formulário os ids que o servidor atribuiu a
+  // instrumentos/sub-instrumentos novos (por posição), para a gravação seguinte os atualizar
+  // em vez de os duplicar.
+  async function autoGuardarEMesclarIds() {
+    if (!aoAutoGuardar) return;
+    const criterio = await aoAutoGuardar(paraPayload(form));
+    if (!criterio) return;
+    setForm((f) => ({
+      ...f,
+      instrumentosRecolha: f.instrumentosRecolha.map((ir, i) => ({
+        ...ir,
+        id: criterio.instrumentosRecolha[i]?.id ?? ir.id,
+        subInstrumentos: ir.subInstrumentos.map((s, j) => ({
+          ...s,
+          id: criterio.instrumentosRecolha[i]?.subInstrumentos[j]?.id ?? s.id,
+        })),
+      })),
+    }));
+  }
+
+  useAutoGuardar(form, Boolean(aoAutoGuardar) && erroValidacao(form) === null, autoGuardarEMesclarIds);
 
   useEffect(() => {
     Promise.all([
@@ -210,41 +277,10 @@ export default function CriterioForm({
 
   function submeter(e: React.FormEvent) {
     e.preventDefault();
-    setErroLocal(null);
-
-    if (!form.anoLetivoId) return setErroLocal('Escolha o ano letivo.');
-    if (!form.cicloId) return setErroLocal('Escolha o ciclo.');
-    if (form.nome.trim().length < 2) return setErroLocal('Indique o nome do critério.');
-    if (!numeroValido(form.peso)) return setErroLocal('Indique o peso do critério (0 a 100%).');
-    if (especifico && !form.grupoDisciplinarId) return setErroLocal('Escolha o grupo disciplinar do critério específico.');
-
-    for (const [i, ir] of form.instrumentosRecolha.entries()) {
-      if (!ir.nome.trim()) return setErroLocal(`Indique o nome do instrumento ${i + 1}.`);
-      for (const s of ir.subInstrumentos) {
-        if (!s.nome.trim()) return setErroLocal(`Indique o nome de todos os sub-instrumentos de "${ir.nome}".`);
-      }
-      const erroSub = erroPesosIrmaos(ir.subInstrumentos, ir.peso);
-      if (erroSub) return setErroLocal(`Sub-instrumentos de "${ir.nome}": ${erroSub}`);
-    }
-    const erroInstrumentos = erroPesosIrmaos(form.instrumentosRecolha, form.peso);
-    if (erroInstrumentos) return setErroLocal(`Instrumentos de recolha: ${erroInstrumentos}`);
-
-    aoSubmeter({
-      anoLetivoId: form.anoLetivoId,
-      cicloId: form.cicloId,
-      nome: form.nome.trim(),
-      peso: paraFracao(form.peso) ?? 0,
-      tipo: form.tipo,
-      grupoDisciplinarId: especifico ? form.grupoDisciplinarId : null,
-      instrumentosRecolha: form.instrumentosRecolha.map((ir) => ({
-        id: ir.id,
-        nome: ir.nome.trim(),
-        peso: paraFracao(ir.peso),
-        subInstrumentos: especifico
-          ? ir.subInstrumentos.map((s) => ({ id: s.id, nome: s.nome.trim(), peso: paraFracao(s.peso) }))
-          : [],
-      })),
-    });
+    const mensagem = erroValidacao(form);
+    setErroLocal(mensagem);
+    if (mensagem) return;
+    aoSubmeter(paraPayload(form));
   }
 
   return (

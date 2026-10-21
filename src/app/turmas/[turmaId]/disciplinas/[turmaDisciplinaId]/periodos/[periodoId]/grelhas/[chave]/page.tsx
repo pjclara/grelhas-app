@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Plus } from 'lucide-react';
 import AppShell from '@/components/AppShell';
@@ -59,6 +59,7 @@ export default function GrelhaPage({
   const [erro, setErro] = useState<string | null>(null);
   const [aGuardar, setAGuardar] = useState(false);
   const [guardadoEm, setGuardadoEm] = useState<Date | null>(null);
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useGuardarRascunho(grelha ? draftKeyGrelha : undefined, valores);
 
@@ -102,6 +103,16 @@ export default function GrelhaPage({
   function alterar(alunoId: string, colunaId: string, valor: string) {
     setValores((prev) => ({ ...prev, [alunoId]: { ...prev[alunoId], [colunaId]: valor } }));
     setGuardadoEm(null);
+  }
+
+  /** Ao premir Enter, avança para a célula de baixo (mesma coluna, aluno seguinte). */
+  function avancarComEnter(e: React.KeyboardEvent<HTMLInputElement>, alunoIdx: number, colunaIdx: number) {
+    if (e.key !== 'Enter' || !grelha) return;
+    e.preventDefault();
+    const proximoAluno = grelha.alunos[alunoIdx + 1];
+    if (!proximoAluno) return;
+    const coluna = grelha.colunas[colunaIdx];
+    inputRefs.current[`${proximoAluno.id}:${coluna.id}`]?.focus();
   }
 
   /** Só as células alteradas desde o último carregamento/gravação. */
@@ -333,13 +344,16 @@ export default function GrelhaPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {grelha.alunos.map((aluno) => (
+                    {grelha.alunos.map((aluno, alunoIdx) => (
                       <tr key={aluno.id} className="hover:bg-slate-50/70">
                         <td className="px-3 py-1.5 tabular-nums text-slate-500">{aluno.numero}</td>
                         <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">{aluno.nome}</td>
-                        {grelha.colunas.map((c) => (
+                        {grelha.colunas.map((c, colunaIdx) => (
                           <td key={c.id} className="px-2 py-1 text-center">
                             <Input
+                              ref={(el) => {
+                                inputRefs.current[`${aluno.id}:${c.id}`] = el;
+                              }}
                               type="number"
                               inputMode="decimal"
                               min={1}
@@ -347,6 +361,7 @@ export default function GrelhaPage({
                               step="any"
                               value={valores[aluno.id]?.[c.id] ?? ''}
                               onChange={(e) => alterar(aluno.id, c.id, e.target.value)}
+                              onKeyDown={(e) => avancarComEnter(e, alunoIdx, colunaIdx)}
                               aria-label={`Nota de ${aluno.nome} em ${c.nome}`}
                               className="mx-auto w-20 text-center"
                             />

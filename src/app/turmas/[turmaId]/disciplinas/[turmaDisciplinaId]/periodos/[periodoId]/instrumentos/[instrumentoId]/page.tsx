@@ -263,6 +263,15 @@ export default function InstrumentoPage({
     setNotas((prev) => ({ ...prev, [alunoId]: { ...prev[alunoId], [perguntaId]: valor } }));
   }
 
+  /** Ao premir Enter, avança para a célula de baixo (mesma pergunta, aluno seguinte). */
+  function avancarComEnter(e: React.KeyboardEvent<HTMLInputElement>, alunoIdx: number, perguntaId: string) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const proximoAluno = alunos[alunoIdx + 1];
+    if (!proximoAluno) return;
+    inputRefs.current[`${proximoAluno.id}:${perguntaId}`]?.focus();
+  }
+
   const criteriosUtilizaveis = criterios.filter((c) => !c.semInstrumentos && c.avaliacao !== 'GRELHA');
 
   function abrirEdicao() {
@@ -901,7 +910,7 @@ export default function InstrumentoPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {alunos.map((aluno) => {
+              {alunos.map((aluno, alunoIdx) => {
                 const total = totais[aluno.id];
                 const excluido = alunosExcluidos.has(aluno.id);
                 return (
@@ -936,6 +945,7 @@ export default function InstrumentoPage({
                             step="0.5"
                             value={notas[aluno.id]?.[p.id] ?? ''}
                             onChange={(e) => atualizarNota(aluno.id, p.id, e.target.value)}
+                            onKeyDown={(e) => avancarComEnter(e, alunoIdx, p.id)}
                             onFocus={() => {
                               celulaSelecionadaRef.current = cellIndex;
                             }}

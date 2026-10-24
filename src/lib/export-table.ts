@@ -76,6 +76,38 @@ const PAGE_WIDTH = 841.89; // A4 landscape (pt)
 const PAGE_HEIGHT = 595.28;
 const MARGIN = 32;
 
+/**
+ * Agrupa os índices das colunas em grupos que cabem na largura disponível da
+ * página, repetindo as primeiras `fixas` colunas (ex.: Nº, Nome) em cada
+ * grupo para dar contexto — em vez de desenhar colunas fora da página
+ * (que ficavam invisíveis no PDF final quando a tabela tinha muitas colunas).
+ */
+function agruparColunas(
+  colunas: Array<{ titulo: string; largura: number }>,
+  larguraDisponivel: number,
+  fixas: number
+): number[][] {
+  const idxFixos = Array.from({ length: fixas }, (_, i) => i);
+  const larguraFixos = idxFixos.reduce((acc, i) => acc + colunas[i].largura, 0);
+
+  const grupos: number[][] = [];
+  let atual: number[] = [...idxFixos];
+  let larguraAtual = larguraFixos;
+
+  for (let i = fixas; i < colunas.length; i++) {
+    const larguraCol = colunas[i].largura;
+    if (larguraAtual + larguraCol > larguraDisponivel && atual.length > fixas) {
+      grupos.push(atual);
+      atual = [...idxFixos];
+      larguraAtual = larguraFixos;
+    }
+    atual.push(i);
+    larguraAtual += larguraCol;
+  }
+  grupos.push(atual);
+  return grupos;
+}
+
 export async function gerarPdfTabela(t: TabelaExport) {
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -84,42 +116,55 @@ export async function gerarPdfTabela(t: TabelaExport) {
   const larguras = t.largurasPdf ?? t.cabecalho.map(() => 90);
   const colunas = t.cabecalho.map((titulo, i) => ({ titulo, largura: larguras[i] ?? 90 }));
 
-  let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  let y = PAGE_HEIGHT - MARGIN;
+  const larguraDisponivel = PAGE_WIDTH - 2 * MARGIN;
+  const colunasFixas = Math.min(2, colunas.length);
+  const grupos = agruparColunas(colunas, larguraDisponivel, colunasFixas);
 
-  const desenharCabecalhoPagina = () => {
-    page.drawText(t.titulo, { x: MARGIN, y, size: 11, font: fontBold });
-    y -= 16;
-    if (t.subtitulo) {
-      page.drawText(t.subtitulo, { x: MARGIN, y, size: 9, font });
-      y -= 14;
-    }
-    y = desenharLinhaTabela(page, colunas.map((c) => c.titulo), colunas, y, fontBold, true);
-  };
+  let page: PDFPage;
+  let y = 0;
 
-  desenharCabecalhoPagina();
+  grupos.forEach((idxGrupo, grupoIdx) => {
+    const colunasGrupo = idxGrupo.map((i) => colunas[i]);
+    const subtituloGrupo =
+      grupoIdx === 0 ? t.subtitulo : [t.subtitulo, '(continuação)'].filter(Boolean).join(' · ');
 
-  t.linhas.forEach((linha, idx) => {
-    if (y < MARGIN + 30) {
-      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      y = PAGE_HEIGHT - MARGIN;
-      desenharCabecalhoPagina();
-    }
-    const valores = linha.map((v) => (v == null ? '—' : String(v)));
-    y = desenharLinhaTabela(page, valores, colunas, y, font, false, t.alertas?.[idx]);
-  });
+    const desenharCabecalhoPagina = () => {
+      page.drawText(t.titulo, { x: MARGIN, y, size: 11, font: fontBold });
+      y -= 16;
+      if (subtituloGrupo) {
+        page.drawText(subtituloGrupo, { x: MARGIN, y, size: 9, font });
+        y -= 14;
+      }
+      y = desenharLinhaTabela(page, colunasGrupo.map((c) => c.titulo), colunasGrupo, y, fontBold, true);
+    };
 
-  if (t.notas && t.notas.length > 0) {
-    y -= 6;
-    for (const nota of t.notas) {
-      if (y < MARGIN + 14) {
+    page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    y = PAGE_HEIGHT - MARGIN;
+    desenharCabecalhoPagina();
+
+    t.linhas.forEach((linha, idx) => {
+      if (y < MARGIN + 30) {
         page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
         y = PAGE_HEIGHT - MARGIN;
+        desenharCabecalhoPagina();
       }
-      page.drawText(nota, { x: MARGIN, y, size: 7, font, color: rgb(0.4, 0.45, 0.5) });
-      y -= 12;
+      const valores = idxGrupo.map((i) => (linha[i] == null ? '—' : String(linha[i])));
+      const alertasLinha = idxGrupo.map((i) => t.alertas?.[idx]?.[i] ?? false);
+      y = desenharLinhaTabela(page, valores, colunasGrupo, y, font, false, alertasLinha);
+    });
+
+    if (grupoIdx === grupos.length - 1 && t.notas && t.notas.length > 0) {
+      y -= 6;
+      for (const nota of t.notas) {
+        if (y < MARGIN + 14) {
+          page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+          y = PAGE_HEIGHT - MARGIN;
+        }
+        page.drawText(nota, { x: MARGIN, y, size: 7, font, color: rgb(0.4, 0.45, 0.5) });
+        y -= 12;
+      }
     }
-  }
+  });
 
   return pdfDoc.save();
 }

@@ -59,9 +59,9 @@ export default function ResumoPage({
       : null;
 
   // Cada coluna de critério (instrumento de recolha ou sub-instrumento) mostra uma
-  // coluna por instrumento de avaliação, além da média. No 3.º ciclo os valores são
-  // apresentados na escala 0-200 em vez de %.
-  const escala200 = resumo.turma.nivelEnsino === '3.º ciclo';
+  // coluna por instrumento de avaliação, além da média. Até ao 9.º ano (2.º/3.º ciclo)
+  // os valores são apresentados em %; no Secundário (10.º/11.º/12.º) na escala 0-200.
+  const escala200 = resumo.turma.nivelEnsino === 'Secundário';
   const formatarValor = (v: number | null | undefined) =>
     v == null ? '—' : escala200 ? (v * 2).toFixed(0) : `${v.toFixed(0)}%`;
 

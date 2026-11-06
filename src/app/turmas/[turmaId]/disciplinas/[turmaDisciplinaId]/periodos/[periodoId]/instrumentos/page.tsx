@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Table2, ExternalLink, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, Table2, ExternalLink, Eye, GripVertical } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
 import { useAutoGuardar } from '@/lib/auto-guardar';
+import { mover, useArrastarReordenar } from '@/lib/reordenar';
 import type { Criterio, Instrumento, ModoAvaliacao } from '@/lib/types';
 
 interface PerguntaForm {
@@ -127,6 +128,10 @@ export default function InstrumentosPage({
   function removerPergunta(i: number) {
     setPerguntas((prev) => prev.filter((_, idx) => idx !== i));
   }
+
+  const { arrastando, aoComecarArrastar, aoPassarPorCima, aoSoltar, aoTerminarArrastar } = useArrastarReordenar(
+    (from, to) => setPerguntas((prev) => mover(prev, from, to))
+  );
 
   // Aceita o formato colado de uma folha de cálculo: linha de itens + linha de pontos
   // ("Item 1 2a 2b Total" / "Pontos 40 50 10 100"), ou uma linha "item<TAB>pontos" por pergunta.
@@ -377,7 +382,22 @@ export default function InstrumentosPage({
             </div>
             <div className="space-y-2">
               {perguntas.map((p, i) => (
-                <div key={i} className="flex gap-2">
+                <div
+                  key={i}
+                  draggable
+                  onDragStart={aoComecarArrastar(i)}
+                  onDragOver={aoPassarPorCima}
+                  onDrop={aoSoltar(i)}
+                  onDragEnd={aoTerminarArrastar}
+                  className={`flex items-center gap-2 transition-opacity ${arrastando === i ? 'opacity-50' : ''}`}
+                >
+                  <span
+                    className="cursor-grab text-slate-400 active:cursor-grabbing"
+                    title="Arrastar para reordenar"
+                    aria-label={`Arrastar para reordenar a pergunta ${p.codigo || i + 1}`}
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </span>
                   <Input
                     placeholder="Código (ex: 2.1.)"
                     value={p.codigo}

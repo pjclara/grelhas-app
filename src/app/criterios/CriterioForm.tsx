@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { useAutoGuardar } from '@/lib/auto-guardar';
+import { mover, useArrastarReordenar } from '@/lib/reordenar';
 import type { AnoLetivo, Ciclo, CriterioCatalogo, GrupoDisciplinar, TipoCriterio } from '@/lib/types';
 
 interface SubFormValues {
@@ -275,6 +276,23 @@ export default function CriterioForm({
     }));
   }
 
+  const instrumentosDrag = useArrastarReordenar((from, to) =>
+    setForm((f) => ({ ...f, instrumentosRecolha: mover(f.instrumentosRecolha, from, to) }))
+  );
+
+  // Chave composta (instrumento × sub-instrumento) para reordenar sub-instrumentos por
+  // arrastar: cada instrumento tem a sua própria lista, mas só um hook de arrastar é
+  // necessário — só se reordena dentro do mesmo instrumento (fromIr === toIr).
+  const CHAVE_SUB = 1000;
+  const subsDrag = useArrastarReordenar((from, to) => {
+    const fromIr = Math.floor(from / CHAVE_SUB);
+    const fromJ = from % CHAVE_SUB;
+    const toIr = Math.floor(to / CHAVE_SUB);
+    const toJ = to % CHAVE_SUB;
+    if (fromIr !== toIr) return;
+    mudarInstrumento(fromIr, { subInstrumentos: mover(form.instrumentosRecolha[fromIr].subInstrumentos, fromJ, toJ) });
+  });
+
   function submeter(e: React.FormEvent) {
     e.preventDefault();
     const mensagem = erroValidacao(form);
@@ -416,8 +434,25 @@ export default function CriterioForm({
         )}
 
         {form.instrumentosRecolha.map((ir, i) => (
-          <div key={i} className="rounded-md border border-slate-200 p-3">
-            <div className="grid grid-cols-[1fr_6rem_auto] items-end gap-2">
+          <div
+            key={i}
+            draggable
+            onDragStart={instrumentosDrag.aoComecarArrastar(i)}
+            onDragOver={instrumentosDrag.aoPassarPorCima}
+            onDrop={instrumentosDrag.aoSoltar(i)}
+            onDragEnd={instrumentosDrag.aoTerminarArrastar}
+            className={`rounded-md border border-slate-200 p-3 transition-opacity ${
+              instrumentosDrag.arrastando === i ? 'opacity-50' : ''
+            }`}
+          >
+            <div className="grid grid-cols-[auto_1fr_6rem_auto] items-end gap-2">
+              <span
+                className="mb-2 cursor-grab self-center text-slate-400 active:cursor-grabbing"
+                title="Arrastar para reordenar"
+                aria-label={`Arrastar para reordenar o instrumento ${ir.nome || i + 1}`}
+              >
+                <GripVertical className="h-4 w-4" />
+              </span>
               <div>
                 <Label htmlFor={`ir-nome-${i}`}>Nome do instrumento</Label>
                 <Input
@@ -473,8 +508,27 @@ export default function CriterioForm({
                     </Button>
                   </div>
                 </div>
-                {ir.subInstrumentos.map((s, j) => (
-                  <div key={j} className="mb-2 grid grid-cols-[1fr_6rem_auto] items-center gap-2">
+                {ir.subInstrumentos.map((s, j) => {
+                  const chave = i * CHAVE_SUB + j;
+                  return (
+                  <div
+                    key={j}
+                    draggable
+                    onDragStart={subsDrag.aoComecarArrastar(chave)}
+                    onDragOver={subsDrag.aoPassarPorCima}
+                    onDrop={subsDrag.aoSoltar(chave)}
+                    onDragEnd={subsDrag.aoTerminarArrastar}
+                    className={`mb-2 grid grid-cols-[auto_1fr_6rem_auto] items-center gap-2 transition-opacity ${
+                      subsDrag.arrastando === chave ? 'opacity-50' : ''
+                    }`}
+                  >
+                    <span
+                      className="cursor-grab text-slate-400 active:cursor-grabbing"
+                      title="Arrastar para reordenar"
+                      aria-label={`Arrastar para reordenar o sub-instrumento ${s.nome || j + 1}`}
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </span>
                     <Input
                       aria-label={`Nome do sub-instrumento ${j + 1} de ${ir.nome || `instrumento ${i + 1}`}`}
                       placeholder="ex: Ficha 1"
@@ -500,7 +554,8 @@ export default function CriterioForm({
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

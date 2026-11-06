@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, Mic, Square, CheckCircle2, Eye, Settings2, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Mic, Square, CheckCircle2, Eye, Settings2, Plus, Trash2, GripVertical } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { ExportButtons } from '@/components/ui/ExportButtons';
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/Label';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
 import { useAutoGuardar } from '@/lib/auto-guardar';
+import { mover, useArrastarReordenar } from '@/lib/reordenar';
 import type { AlunoTurma, Criterio, Instrumento, ModoAvaliacao } from '@/lib/types';
 
 interface NotaValor {
@@ -304,6 +305,10 @@ export default function InstrumentoPage({
   function removerPerguntaEdicao(i: number) {
     setPerguntasEdicao((prev) => prev.filter((_, idx) => idx !== i));
   }
+
+  const { arrastando, aoComecarArrastar, aoPassarPorCima, aoSoltar, aoTerminarArrastar } = useArrastarReordenar(
+    (from, to) => setPerguntasEdicao((prev) => mover(prev, from, to))
+  );
 
   // Aceita o mesmo formato colado de uma folha de cálculo usado na criação de instrumentos.
   function aplicarColagemEdicao() {
@@ -846,7 +851,24 @@ export default function InstrumentoPage({
               </div>
               <div className="space-y-2">
                 {perguntasEdicao.map((p, i) => (
-                  <div key={i} className="flex gap-2">
+                  <div
+                    key={i}
+                    draggable
+                    onDragStart={aoComecarArrastar(i)}
+                    onDragOver={aoPassarPorCima}
+                    onDrop={aoSoltar(i)}
+                    onDragEnd={aoTerminarArrastar}
+                    className={`flex items-center gap-2 rounded-md transition-colors ${
+                      arrastando === i ? 'opacity-50' : ''
+                    }`}
+                  >
+                    <span
+                      className="cursor-grab text-slate-400 active:cursor-grabbing"
+                      title="Arrastar para reordenar"
+                      aria-label={`Arrastar para reordenar a pergunta ${p.codigo || i + 1}`}
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </span>
                     <Input
                       placeholder="Código (ex: 2.1.)"
                       value={p.codigo}

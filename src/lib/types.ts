@@ -12,6 +12,15 @@ export function anoLetivoAtual(hoje: Date = new Date()): string {
   return mes >= 9 ? `${ano}/${ano + 1}` : `${ano - 1}/${ano}`;
 }
 
+/**
+ * `Turma.nivelEnsino` é texto livre copiado do catálogo de Ciclos (ex.:
+ * "Secundário Regular", "Secundário Profissional"), não um dos valores fixos
+ * de NIVEIS_ENSINO — por isso usa-se prefixo em vez de igualdade exata.
+ */
+export function ehSecundario(nivelEnsino: string | null | undefined): boolean {
+  return nivelEnsino?.startsWith('Secundário') ?? false;
+}
+
 export interface GrupoDisciplinar {
   id: string;
   nome: string;

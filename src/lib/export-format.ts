@@ -1,4 +1,5 @@
 import type { ResumoPeriodo } from '@/lib/resumo';
+import { ehSecundario } from '@/lib/types';
 
 export interface LinhaExport {
   numero: number;
@@ -10,7 +11,7 @@ export interface LinhaExport {
 
 /** Os níveis 1-5 só se aplicam ao 2.º/3.º ciclo; no Secundário a nota é diretamente 0-20. */
 export function mostraNivel(resumo: ResumoPeriodo): boolean {
-  return resumo.turma.nivelEnsino !== 'Secundário';
+  return !ehSecundario(resumo.turma.nivelEnsino);
 }
 
 export function formatNum(valor: number | null, casas = 1): string {
@@ -20,6 +21,11 @@ export function formatNum(valor: number | null, casas = 1): string {
 
 export function construirLinhas(resumo: ResumoPeriodo): LinhaExport[] {
   const comNivel = mostraNivel(resumo);
+  // Até ao 9.º ano (2.º/3.º ciclo) os valores são apresentados em %; no
+  // Secundário na escala 0-200 — mesma regra da página de resumo.
+  const escala200 = ehSecundario(resumo.turma.nivelEnsino);
+  const formatarValor = (v: number | null | undefined) =>
+    v == null ? '—' : escala200 ? (v * 2).toFixed(0) : `${v.toFixed(0)}%`;
   return resumo.alunos.map((aluno) => {
     const resultado = resumo.resultados.find((r) => r.alunoId === aluno.id)!;
     return {
@@ -27,7 +33,7 @@ export function construirLinhas(resumo: ResumoPeriodo): LinhaExport[] {
       nome: aluno.nome,
       porCriterio: resumo.criterios.map((c) => {
         const r = resultado.porCriterio.find((x) => x.criterioId === c.id);
-        return { nome: c.nome, valor: formatNum(r?.media ?? null) + '%' };
+        return { nome: c.nome, valor: formatarValor(r?.media) };
       }),
       notaFinal20: formatNum(resultado.notaFinal20),
       nivel: comNivel ? (resultado.nivel?.toString() ?? '—') : null,

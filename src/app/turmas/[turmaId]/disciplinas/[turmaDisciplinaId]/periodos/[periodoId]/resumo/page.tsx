@@ -8,7 +8,7 @@ import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
-import type { ResumoPeriodoDTO } from '@/lib/types';
+import { ehSecundario, type ResumoPeriodoDTO } from '@/lib/types';
 
 export default function ResumoPage({
   params,
@@ -51,7 +51,7 @@ export default function ResumoPage({
 
   // Os níveis 1-5 só se aplicam ao 2.º/3.º ciclo; no Secundário a nota é diretamente 0-20
   // e "negativa" significa nota final < 10 valores, não níveis 1-2.
-  const mostrarNivel = resumo.turma.nivelEnsino !== 'Secundário';
+  const mostrarNivel = !ehSecundario(resumo.turma.nivelEnsino);
   const comNota20 = resumo.resultados.filter((r) => r.notaFinal20 != null);
   const percentNegativasSecundario =
     comNota20.length > 0
@@ -61,7 +61,7 @@ export default function ResumoPage({
   // Cada coluna de critério (instrumento de recolha ou sub-instrumento) mostra uma
   // coluna por instrumento de avaliação, além da média. Até ao 9.º ano (2.º/3.º ciclo)
   // os valores são apresentados em %; no Secundário (10.º/11.º/12.º) na escala 0-200.
-  const escala200 = resumo.turma.nivelEnsino === 'Secundário';
+  const escala200 = ehSecundario(resumo.turma.nivelEnsino);
   const formatarValor = (v: number | null | undefined) =>
     v == null ? '—' : escala200 ? (v * 2).toFixed(0) : `${v.toFixed(0)}%`;
 

@@ -82,7 +82,7 @@ export default function ResumoPage({
 
   return (
     <AppShell width="full">
-      <div className="mx-auto max-w-screen-2xl">
+      <div className="mx-auto max-w-none">
         <Breadcrumbs
           items={[
             { label: 'As minhas turmas', href: '/dashboard' },

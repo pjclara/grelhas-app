@@ -146,7 +146,10 @@ export default function InstrumentosPage({
     };
     let novas: PerguntaForm[] = [];
     if (linhas.length === 2 && linhas[0].length > 2) {
-      const [itens, pontos] = linhas.map((l) => l.slice(1));
+      // Só descarta a primeira coluna se for mesmo um rótulo (ex.: "Item"/"Pontos") — ou
+      // seja, se o valor na linha de pontos não for um número; senão é já o primeiro item.
+      const temRotulo = numero(linhas[1][0]) === null;
+      const [itens, pontos] = temRotulo ? linhas.map((l) => l.slice(1)) : linhas;
       novas = itens
         .map((codigo, i) => ({ codigo, valor: numero(pontos[i] ?? '') }))
         .filter((p) => p.codigo !== '' && p.valor !== null && p.codigo.toLowerCase() !== 'total')

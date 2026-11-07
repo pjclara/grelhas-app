@@ -2,13 +2,15 @@
 
 import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Menu, LogOut, GraduationCap } from 'lucide-react';
+import { Menu, LogOut, GraduationCap, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 interface TopNavProps {
   onMenuClick?: () => void;
+  sidebarHidden?: boolean;
+  onToggleSidebar?: () => void;
 }
 
-export default function TopNav({ onMenuClick }: TopNavProps) {
+export default function TopNav({ onMenuClick, sidebarHidden = false, onToggleSidebar }: TopNavProps) {
   const { data: session } = useSession();
   const nome = session?.user?.name ?? '';
   const iniciais = nome
@@ -27,6 +29,14 @@ export default function TopNav({ onMenuClick }: TopNavProps) {
           className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 md:hidden"
         >
           <Menu className="h-5 w-5" />
+        </button>
+        <button
+          onClick={onToggleSidebar}
+          aria-label={sidebarHidden ? 'Mostrar menu' : 'Esconder menu'}
+          title={sidebarHidden ? 'Mostrar menu' : 'Esconder menu'}
+          className="hidden rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 md:block"
+        >
+          {sidebarHidden ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
         </button>
         <Link href="/dashboard" className="flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-900">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 via-violet-500 to-amber-400 text-white shadow-sm">

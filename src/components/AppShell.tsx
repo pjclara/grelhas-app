@@ -13,32 +13,27 @@ interface AppShellProps {
   width?: 'default' | 'full';
 }
 
-const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
+const SIDEBAR_HIDDEN_KEY = 'sidebar-hidden';
 
 export default function AppShell({ children, width = 'default' }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
 
   useEffect(() => {
-    setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
+    setSidebarHidden(localStorage.getItem(SIDEBAR_HIDDEN_KEY) === '1');
   }, []);
 
-  const toggleCollapsed = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
+  const toggleSidebar = () => {
+    const next = !sidebarHidden;
+    setSidebarHidden(next);
+    localStorage.setItem(SIDEBAR_HIDDEN_KEY, next ? '1' : '0');
   };
 
   return (
     <div className="flex min-h-screen flex-col">
-      <TopNav onMenuClick={() => setMobileOpen(true)} />
+      <TopNav onMenuClick={() => setMobileOpen(true)} sidebarHidden={sidebarHidden} onToggleSidebar={toggleSidebar} />
       <div className="flex flex-1">
-        <Sidebar
-          mobileOpen={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          collapsed={collapsed}
-          onToggleCollapsed={toggleCollapsed}
-        />
+        <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} hidden={sidebarHidden} />
         <div className="flex min-w-0 flex-1 flex-col">
           <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8">
             <div className={cn('mx-auto', width === 'default' ? 'max-w-7xl' : 'max-w-none')}>{children}</div>

@@ -723,7 +723,7 @@ export default function InstrumentoPage({
 
   return (
     <AppShell width="full">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-none">
         <Breadcrumbs
           items={[
             { label: 'As minhas turmas', href: '/dashboard' },

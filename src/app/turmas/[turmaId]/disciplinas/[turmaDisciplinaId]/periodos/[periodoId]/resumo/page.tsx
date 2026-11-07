@@ -8,7 +8,7 @@ import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoading } from '@/components/ui/Spinner';
-import { ehSecundario, type ResumoPeriodoDTO } from '@/lib/types';
+import { ehSecundario, type ResultadoAlunoDTO, type ResumoPeriodoDTO } from '@/lib/types';
 
 export default function ResumoPage({
   params,
@@ -65,7 +65,25 @@ export default function ResumoPage({
   const formatarValor = (v: number | null | undefined) =>
     v == null ? '—' : escala200 ? (v * 2).toFixed(0) : `${v.toFixed(0)}%`;
 
-  const instrumentosPorCriterio = resumo.criterios.map((c) => ({
+  // Os critérios de "Atitudes" (um por item, cada um com o seu próprio peso) são
+  // condensados numa única coluna em vez de uma coluna por item — mostram-se
+  // primeiro os critérios de conhecimentos/testes com o detalhe dos instrumentos,
+  // e só depois a coluna agregada das atitudes.
+  const criteriosAtitude = resumo.criterios.filter((c) => c.grupo.toLowerCase().includes('atitude'));
+  const criteriosDetalhados = resumo.criterios.filter((c) => !criteriosAtitude.includes(c));
+  const pesoAtitudes = criteriosAtitude.reduce((acc, c) => acc + c.peso, 0);
+  const nomeAtitudes = criteriosAtitude[0]?.grupo ?? 'Atitudes';
+
+  function mediaAtitudes(resultado: ResultadoAlunoDTO): number | null {
+    const comValor = criteriosAtitude
+      .map((c) => ({ peso: c.peso, media: resultado.porCriterio.find((r) => r.criterioId === c.id)?.media ?? null }))
+      .filter((x): x is { peso: number; media: number } => x.media != null);
+    const pesoTotal = comValor.reduce((acc, x) => acc + x.peso, 0);
+    if (comValor.length === 0 || pesoTotal === 0) return null;
+    return comValor.reduce((acc, x) => acc + x.peso * x.media, 0) / pesoTotal;
+  }
+
+  const instrumentosPorCriterio = criteriosDetalhados.map((c) => ({
     criterio: c,
     instrumentos: resumo.instrumentos.filter((i) => i.criterioId === c.id).sort((a, b) => a.ordem - b.ordem),
   }));
@@ -133,6 +151,12 @@ export default function ResumoPage({
                     </th>
                   )
                 )}
+                {criteriosAtitude.length > 0 && (
+                  <th className="px-3 py-2 text-center" rowSpan={2}>
+                    {nomeAtitudes}
+                    <div className="text-xs font-normal normal-case text-slate-400">{Math.round(pesoAtitudes * 100)}%</div>
+                  </th>
+                )}
                 <th className="px-3 py-2 text-center" rowSpan={2}>Final (0-20)</th>
                 {mostrarNivel && <th className="px-3 py-2 text-center" rowSpan={2}>Nível</th>}
               </tr>
@@ -194,6 +218,11 @@ export default function ResumoPage({
                         </td>,
                       ];
                     })}
+                    {criteriosAtitude.length > 0 && (
+                      <td className="px-3 py-1.5 text-center tabular-nums font-medium text-slate-900">
+                        {formatarValor(mediaAtitudes(resultado))}
+                      </td>
+                    )}
                     <td className="px-3 py-1.5 text-center tabular-nums font-semibold text-slate-900">
                       {resultado.notaFinal20 != null ? resultado.notaFinal20.toFixed(1) : '—'}
                     </td>

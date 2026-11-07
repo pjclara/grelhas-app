@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { GraduationCap, BookOpen, ClipboardList, ShieldCheck, X } from 'lucide-react';
+import { GraduationCap, BookOpen, ClipboardList, ShieldCheck, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 // Cada secção tem a sua própria cor (como disciplinas na pauta de uma escola),
@@ -32,9 +32,11 @@ const CORES = {
 interface SidebarProps {
   mobileOpen?: boolean;
   onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
-export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
+export default function Sidebar({ mobileOpen = false, onClose, collapsed = false, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'ADMIN';
@@ -43,13 +45,13 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     ? [...LINKS, { href: '/admin', label: 'Administração', icon: ShieldCheck, cor: 'emerald' as const }]
     : LINKS;
 
-  const content = (
+  const nav = (showLabels: boolean) => (
     <nav className="flex flex-col gap-0.5 px-3 py-5">
-      <div className="mb-3 flex items-center gap-2 px-3">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-violet-500 text-white shadow-sm">
+      <div className={cn('mb-3 flex items-center gap-2 px-3', !showLabels && 'justify-center px-0')}>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-violet-500 text-white shadow-sm">
           <GraduationCap className="h-4 w-4" />
         </span>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Navegação</p>
+        {showLabels && <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Navegação</p>}
       </div>
       {links.map((link) => {
         const Icon = link.icon;
@@ -60,8 +62,10 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             key={link.href}
             href={link.href}
             onClick={onClose}
+            title={showLabels ? undefined : link.label}
             className={cn(
               'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150',
+              !showLabels && 'justify-center px-0',
               ativo ? cores.textoAtivo : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
             )}
           >
@@ -73,7 +77,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             >
               <Icon className="h-4 w-4" />
             </span>
-            {link.label}
+            {showLabels && link.label}
           </Link>
         );
       })}
@@ -83,7 +87,24 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden w-56 shrink-0 border-r border-slate-200 bg-white md:block">{content}</aside>
+      <aside
+        className={cn(
+          'hidden shrink-0 border-r border-slate-200 bg-white transition-all duration-150 md:flex md:flex-col',
+          collapsed ? 'w-16' : 'w-56',
+        )}
+      >
+        <div className="flex-1">{nav(!collapsed)}</div>
+        <div className={cn('border-t border-slate-100 p-2', collapsed ? 'flex justify-center' : 'flex justify-end')}>
+          <button
+            onClick={onToggleCollapsed}
+            aria-label={collapsed ? 'Expandir menu' : 'Encolher menu'}
+            title={collapsed ? 'Expandir menu' : 'Encolher menu'}
+            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+          </button>
+        </div>
+      </aside>
 
       {/* Mobile drawer */}
       {mobileOpen && (
@@ -100,7 +121,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            {content}
+            {nav(true)}
           </div>
         </div>
       )}

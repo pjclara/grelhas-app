@@ -931,8 +931,10 @@ export default function InstrumentoPage({
           <table className="grelha min-w-full text-sm">
             <thead className="text-xs font-medium uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="sticky top-0 z-20 bg-slate-50 px-3 py-2 text-left">Nº</th>
-                <th className="sticky top-0 z-20 bg-slate-50 px-3 py-2 text-left">Nome</th>
+                <th className="sticky left-0 top-0 z-30 w-14 bg-slate-50 px-3 py-2 text-left">Nº</th>
+                <th className="sticky left-14 top-0 z-30 border-r border-slate-200 bg-slate-50 px-3 py-2 text-left">
+                  Nome
+                </th>
                 {instrumento.perguntas.map((p) => (
                   <th key={p.id} className="sticky top-0 z-20 bg-slate-50 px-2 py-2 text-center">
                     {p.codigo}
@@ -958,9 +960,11 @@ export default function InstrumentoPage({
                 const total = totais[aluno.id];
                 const excluido = alunosExcluidos.has(aluno.id);
                 return (
-                  <tr key={aluno.id} className="hover:bg-slate-50/70">
-                    <td className="px-3 py-1.5 tabular-nums text-slate-500">{aluno.numero}</td>
-                    <td className="whitespace-nowrap px-3 py-1.5 text-slate-700">
+                  <tr key={aluno.id} className="group hover:bg-slate-50/70">
+                    <td className="sticky left-0 z-10 w-14 bg-white px-3 py-1.5 tabular-nums text-slate-500 group-hover:bg-slate-50/70">
+                      {aluno.numero}
+                    </td>
+                    <td className="sticky left-14 z-10 whitespace-nowrap border-r border-slate-200 bg-white px-3 py-1.5 text-slate-700 group-hover:bg-slate-50/70">
                       {aluno.nome}
                       {excluido && (
                         <span

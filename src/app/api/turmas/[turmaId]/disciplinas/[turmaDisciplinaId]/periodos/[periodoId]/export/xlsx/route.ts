@@ -83,7 +83,7 @@ export async function GET(
     rodape('% negativas', colunas.map((c) => c.negativas));
 
     sheet.addRow([]);
-    const titulo = sheet.addRow(['Alunos por classificação']);
+    const titulo = sheet.addRow(['ESTATÍSTICAS']);
     titulo.font = { bold: true };
     sheet.addRow(tabela.intervalos.map((i) => i.label));
     sheet.addRow(tabela.intervalos.map((i) => i.total));

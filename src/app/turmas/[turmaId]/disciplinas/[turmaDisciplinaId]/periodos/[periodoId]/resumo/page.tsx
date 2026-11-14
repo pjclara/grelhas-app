@@ -438,14 +438,31 @@ export default function ResumoPage({
           </table>
         </div>
 
-        <Card className="mt-6 p-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Alunos por classificação</p>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            {intervalosNota.map((i) => (
-              <span key={i.label} className="text-slate-600">
-                {i.label}: <strong className="text-slate-900">{i.total}</strong>
-              </span>
-            ))}
+        <Card className="mt-6 overflow-hidden">
+          <p className="px-4 pt-4 text-xs font-medium uppercase tracking-wide text-slate-500">Estatísticas</p>
+          <div className="overflow-x-auto p-4 pt-2">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 text-left">Classificação</th>
+                  {intervalosNota.map((i) => (
+                    <th key={i.label} className="px-3 py-2 text-center">
+                      {i.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-slate-100">
+                  <th className="px-3 py-1.5 text-left font-medium text-slate-600">Nº de alunos</th>
+                  {intervalosNota.map((i) => (
+                    <td key={i.label} className="px-3 py-1.5 text-center font-semibold tabular-nums text-slate-900">
+                      {i.total}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
           </div>
         </Card>
       </div>

@@ -100,7 +100,7 @@ export async function GET(
     novaPaginaSeNecessario(40);
     y -= 10;
     page.drawText(
-      `Alunos por classificação:    ${tabela.intervalos.map((i) => `${i.label}: ${i.total}`).join('    ')}`,
+      `Estatísticas — alunos por classificação:    ${tabela.intervalos.map((i) => `${i.label}: ${i.total}`).join('    ')}`,
       { x: MARGIN, y, size: 9, font }
     );
 

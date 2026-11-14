@@ -40,8 +40,8 @@ export async function GET(
     const tamanho = larguraCol < 36 ? 6 : 8;
     const colunas = [
       { largura: larguraNum },
-      { largura: larguraNome },
-      ...tabela.colunas.map((c) => ({ largura: c.texto ? larguraTexto : larguraCol })),
+      { largura: larguraNome, esquerda: true },
+      ...tabela.colunas.map((c) => ({ largura: c.texto ? larguraTexto : larguraCol, esquerda: !!c.texto })),
     ];
 
     let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -102,7 +102,7 @@ export async function GET(
     y -= 14;
     page.drawText('ESTATÍSTICAS', { x: MARGIN, y, size: 9, font: fontBold });
     y -= 14;
-    const colunasEstat = [{ largura: 90 }, ...tabela.intervalos.map(() => ({ largura: 60 }))];
+    const colunasEstat = [{ largura: 90, esquerda: true }, ...tabela.intervalos.map(() => ({ largura: 60 }))];
     y = desenharLinhaTabela(page, ['Classificação', ...tabela.intervalos.map((i) => i.label)], colunasEstat, y, fontBold, 8, true);
     desenharLinhaTabela(page, ['Nº de alunos', ...tabela.intervalos.map((i) => String(i.total))], colunasEstat, y, font, 8, false);
 
@@ -122,7 +122,7 @@ export async function GET(
 function desenharLinhaTabela(
   page: PDFPage,
   valores: string[],
-  colunas: Array<{ largura: number }>,
+  colunas: Array<{ largura: number; esquerda?: boolean }>,
   y: number,
   font: PDFFont,
   tamanho: number,
@@ -132,7 +132,11 @@ function desenharLinhaTabela(
   const alturaLinha = 14;
   for (let i = 0; i < colunas.length; i++) {
     const texto = truncar(valores[i] ?? '', colunas[i].largura, font, tamanho);
-    page.drawText(texto, { x: x + 2, y, size: tamanho, font, color: rgb(0.1, 0.1, 0.1) });
+    // Nomes/texto alinhados à esquerda; tudo o resto (números) centrado na coluna.
+    const xTexto = colunas[i].esquerda
+      ? x + 2
+      : x + (colunas[i].largura - font.widthOfTextAtSize(texto, tamanho)) / 2;
+    page.drawText(texto, { x: xTexto, y, size: tamanho, font, color: rgb(0.1, 0.1, 0.1) });
     x += colunas[i].largura;
   }
   if (linhaSeparadora) {

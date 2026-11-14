@@ -98,6 +98,46 @@ export default function ResumoPage({
     return (valores.filter((v) => v < 50).length / valores.length) * 100;
   }
 
+  // Linhas de rodapé: média da turma e % de negativas por coluna.
+  // Colunas em % (instrumentos/critérios/atitudes): negativa = < 50%; Final: < 10; Nível: < 3.
+  const notNull = (v: number | null | undefined): v is number => v != null;
+  const mediaDe = (v: number[]) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : null);
+  const negativasDe = (v: number[], limite: number) =>
+    v.length ? (v.filter((x) => x < limite).length / v.length) * 100 : null;
+  const valoresInstrumento = (id: string) =>
+    resultados.map((r) => r.porInstrumento.find((x) => x.instrumentoId === id)?.percent).filter(notNull);
+  const valoresCriterio = (id: string) =>
+    resultados.map((r) => r.porCriterio.find((x) => x.criterioId === id)?.media).filter(notNull);
+  const valoresAtitudes = resultados.map(mediaAtitudes).filter(notNull);
+  const valoresFinal = resultados.map((r) => r.notaFinal20).filter(notNull);
+  const valoresNivel = resultados.map((r) => r.nivel).filter(notNull);
+
+  const fmtPct = (v: number | null) => (v == null ? '—' : `${v.toFixed(0)}%`);
+  type ColunaRodape = { key: string; valores: number[]; limite: number; tipo: 'percent' | 'nota' | 'nivel'; destaque: boolean };
+  const colunasRodape: ColunaRodape[] = [
+    ...instrumentosPorCriterio.flatMap(({ criterio: c, instrumentos }): ColunaRodape[] =>
+      instrumentos.length === 0
+        ? [{ key: c.id, valores: valoresCriterio(c.id), limite: 50, tipo: 'percent', destaque: true }]
+        : [
+            ...instrumentos.map((i): ColunaRodape => ({ key: i.id, valores: valoresInstrumento(i.id), limite: 50, tipo: 'percent', destaque: false })),
+            { key: `${c.id}-media`, valores: valoresCriterio(c.id), limite: 50, tipo: 'percent', destaque: true },
+          ]
+    ),
+    ...(criteriosAtitude.length > 0
+      ? [{ key: 'atitudes', valores: valoresAtitudes, limite: 50, tipo: 'percent', destaque: true } as ColunaRodape]
+      : []),
+    { key: 'final', valores: valoresFinal, limite: 10, tipo: 'nota', destaque: true },
+    ...(mostrarNivel
+      ? [{ key: 'nivel', valores: valoresNivel, limite: 3, tipo: 'nivel', destaque: true } as ColunaRodape]
+      : []),
+  ];
+  const fmtMediaRodape = (c: ColunaRodape) => {
+    const m = mediaDe(c.valores);
+    if (m == null) return '—';
+    if (c.tipo === 'percent') return formatarValor(m);
+    return m.toFixed(c.tipo === 'nota' ? 1 : 2);
+  };
+
   return (
     <AppShell width="full">
       <div className="mx-auto max-w-none">
@@ -235,6 +275,31 @@ export default function ResumoPage({
                 );
               })}
             </tbody>
+            <tfoot className="border-t-2 border-slate-200 bg-slate-50">
+              <tr>
+                <th colSpan={2} className="px-3 py-1.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Média da turma
+                </th>
+                {colunasRodape.map((c) => (
+                  <td
+                    key={c.key}
+                    className={`px-2 py-1.5 text-center tabular-nums ${c.destaque ? 'font-semibold text-slate-900' : 'text-slate-500'}`}
+                  >
+                    {fmtMediaRodape(c)}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <th colSpan={2} className="px-3 py-1.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  % negativas
+                </th>
+                {colunasRodape.map((c) => (
+                  <td key={c.key} className="px-2 py-1.5 text-center tabular-nums font-medium text-red-600">
+                    {fmtPct(negativasDe(c.valores, c.limite))}
+                  </td>
+                ))}
+              </tr>
+            </tfoot>
           </table>
         </div>
 

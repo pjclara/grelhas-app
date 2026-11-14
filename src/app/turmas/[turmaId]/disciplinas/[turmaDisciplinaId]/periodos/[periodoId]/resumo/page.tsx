@@ -208,17 +208,27 @@ export default function ResumoPage({
     }
   }
 
-  // Nº de alunos por intervalo de classificação final.
-  const intervalosNota = [
+  // Nº de alunos por intervalo de nota (0-20): classificação final e cada instrumento
+  // (as notas dos instrumentos são percentagens, convertidas para 0-20).
+  const bandasNota = [
     { label: '0 - 7', min: 0, max: 7 },
     { label: '8 - 9', min: 8, max: 9 },
     { label: '10 - 13', min: 10, max: 13 },
     { label: '14 - 17', min: 14, max: 17 },
     { label: '18 - 20', min: 18, max: 20 },
-  ].map((i) => ({
-    ...i,
-    total: valoresClassificacao.filter((n) => n >= i.min && n <= i.max).length,
-  }));
+  ];
+  const contarPorBanda = (notas: number[]) =>
+    bandasNota.map((b) => notas.filter((n) => n >= b.min && n <= b.max).length);
+  const linhasEstatisticas = [
+    { chave: 'classificacao', titulo: 'Classificação final', totais: contarPorBanda(valoresClassificacao) },
+    ...instrumentosPorCriterio.flatMap(({ criterio: c, instrumentos }) =>
+      instrumentos.map((i) => ({
+        chave: i.id,
+        titulo: `${c.nome} · ${i.nome}`,
+        totais: contarPorBanda(valoresInstrumento(i.id).map((p) => Math.round(p / 5))),
+      }))
+    ),
+  ];
 
   return (
     <AppShell width="full">
@@ -444,23 +454,25 @@ export default function ResumoPage({
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-3 py-2 text-left">Classificação</th>
-                  {intervalosNota.map((i) => (
-                    <th key={i.label} className="px-3 py-2 text-center">
-                      {i.label}
+                  <th className="px-3 py-2 text-left">Nº de alunos</th>
+                  {bandasNota.map((b) => (
+                    <th key={b.label} className="px-3 py-2 text-center">
+                      {b.label}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
-                <tr className="border-t border-slate-100">
-                  <th className="px-3 py-1.5 text-left font-medium text-slate-600">Nº de alunos</th>
-                  {intervalosNota.map((i) => (
-                    <td key={i.label} className="px-3 py-1.5 text-center font-semibold tabular-nums text-slate-900">
-                      {i.total}
-                    </td>
-                  ))}
-                </tr>
+              <tbody className="divide-y divide-slate-100">
+                {linhasEstatisticas.map((l) => (
+                  <tr key={l.chave}>
+                    <th className="px-3 py-1.5 text-left font-medium text-slate-600">{l.titulo}</th>
+                    {l.totais.map((total, idx) => (
+                      <td key={bandasNota[idx].label} className="px-3 py-1.5 text-center font-semibold tabular-nums text-slate-900">
+                        {total}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

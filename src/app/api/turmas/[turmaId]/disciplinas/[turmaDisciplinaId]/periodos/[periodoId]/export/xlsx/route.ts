@@ -83,27 +83,23 @@ export async function GET(
     rodape('% negativas', colunas.map((c) => c.negativas));
 
     sheet.addRow([]);
-    // Tabela de estatísticas a partir da coluna C.
+    // Tabela de estatísticas a partir da coluna C: o rótulo ocupa C:E e as classes de nota começam em F.
+    const { bandas, linhas: linhasEstat } = tabela.estatisticas;
     sheet.addRow(['', '', 'ESTATÍSTICAS']).font = { bold: true };
-    const cabEstat = sheet.addRow(['', '', 'Classificação', ...tabela.intervalos.map((i) => i.label)]);
-    const valEstat = sheet.addRow(['', '', 'Nº de alunos', ...tabela.intervalos.map((i) => i.total)]);
-    for (const row of [cabEstat, valEstat]) {
-      for (let col = 3; col <= 3 + tabela.intervalos.length; col++) {
+    const desenharLinhaEstat = (rotulo: string, valores: Array<string | number>, cabecalho: boolean) => {
+      const row = sheet.addRow(['', '', rotulo, '', '', ...valores]);
+      sheet.mergeCells(row.number, 3, row.number, 5);
+      for (let col = 3; col <= 5 + bandas.length; col++) {
         const cell = row.getCell(col);
-        cell.alignment = { horizontal: 'center' };
-        cell.border = {
-          top: { style: 'thin' },
-          bottom: { style: 'thin' },
-          left: { style: 'thin' },
-          right: { style: 'thin' },
-        };
+        cell.alignment = { horizontal: col <= 5 ? 'left' : 'center', vertical: 'middle', wrapText: true };
+        cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+        if (cabecalho) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDFB' } };
       }
-    }
-    cabEstat.font = { bold: true };
-    cabEstat.eachCell((cell, col) => {
-      if (col >= 3) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDFB' } };
-    });
-    valEstat.getCell(3).font = { bold: true };
+      row.getCell(3).font = { bold: true };
+      if (cabecalho) row.font = { bold: true };
+    };
+    desenharLinhaEstat('Nº de alunos', bandas, true);
+    for (const l of linhasEstat) desenharLinhaEstat(l.titulo, l.totais, false);
 
     sheet.getColumn(1).width = 14;
     sheet.getColumn(2).width = 32;

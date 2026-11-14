@@ -87,14 +87,29 @@ export async function GET(
     y = desenharLinhaTabela(page, ['', 'Média da turma', ...tabela.colunas.map((c) => c.media)], colunas, y, fontBold, tamanho, false);
     y = desenharLinhaTabela(page, ['', '% negativas', ...tabela.colunas.map((c) => c.negativas)], colunas, y, fontBold, tamanho, false);
 
-    // Tabela de estatísticas: nº de alunos por intervalo de classificação.
+    // Tabela de estatísticas: nº de alunos por intervalo de nota (classificação final e cada instrumento).
+    const { bandas, linhas: linhasEstat } = tabela.estatisticas;
+    const larguraRotulo = Math.min(
+      300,
+      Math.max(90, ...linhasEstat.map((l) => font.widthOfTextAtSize(l.titulo, 8) + 8))
+    );
+    const colunasEstat = [{ largura: larguraRotulo, esquerda: true }, ...bandas.map(() => ({ largura: 60 }))];
+    const cabecalhoEstat = () => {
+      y = desenharLinhaTabela(page, ['Nº de alunos', ...bandas], colunasEstat, y, fontBold, 8, true);
+    };
     novaPaginaSeNecessario(70);
     y -= 14;
     page.drawText('ESTATÍSTICAS', { x: MARGIN, y, size: 9, font: fontBold });
     y -= 14;
-    const colunasEstat = [{ largura: 90, esquerda: true }, ...tabela.intervalos.map(() => ({ largura: 60 }))];
-    y = desenharLinhaTabela(page, ['Classificação', ...tabela.intervalos.map((i) => i.label)], colunasEstat, y, fontBold, 8, true);
-    desenharLinhaTabela(page, ['Nº de alunos', ...tabela.intervalos.map((i) => String(i.total))], colunasEstat, y, font, 8, false);
+    cabecalhoEstat();
+    for (const l of linhasEstat) {
+      if (y < MARGIN + 20) {
+        page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        y = PAGE_HEIGHT - MARGIN;
+        cabecalhoEstat();
+      }
+      y = desenharLinhaTabela(page, [l.titulo, ...l.totais.map(String)], colunasEstat, y, font, 8, false);
+    }
 
     const bytes = await pdfDoc.save();
 

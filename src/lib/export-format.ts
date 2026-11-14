@@ -18,7 +18,11 @@ export interface ColunaExport {
 export interface TabelaExport {
   alunos: Array<{ numero: number; nome: string }>;
   colunas: ColunaExport[];
-  intervalos: Array<{ label: string; total: number }>;
+  /** Nº de alunos por intervalo de nota (0-20): classificação final e cada instrumento. */
+  estatisticas: {
+    bandas: string[];
+    linhas: Array<{ titulo: string; totais: number[] }>;
+  };
 }
 
 /** Os níveis 1-5 só se aplicam ao 2.º/3.º ciclo; no Secundário a nota é diretamente 0-20. */
@@ -82,6 +86,7 @@ export function construirTabela(resumo: ResumoPeriodo): TabelaExport {
   };
 
   const colunas: ColunaExport[] = [];
+  const valoresPorInstrumento: Array<{ titulo: string; notas20: number[] }> = [];
   for (const c of criteriosDetalhados) {
     const rotulo = `${c.nome} (${Math.round(c.peso * 100)}%)`;
     const instrumentos = resumo.instrumentos.filter((i) => i.criterioId === c.id).sort((a, b) => a.ordem - b.ordem);
@@ -91,6 +96,13 @@ export function construirTabela(resumo: ResumoPeriodo): TabelaExport {
       continue;
     }
     for (const i of instrumentos) {
+      valoresPorInstrumento.push({
+        titulo: `${c.nome} · ${i.nome}`,
+        notas20: resultados
+          .map((r) => r.porInstrumento.find((x) => x.instrumentoId === i.id)?.percent)
+          .filter(notNull)
+          .map((p) => Math.round(p / 5)),
+      });
       colunas.push(
         colunaPercent(rotulo, i.nome, resultados.map((r) => r.porInstrumento.find((x) => x.instrumentoId === i.id)?.percent), false)
       );
@@ -159,18 +171,26 @@ export function construirTabela(resumo: ResumoPeriodo): TabelaExport {
     texto: true,
   });
 
-  const intervalos = [
+  const bandas = [
     { label: '0 - 7', min: 0, max: 7 },
     { label: '8 - 9', min: 8, max: 9 },
     { label: '10 - 13', min: 10, max: 13 },
     { label: '14 - 17', min: 14, max: 17 },
     { label: '18 - 20', min: 18, max: 20 },
-  ].map((i) => ({ label: i.label, total: classNums.filter((n) => n >= i.min && n <= i.max).length }));
+  ];
+  const contar = (notas: number[]) => bandas.map((b) => notas.filter((n) => n >= b.min && n <= b.max).length);
+  const estatisticas = {
+    bandas: bandas.map((b) => b.label),
+    linhas: [
+      { titulo: 'Classificação final', totais: contar(classNums) },
+      ...valoresPorInstrumento.map((v) => ({ titulo: v.titulo, totais: contar(v.notas20) })),
+    ],
+  };
 
   return {
     alunos: resumo.alunos.map((a) => ({ numero: a.numero, nome: a.nome })),
     colunas,
-    intervalos,
+    estatisticas,
   };
 }
 

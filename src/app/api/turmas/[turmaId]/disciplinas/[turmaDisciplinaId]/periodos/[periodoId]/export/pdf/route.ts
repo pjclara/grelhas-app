@@ -97,12 +97,14 @@ export async function GET(
     y = desenharLinhaTabela(page, ['', 'Média da turma', ...tabela.colunas.map((c) => c.media)], colunas, y, fontBold, tamanho, false);
     y = desenharLinhaTabela(page, ['', '% negativas', ...tabela.colunas.map((c) => c.negativas)], colunas, y, fontBold, tamanho, false);
 
-    novaPaginaSeNecessario(40);
-    y -= 10;
-    page.drawText(
-      `Estatísticas — alunos por classificação:    ${tabela.intervalos.map((i) => `${i.label}: ${i.total}`).join('    ')}`,
-      { x: MARGIN, y, size: 9, font }
-    );
+    // Tabela de estatísticas: nº de alunos por intervalo de classificação.
+    novaPaginaSeNecessario(70);
+    y -= 14;
+    page.drawText('ESTATÍSTICAS', { x: MARGIN, y, size: 9, font: fontBold });
+    y -= 14;
+    const colunasEstat = [{ largura: 90 }, ...tabela.intervalos.map(() => ({ largura: 60 }))];
+    y = desenharLinhaTabela(page, ['Classificação', ...tabela.intervalos.map((i) => i.label)], colunasEstat, y, fontBold, 8, true);
+    desenharLinhaTabela(page, ['Nº de alunos', ...tabela.intervalos.map((i) => String(i.total))], colunasEstat, y, font, 8, false);
 
     const bytes = await pdfDoc.save();
 

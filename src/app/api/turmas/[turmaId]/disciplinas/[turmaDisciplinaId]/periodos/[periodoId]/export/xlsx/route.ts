@@ -83,10 +83,27 @@ export async function GET(
     rodape('% negativas', colunas.map((c) => c.negativas));
 
     sheet.addRow([]);
-    const titulo = sheet.addRow(['ESTATÍSTICAS']);
-    titulo.font = { bold: true };
-    sheet.addRow(tabela.intervalos.map((i) => i.label));
-    sheet.addRow(tabela.intervalos.map((i) => i.total));
+    // Tabela de estatísticas a partir da coluna C.
+    sheet.addRow(['', '', 'ESTATÍSTICAS']).font = { bold: true };
+    const cabEstat = sheet.addRow(['', '', 'Classificação', ...tabela.intervalos.map((i) => i.label)]);
+    const valEstat = sheet.addRow(['', '', 'Nº de alunos', ...tabela.intervalos.map((i) => i.total)]);
+    for (const row of [cabEstat, valEstat]) {
+      for (let col = 3; col <= 3 + tabela.intervalos.length; col++) {
+        const cell = row.getCell(col);
+        cell.alignment = { horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          bottom: { style: 'thin' },
+          left: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      }
+    }
+    cabEstat.font = { bold: true };
+    cabEstat.eachCell((cell, col) => {
+      if (col >= 3) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDFB' } };
+    });
+    valEstat.getCell(3).font = { bold: true };
 
     sheet.getColumn(1).width = 14;
     sheet.getColumn(2).width = 32;

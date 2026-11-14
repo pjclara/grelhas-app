@@ -9,6 +9,8 @@ export interface ColunaExport {
   valores: string[];
   media: string;
   negativas: string;
+  /** Coluna de texto livre (notas / comentários). */
+  texto?: boolean;
   /** Colunas de resumo (média do critério, atitudes, final, classificação, nível) a negrito. */
   destaque: boolean;
 }
@@ -112,6 +114,17 @@ export function construirTabela(resumo: ResumoPeriodo): TabelaExport {
     destaque: true,
   });
 
+  const autoavaliacoes = resumo.alunos.map((a) => resumo.autoavaliacoes[a.id] ?? null);
+  const autoNums = autoavaliacoes.filter(notNull);
+  colunas.push({
+    grupo: null,
+    titulo: 'Autoavaliação',
+    valores: autoavaliacoes.map((v) => (v == null ? '—' : String(v))),
+    media: formatNum(mediaDe(autoNums), 1),
+    negativas: fmtPct(negativasDe(autoNums, 10)),
+    destaque: true,
+  });
+
   const classificacoes = resultados.map((r) => resumo.classificacoes[r.alunoId] ?? (r.notaFinal20 != null ? Math.round(r.notaFinal20) : null));
   const classNums = classificacoes.filter(notNull);
   colunas.push({
@@ -135,6 +148,16 @@ export function construirTabela(resumo: ResumoPeriodo): TabelaExport {
       destaque: true,
     });
   }
+
+  colunas.push({
+    grupo: null,
+    titulo: 'Notas / comentários',
+    valores: resumo.alunos.map((a) => resumo.comentarios[a.id] ?? ''),
+    media: '',
+    negativas: '',
+    destaque: false,
+    texto: true,
+  });
 
   const intervalos = [
     { label: '0 - 7', min: 0, max: 7 },

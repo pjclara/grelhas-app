@@ -344,14 +344,19 @@ model AlunoDisciplina {
   @@unique([alunoId, turmaDisciplinaId])
 }
 
-// Classificação do período (0-20, inteira) atribuída pelo professor a um aluno
-// numa disciplina da turma. Sem registo = assume a média final arredondada.
+// Classificação do período (0-20, inteira) atribuída pelo professor e autoavaliação
+// do aluno, numa disciplina da turma. Sem classificação = assume a média final arredondada.
 model Classificacao {
   id                String @id @default(cuid())
   alunoId           String
   turmaDisciplinaId String
   periodoId         String
-  valor             Int
+  // Classificação do período atribuída pelo professor (null = usa a média arredondada)
+  valor             Int?
+  // Autoavaliação do aluno (0-20)
+  autoavaliacao     Int?
+  // Notas / comentários do professor sobre o aluno
+  comentario        String?
 
   aluno           Aluno           @relation(fields: [alunoId], references: [id], onDelete: Cascade)
   turmaDisciplina TurmaDisciplina @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)

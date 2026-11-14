@@ -30,12 +30,18 @@ export async function GET(
     const larguraNum = 22;
     const larguraNome = 120;
     const larguraUtil = PAGE_WIDTH - 2 * MARGIN;
-    const larguraCol = Math.min(70, (larguraUtil - larguraNum - larguraNome) / Math.max(tabela.colunas.length, 1));
+    const larguraTexto = 110;
+    const numTexto = tabela.colunas.filter((c) => c.texto).length;
+    const numOutras = tabela.colunas.length - numTexto;
+    const larguraCol = Math.min(
+      70,
+      (larguraUtil - larguraNum - larguraNome - numTexto * larguraTexto) / Math.max(numOutras, 1)
+    );
     const tamanho = larguraCol < 36 ? 6 : 8;
     const colunas = [
       { largura: larguraNum },
       { largura: larguraNome },
-      ...tabela.colunas.map(() => ({ largura: larguraCol })),
+      ...tabela.colunas.map((c) => ({ largura: c.texto ? larguraTexto : larguraCol })),
     ];
 
     let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);

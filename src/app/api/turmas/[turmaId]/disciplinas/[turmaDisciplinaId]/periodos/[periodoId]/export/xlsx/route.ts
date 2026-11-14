@@ -64,6 +64,7 @@ export async function GET(
       row.getCell(2).alignment = { horizontal: 'left' };
       colunas.forEach((c, i) => {
         if (c.destaque) row.getCell(3 + i).font = { bold: true };
+        if (c.texto) row.getCell(3 + i).alignment = { horizontal: 'left', wrapText: true };
       });
     });
 
@@ -90,7 +91,7 @@ export async function GET(
     sheet.getColumn(1).width = 14;
     sheet.getColumn(2).width = 32;
     for (let i = 0; i < colunas.length; i++) {
-      sheet.getColumn(3 + i).width = colunas[i].grupo ? 14 : 18;
+      sheet.getColumn(3 + i).width = colunas[i].texto ? 40 : colunas[i].grupo ? 14 : 18;
     }
 
     const buffer = await workbook.xlsx.writeBuffer();

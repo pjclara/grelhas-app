@@ -16,21 +16,22 @@ export async function PUT(
     const periodo = await prisma.periodo.findFirst({ where: { id: params.periodoId, turmaId: params.turmaId } });
     if (!periodo) throw new NotFoundError('Período não encontrado');
 
-    const { alunoId, valor } = classificacaoSchema.parse(await req.json());
+    const { alunoId, campo, valor } = classificacaoSchema.parse(await req.json());
     const matricula = await prisma.matricula.findFirst({ where: { alunoId, turmaId: params.turmaId } });
     if (!matricula) throw new NotFoundError('Aluno não encontrado nesta turma');
 
     const chave = { alunoId, turmaDisciplinaId: params.turmaDisciplinaId, periodoId: params.periodoId };
-    if (valor == null) {
-      await prisma.classificacao.deleteMany({ where: chave });
-    } else {
-      await prisma.classificacao.upsert({
-        where: { alunoId_turmaDisciplinaId_periodoId: chave },
-        create: { ...chave, valor },
-        update: { valor },
-      });
+    const coluna = campo === 'classificacao' ? 'valor' : campo === 'autoavaliacao' ? 'autoavaliacao' : 'comentario';
+    const registo = await prisma.classificacao.upsert({
+      where: { alunoId_turmaDisciplinaId_periodoId: chave },
+      create: { ...chave, [coluna]: valor },
+      update: { [coluna]: valor },
+    });
+    // Sem classificação, autoavaliação nem comentário, o registo deixa de ter conteúdo.
+    if (registo.valor == null && registo.autoavaliacao == null && registo.comentario == null) {
+      await prisma.classificacao.delete({ where: { id: registo.id } });
     }
-    return NextResponse.json({ alunoId, valor });
+    return NextResponse.json({ alunoId, campo, valor });
   } catch (error) {
     return handleApiError(error);
   }

@@ -26,6 +26,10 @@ export interface ResumoPeriodo {
   resultados: ResultadoAluno[];
   /** Classificação inserida pelo professor, por alunoId (ausente = usa a média final arredondada). */
   classificacoes: Record<string, number>;
+  /** Autoavaliação do aluno (0-20), por alunoId. */
+  autoavaliacoes: Record<string, number>;
+  /** Notas / comentários do professor, por alunoId. */
+  comentarios: Record<string, string>;
   estatisticas: ReturnType<typeof calcularEstatisticasTurma>;
 }
 
@@ -118,9 +122,16 @@ export async function construirResumoPeriodo(
 
   const classificacoesDb = await prisma.classificacao.findMany({
     where: { turmaDisciplinaId, periodoId },
-    select: { alunoId: true, valor: true },
+    select: { alunoId: true, valor: true, autoavaliacao: true, comentario: true },
   });
-  const classificacoes = Object.fromEntries(classificacoesDb.map((c) => [c.alunoId, c.valor]));
+  const classificacoes: Record<string, number> = {};
+  const autoavaliacoes: Record<string, number> = {};
+  const comentarios: Record<string, string> = {};
+  for (const c of classificacoesDb) {
+    if (c.valor != null) classificacoes[c.alunoId] = c.valor;
+    if (c.autoavaliacao != null) autoavaliacoes[c.alunoId] = c.autoavaliacao;
+    if (c.comentario) comentarios[c.alunoId] = c.comentario;
+  }
 
   return {
     turma: {
@@ -141,6 +152,8 @@ export async function construirResumoPeriodo(
     alunos: alunos.map((a) => ({ id: a.id, numero: numeroPorAluno.get(a.id) ?? 0, nome: a.nome })),
     resultados,
     classificacoes,
+    autoavaliacoes,
+    comentarios,
     estatisticas,
   };
 }

@@ -18,6 +18,8 @@ export default function ResumoPage({
   const [resumo, setResumo] = useState<ResumoPeriodoDTO | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [classificacoes, setClassificacoes] = useState<Record<string, number>>({});
+  const [autoavaliacoes, setAutoavaliacoes] = useState<Record<string, number>>({});
+  const [comentarios, setComentarios] = useState<Record<string, string>>({});
   const [rascunhos, setRascunhos] = useState<Record<string, string>>({});
   const [erroClassificacao, setErroClassificacao] = useState<string | null>(null);
 
@@ -33,6 +35,8 @@ export default function ResumoPage({
       r.json().then((d: ResumoPeriodoDTO) => {
         setResumo(d);
         setClassificacoes(d.classificacoes ?? {});
+        setAutoavaliacoes(d.autoavaliacoes ?? {});
+        setComentarios(d.comentarios ?? {});
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,6 +133,7 @@ export default function ResumoPage({
       ? [{ key: 'atitudes', valores: valoresAtitudes, limite: 50, tipo: 'percent', destaque: true } as ColunaRodape]
       : []),
     { key: 'final', valores: valoresFinal, limite: 10, tipo: 'nota', destaque: true },
+    { key: 'autoavaliacao', valores: Object.values(autoavaliacoes), limite: 10, tipo: 'nota', destaque: true },
     { key: 'classificacao', valores: valoresClassificacao, limite: 10, tipo: 'inteira', destaque: true },
     ...(mostrarNivel
       ? [{ key: 'nivel', valores: valoresNivel, limite: 3, tipo: 'nivel', destaque: true } as ColunaRodape]
@@ -141,21 +146,25 @@ export default function ResumoPage({
     return m.toFixed(c.tipo === 'nota' ? 1 : c.tipo === 'inteira' ? 0 : 2);
   };
 
-  async function guardarClassificacao(alunoId: string, texto: string) {
+  async function guardarNota(campo: 'classificacao' | 'autoavaliacao', alunoId: string, texto: string) {
+    const guardadas = campo === 'classificacao' ? classificacoes : autoavaliacoes;
+    const setGuardadas = campo === 'classificacao' ? setClassificacoes : setAutoavaliacoes;
+    const nome = campo === 'classificacao' ? 'classificação' : 'autoavaliação';
+    const chaveRascunho = `${campo}:${alunoId}`;
     const limpo = texto.trim();
     const valor = limpo === '' ? null : Number(limpo.replace(',', '.'));
     setRascunhos((r) => {
-      const { [alunoId]: _descartado, ...resto } = r;
+      const { [chaveRascunho]: _descartado, ...resto } = r;
       return resto;
     });
     if (valor != null && (!Number.isInteger(valor) || valor < 0 || valor > 20)) {
-      setErroClassificacao('A classificação deve ser um número inteiro entre 0 e 20.');
+      setErroClassificacao(`A ${nome} deve ser um número inteiro entre 0 e 20.`);
       return;
     }
-    if ((classificacoes[alunoId] ?? null) === valor) return;
+    if ((guardadas[alunoId] ?? null) === valor) return;
     setErroClassificacao(null);
-    const anterior = classificacoes;
-    setClassificacoes((c) => {
+    const anterior = guardadas;
+    setGuardadas((c) => {
       const novo = { ...c };
       if (valor == null) delete novo[alunoId];
       else novo[alunoId] = valor;
@@ -164,11 +173,38 @@ export default function ResumoPage({
     const res = await fetch(`${disciplinaBase}/periodos/${params.periodoId}/classificacao`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ alunoId, valor }),
+      body: JSON.stringify({ alunoId, campo, valor }),
     });
     if (!res.ok) {
-      setClassificacoes(anterior);
-      setErroClassificacao('Não foi possível guardar a classificação.');
+      setGuardadas(anterior);
+      setErroClassificacao(`Não foi possível guardar a ${nome}.`);
+    }
+  }
+
+  async function guardarComentario(alunoId: string, texto: string) {
+    const valor = texto.trim();
+    const chaveRascunho = `comentario:${alunoId}`;
+    setRascunhos((r) => {
+      const { [chaveRascunho]: _descartado, ...resto } = r;
+      return resto;
+    });
+    if ((comentarios[alunoId] ?? '') === valor) return;
+    setErroClassificacao(null);
+    const anterior = comentarios;
+    setComentarios((c) => {
+      const novo = { ...c };
+      if (valor === '') delete novo[alunoId];
+      else novo[alunoId] = valor;
+      return novo;
+    });
+    const res = await fetch(`${disciplinaBase}/periodos/${params.periodoId}/classificacao`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alunoId, campo: 'comentario', valor: valor === '' ? null : valor }),
+    });
+    if (!res.ok) {
+      setComentarios(anterior);
+      setErroClassificacao('Não foi possível guardar as notas. O texto pode ter no máximo 1000 caracteres.');
     }
   }
 
@@ -249,8 +285,10 @@ export default function ResumoPage({
                   </th>
                 )}
                 <th className="px-3 py-2 text-center" rowSpan={2}>Média final</th>
+                <th className="px-3 py-2 text-center" rowSpan={2}>Autoavaliação</th>
                 <th className="px-3 py-2 text-center" rowSpan={2}>Classificação</th>
                 {mostrarNivel && <th className="px-3 py-2 text-center" rowSpan={2}>Nível</th>}
+                <th className="px-3 py-2 text-center" rowSpan={2}>Notas / comentários</th>
               </tr>
               <tr>
                 {instrumentosPorCriterio.flatMap(({ criterio: c, instrumentos }) =>
@@ -314,12 +352,30 @@ export default function ResumoPage({
                         min={0}
                         max={20}
                         step={1}
+                        aria-label={`Autoavaliação de ${aluno.nome}`}
+                        placeholder="—"
+                        value={rascunhos[`autoavaliacao:${aluno.id}`] ?? (autoavaliacoes[aluno.id] != null ? String(autoavaliacoes[aluno.id]) : '')}
+                        onChange={(e) => setRascunhos((r) => ({ ...r, [`autoavaliacao:${aluno.id}`]: e.target.value }))}
+                        onBlur={(e) => guardarNota('autoavaliacao', aluno.id, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                        className="h-8 w-16 rounded-md border border-slate-300 bg-white px-2 text-center text-sm font-semibold tabular-nums text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                    </td>
+                    <td className="px-3 py-1.5 text-center">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={20}
+                        step={1}
                         aria-label={`Classificação de ${aluno.nome}`}
                         title="Em branco assume a média final arredondada"
                         placeholder={resultado.notaFinal20 != null ? String(Math.round(resultado.notaFinal20)) : '—'}
-                        value={rascunhos[aluno.id] ?? (classificacoes[aluno.id] != null ? String(classificacoes[aluno.id]) : '')}
-                        onChange={(e) => setRascunhos((r) => ({ ...r, [aluno.id]: e.target.value }))}
-                        onBlur={(e) => guardarClassificacao(aluno.id, e.target.value)}
+                        value={rascunhos[`classificacao:${aluno.id}`] ?? (classificacoes[aluno.id] != null ? String(classificacoes[aluno.id]) : '')}
+                        onChange={(e) => setRascunhos((r) => ({ ...r, [`classificacao:${aluno.id}`]: e.target.value }))}
+                        onBlur={(e) => guardarNota('classificacao', aluno.id, e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') e.currentTarget.blur();
                         }}
@@ -333,6 +389,21 @@ export default function ResumoPage({
                         {resultado.nivel ?? '—'}
                       </td>
                     )}
+                    <td className="px-3 py-1.5">
+                      <input
+                        type="text"
+                        maxLength={1000}
+                        aria-label={`Notas / comentários sobre ${aluno.nome}`}
+                        placeholder="—"
+                        value={rascunhos[`comentario:${aluno.id}`] ?? comentarios[aluno.id] ?? ''}
+                        onChange={(e) => setRascunhos((r) => ({ ...r, [`comentario:${aluno.id}`]: e.target.value }))}
+                        onBlur={(e) => guardarComentario(aluno.id, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                        className="h-8 w-56 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                    </td>
                   </tr>
                 );
               })}
@@ -350,6 +421,7 @@ export default function ResumoPage({
                     {fmtMediaRodape(c)}
                   </td>
                 ))}
+                <td />
               </tr>
               <tr>
                 <th colSpan={2} className="px-3 py-1.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -360,6 +432,7 @@ export default function ResumoPage({
                     {fmtPct(negativasDe(c.valores, c.limite))}
                   </td>
                 ))}
+                <td />
               </tr>
             </tfoot>
           </table>

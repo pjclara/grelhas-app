@@ -260,6 +260,8 @@ export interface ResumoPeriodoDTO {
   alunos: Array<{ id: string; numero: number; nome: string }>;
   resultados: ResultadoAlunoDTO[];
   classificacoes: Record<string, number>;
+  autoavaliacoes: Record<string, number>;
+  comentarios: Record<string, string>;
   estatisticas: {
     mediaTurma20: number | null;
     percentNegativas: number | null;

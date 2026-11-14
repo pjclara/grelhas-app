@@ -119,11 +119,25 @@ export const notasLancamentoSchema = z.object({
   notas: z.record(z.string(), z.record(z.string(), z.number().nullable())),
 });
 
-// Classificação do período; valor null remove a classificação manual (volta à média arredondada).
-export const classificacaoSchema = z.object({
-  alunoId: z.string().min(1),
-  valor: z.number().int().min(0).max(20).nullable(),
-});
+// Classificação do período ou autoavaliação do aluno (0-20). Para a classificação, valor null
+// remove a inserção manual (volta à média arredondada).
+export const classificacaoSchema = z.discriminatedUnion('campo', [
+  z.object({
+    alunoId: z.string().min(1),
+    campo: z.enum(['classificacao', 'autoavaliacao']),
+    valor: z.number().int().min(0).max(20).nullable(),
+  }),
+  z.object({
+    alunoId: z.string().min(1),
+    campo: z.literal('comentario'),
+    // Texto vazio equivale a remover o comentário.
+    valor: z
+      .string()
+      .max(1000)
+      .nullable()
+      .transform((v) => (v == null || v.trim() === '' ? null : v.trim())),
+  }),
+]);
 
 // ---------- Critérios de avaliação (ano letivo + ciclo) ----------
 

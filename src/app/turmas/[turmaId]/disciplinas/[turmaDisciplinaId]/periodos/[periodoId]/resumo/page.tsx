@@ -17,6 +17,9 @@ export default function ResumoPage({
 }) {
   const [resumo, setResumo] = useState<ResumoPeriodoDTO | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [classificacoes, setClassificacoes] = useState<Record<string, number>>({});
+  const [rascunhos, setRascunhos] = useState<Record<string, string>>({});
+  const [erroClassificacao, setErroClassificacao] = useState<string | null>(null);
 
   const disciplinaBase = `/api/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
   const voltarHref = `/turmas/${params.turmaId}/disciplinas/${params.turmaDisciplinaId}`;
@@ -27,7 +30,10 @@ export default function ResumoPage({
         setErro('Não foi possível carregar o resumo.');
         return;
       }
-      r.json().then(setResumo);
+      r.json().then((d: ResumoPeriodoDTO) => {
+        setResumo(d);
+        setClassificacoes(d.classificacoes ?? {});
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.turmaId, params.turmaDisciplinaId, params.periodoId]);
@@ -111,9 +117,13 @@ export default function ResumoPage({
   const valoresAtitudes = resultados.map(mediaAtitudes).filter(notNull);
   const valoresFinal = resultados.map((r) => r.notaFinal20).filter(notNull);
   const valoresNivel = resultados.map((r) => r.nivel).filter(notNull);
+  // Classificação efetiva: a inserida pelo professor ou, se vazia, a média final arredondada.
+  const classificacaoEfetiva = (r: ResultadoAlunoDTO): number | null =>
+    classificacoes[r.alunoId] ?? (r.notaFinal20 != null ? Math.round(r.notaFinal20) : null);
+  const valoresClassificacao = resultados.map(classificacaoEfetiva).filter(notNull);
 
   const fmtPct = (v: number | null) => (v == null ? '—' : `${v.toFixed(0)}%`);
-  type ColunaRodape = { key: string; valores: number[]; limite: number; tipo: 'percent' | 'nota' | 'nivel'; destaque: boolean };
+  type ColunaRodape = { key: string; valores: number[]; limite: number; tipo: 'percent' | 'nota' | 'inteira' | 'nivel'; destaque: boolean };
   const colunasRodape: ColunaRodape[] = [
     ...instrumentosPorCriterio.flatMap(({ criterio: c, instrumentos }): ColunaRodape[] =>
       instrumentos.length === 0
@@ -127,6 +137,7 @@ export default function ResumoPage({
       ? [{ key: 'atitudes', valores: valoresAtitudes, limite: 50, tipo: 'percent', destaque: true } as ColunaRodape]
       : []),
     { key: 'final', valores: valoresFinal, limite: 10, tipo: 'nota', destaque: true },
+    { key: 'classificacao', valores: valoresClassificacao, limite: 10, tipo: 'inteira', destaque: true },
     ...(mostrarNivel
       ? [{ key: 'nivel', valores: valoresNivel, limite: 3, tipo: 'nivel', destaque: true } as ColunaRodape]
       : []),
@@ -135,10 +146,41 @@ export default function ResumoPage({
     const m = mediaDe(c.valores);
     if (m == null) return '—';
     if (c.tipo === 'percent') return formatarValor(m);
-    return m.toFixed(c.tipo === 'nota' ? 1 : 2);
+    return m.toFixed(c.tipo === 'nota' ? 1 : c.tipo === 'inteira' ? 0 : 2);
   };
 
-  // Nº de alunos por intervalo de nota final (arredondada às unidades).
+  async function guardarClassificacao(alunoId: string, texto: string) {
+    const limpo = texto.trim();
+    const valor = limpo === '' ? null : Number(limpo.replace(',', '.'));
+    setRascunhos((r) => {
+      const { [alunoId]: _descartado, ...resto } = r;
+      return resto;
+    });
+    if (valor != null && (!Number.isInteger(valor) || valor < 0 || valor > 20)) {
+      setErroClassificacao('A classificação deve ser um número inteiro entre 0 e 20.');
+      return;
+    }
+    if ((classificacoes[alunoId] ?? null) === valor) return;
+    setErroClassificacao(null);
+    const anterior = classificacoes;
+    setClassificacoes((c) => {
+      const novo = { ...c };
+      if (valor == null) delete novo[alunoId];
+      else novo[alunoId] = valor;
+      return novo;
+    });
+    const res = await fetch(`${disciplinaBase}/periodos/${params.periodoId}/classificacao`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alunoId, valor }),
+    });
+    if (!res.ok) {
+      setClassificacoes(anterior);
+      setErroClassificacao('Não foi possível guardar a classificação.');
+    }
+  }
+
+  // Nº de alunos por intervalo de classificação final.
   const intervalosNota = [
     { label: '0 - 7', min: 0, max: 7 },
     { label: '8 - 9', min: 8, max: 9 },
@@ -147,7 +189,7 @@ export default function ResumoPage({
     { label: '18 - 20', min: 18, max: 20 },
   ].map((i) => ({
     ...i,
-    total: valoresFinal.filter((n) => Math.round(n) >= i.min && Math.round(n) <= i.max).length,
+    total: valoresClassificacao.filter((n) => n >= i.min && n <= i.max).length,
   }));
 
   return (
@@ -184,6 +226,11 @@ export default function ResumoPage({
           </div>
         </div>
 
+        {erroClassificacao && (
+          <div className="mb-3">
+            <Alert tone="danger">{erroClassificacao}</Alert>
+          </div>
+        )}
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -209,7 +256,8 @@ export default function ResumoPage({
                     <div className="text-xs font-normal normal-case text-slate-400">{Math.round(pesoAtitudes * 100)}%</div>
                   </th>
                 )}
-                <th className="px-3 py-2 text-center" rowSpan={2}>Final (0-20)</th>
+                <th className="px-3 py-2 text-center" rowSpan={2}>Média final</th>
+                <th className="px-3 py-2 text-center" rowSpan={2}>Classificação</th>
                 {mostrarNivel && <th className="px-3 py-2 text-center" rowSpan={2}>Nível</th>}
               </tr>
               <tr>
@@ -278,6 +326,27 @@ export default function ResumoPage({
                     <td className="px-3 py-1.5 text-center tabular-nums font-semibold text-slate-900">
                       {resultado.notaFinal20 != null ? resultado.notaFinal20.toFixed(1) : '—'}
                     </td>
+                    <td className="px-3 py-1.5 text-center">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={20}
+                        step={1}
+                        aria-label={`Classificação de ${aluno.nome}`}
+                        title="Em branco assume a média final arredondada"
+                        placeholder={resultado.notaFinal20 != null ? String(Math.round(resultado.notaFinal20)) : '—'}
+                        value={rascunhos[aluno.id] ?? (classificacoes[aluno.id] != null ? String(classificacoes[aluno.id]) : '')}
+                        onChange={(e) => setRascunhos((r) => ({ ...r, [aluno.id]: e.target.value }))}
+                        onBlur={(e) => guardarClassificacao(aluno.id, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                        className={`h-8 w-16 rounded-md border border-slate-300 bg-white px-2 text-center text-sm tabular-nums font-semibold focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 ${
+                          classificacoes[aluno.id] != null ? 'text-slate-900' : 'text-slate-400 placeholder:text-slate-400'
+                        }`}
+                      />
+                    </td>
                     {mostrarNivel && (
                       <td className="px-3 py-1.5 text-center tabular-nums font-medium text-slate-900">
                         {resultado.nivel ?? '—'}
@@ -316,7 +385,7 @@ export default function ResumoPage({
         </div>
 
         <Card className="mt-6 p-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Alunos por nota final</p>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Alunos por classificação</p>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             {intervalosNota.map((i) => (
               <span key={i.label} className="text-slate-600">

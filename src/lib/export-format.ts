@@ -1,12 +1,22 @@
 import type { ResumoPeriodo } from '@/lib/resumo';
 import { ehSecundario } from '@/lib/types';
 
-export interface LinhaExport {
-  numero: number;
-  nome: string;
-  porCriterio: Array<{ nome: string; valor: string }>;
-  notaFinal20: string;
-  nivel: string | null;
+export interface ColunaExport {
+  /** Critério a que a coluna pertence (cabeçalho agrupado); null = coluna independente. */
+  grupo: string | null;
+  titulo: string;
+  /** Valores formatados, um por aluno (mesma ordem de `alunos`). */
+  valores: string[];
+  media: string;
+  negativas: string;
+  /** Colunas de resumo (média do critério, atitudes, final, classificação, nível) a negrito. */
+  destaque: boolean;
+}
+
+export interface TabelaExport {
+  alunos: Array<{ numero: number; nome: string }>;
+  colunas: ColunaExport[];
+  intervalos: Array<{ label: string; total: number }>;
 }
 
 /** Os níveis 1-5 só se aplicam ao 2.º/3.º ciclo; no Secundário a nota é diretamente 0-20. */
@@ -19,26 +29,126 @@ export function formatNum(valor: number | null, casas = 1): string {
   return valor.toFixed(casas).replace('.', ',');
 }
 
-export function construirLinhas(resumo: ResumoPeriodo): LinhaExport[] {
+const notNull = (v: number | null | undefined): v is number => v != null;
+const mediaDe = (v: number[]) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : null);
+const negativasDe = (v: number[], limite: number) =>
+  v.length ? (v.filter((x) => x < limite).length / v.length) * 100 : null;
+const fmtPct = (v: number | null) => (v == null ? '—' : `${v.toFixed(0)}%`);
+
+/**
+ * Tabela do resumo para exportação — mesma estrutura da página de resumo:
+ * instrumentos por critério + média do critério, atitudes agregadas, Média final,
+ * Classificação (inserida pelo professor ou média arredondada) e Nível.
+ */
+export function construirTabela(resumo: ResumoPeriodo): TabelaExport {
   const comNivel = mostraNivel(resumo);
   // Até ao 9.º ano (2.º/3.º ciclo) os valores são apresentados em %; no
   // Secundário na escala 0-200 — mesma regra da página de resumo.
   const escala200 = ehSecundario(resumo.turma.nivelEnsino);
   const formatarValor = (v: number | null | undefined) =>
     v == null ? '—' : escala200 ? (v * 2).toFixed(0) : `${v.toFixed(0)}%`;
-  return resumo.alunos.map((aluno) => {
-    const resultado = resumo.resultados.find((r) => r.alunoId === aluno.id)!;
+  const fmtMediaPercent = (v: number | null) => (v == null ? '—' : formatarValor(v));
+
+  const resultadoDe = (alunoId: string) => resumo.resultados.find((r) => r.alunoId === alunoId)!;
+  const resultados = resumo.alunos.map((a) => resultadoDe(a.id));
+
+  const criteriosAtitude = resumo.criterios.filter((c) => c.grupo.toLowerCase().includes('atitude'));
+  const criteriosDetalhados = resumo.criterios.filter((c) => !criteriosAtitude.includes(c));
+  const pesoAtitudes = criteriosAtitude.reduce((acc, c) => acc + c.peso, 0);
+  const nomeAtitudes = criteriosAtitude[0]?.grupo ?? 'Atitudes';
+
+  const mediaAtitudes = (r: ResumoPeriodo['resultados'][number]): number | null => {
+    const comValor = criteriosAtitude
+      .map((c) => ({ peso: c.peso, media: r.porCriterio.find((x) => x.criterioId === c.id)?.media ?? null }))
+      .filter((x): x is { peso: number; media: number } => x.media != null);
+    const pesoTotal = comValor.reduce((acc, x) => acc + x.peso, 0);
+    if (comValor.length === 0 || pesoTotal === 0) return null;
+    return comValor.reduce((acc, x) => acc + x.peso * x.media, 0) / pesoTotal;
+  };
+
+  // Coluna em % (negativa < 50%) a partir de um valor por aluno.
+  const colunaPercent = (grupo: string | null, titulo: string, valores: Array<number | null | undefined>, destaque: boolean): ColunaExport => {
+    const nums = valores.filter(notNull);
     return {
-      numero: aluno.numero,
-      nome: aluno.nome,
-      porCriterio: resumo.criterios.map((c) => {
-        const r = resultado.porCriterio.find((x) => x.criterioId === c.id);
-        return { nome: c.nome, valor: formatarValor(r?.media) };
-      }),
-      notaFinal20: formatNum(resultado.notaFinal20),
-      nivel: comNivel ? (resultado.nivel?.toString() ?? '—') : null,
+      grupo,
+      titulo,
+      valores: valores.map(formatarValor),
+      media: fmtMediaPercent(mediaDe(nums)),
+      negativas: fmtPct(negativasDe(nums, 50)),
+      destaque,
     };
+  };
+
+  const colunas: ColunaExport[] = [];
+  for (const c of criteriosDetalhados) {
+    const rotulo = `${c.nome} (${Math.round(c.peso * 100)}%)`;
+    const instrumentos = resumo.instrumentos.filter((i) => i.criterioId === c.id).sort((a, b) => a.ordem - b.ordem);
+    const mediaCriterio = resultados.map((r) => r.porCriterio.find((x) => x.criterioId === c.id)?.media);
+    if (instrumentos.length === 0) {
+      colunas.push(colunaPercent(null, rotulo, mediaCriterio, true));
+      continue;
+    }
+    for (const i of instrumentos) {
+      colunas.push(
+        colunaPercent(rotulo, i.nome, resultados.map((r) => r.porInstrumento.find((x) => x.instrumentoId === i.id)?.percent), false)
+      );
+    }
+    colunas.push(colunaPercent(rotulo, 'Média', mediaCriterio, true));
+  }
+  if (criteriosAtitude.length > 0) {
+    colunas.push(
+      colunaPercent(null, `${nomeAtitudes} (${Math.round(pesoAtitudes * 100)}%)`, resultados.map(mediaAtitudes), true)
+    );
+  }
+
+  const finais = resultados.map((r) => r.notaFinal20);
+  const finaisNums = finais.filter(notNull);
+  colunas.push({
+    grupo: null,
+    titulo: 'Média final',
+    valores: finais.map((v) => formatNum(v)),
+    media: formatNum(mediaDe(finaisNums)),
+    negativas: fmtPct(negativasDe(finaisNums, 10)),
+    destaque: true,
   });
+
+  const classificacoes = resultados.map((r) => resumo.classificacoes[r.alunoId] ?? (r.notaFinal20 != null ? Math.round(r.notaFinal20) : null));
+  const classNums = classificacoes.filter(notNull);
+  colunas.push({
+    grupo: null,
+    titulo: 'Classificação',
+    valores: classificacoes.map((v) => (v == null ? '—' : String(v))),
+    media: formatNum(mediaDe(classNums), 0),
+    negativas: fmtPct(negativasDe(classNums, 10)),
+    destaque: true,
+  });
+
+  if (comNivel) {
+    const niveis: Array<number | null> = resultados.map((r) => r.nivel);
+    const niveisNums = niveis.filter(notNull);
+    colunas.push({
+      grupo: null,
+      titulo: 'Nível',
+      valores: niveis.map((v) => (v == null ? '—' : String(v))),
+      media: formatNum(mediaDe(niveisNums), 2),
+      negativas: fmtPct(negativasDe(niveisNums, 3)),
+      destaque: true,
+    });
+  }
+
+  const intervalos = [
+    { label: '0 - 7', min: 0, max: 7 },
+    { label: '8 - 9', min: 8, max: 9 },
+    { label: '10 - 13', min: 10, max: 13 },
+    { label: '14 - 17', min: 14, max: 17 },
+    { label: '18 - 20', min: 18, max: 20 },
+  ].map((i) => ({ label: i.label, total: classNums.filter((n) => n >= i.min && n <= i.max).length }));
+
+  return {
+    alunos: resumo.alunos.map((a) => ({ numero: a.numero, nome: a.nome })),
+    colunas,
+    intervalos,
+  };
 }
 
 export function nomeFicheiro(resumo: ResumoPeriodo, extensao: string): string {

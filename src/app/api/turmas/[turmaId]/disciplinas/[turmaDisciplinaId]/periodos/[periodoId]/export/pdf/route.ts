@@ -3,7 +3,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf
 import { requireUserId } from '@/lib/auth';
 import { assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
 import { construirResumoPeriodo } from '@/lib/resumo';
-import { construirLinhas, mostraNivel, nomeFicheiro } from '@/lib/export-format';
+import { construirTabela, nomeFicheiro } from '@/lib/export-format';
 import { handleApiError } from '@/lib/api-helpers';
 
 export const runtime = 'nodejs';
@@ -20,22 +20,22 @@ export async function GET(
     const userId = await requireUserId();
     await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
     const resumo = await construirResumoPeriodo(params.turmaId, params.turmaDisciplinaId, params.periodoId);
-    const linhas = construirLinhas(resumo);
-    const comNivel = mostraNivel(resumo);
+    const tabela = construirTabela(resumo);
 
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
+    // Larguras ajustadas para a tabela caber sempre na largura útil da página.
+    const larguraNum = 22;
+    const larguraNome = 120;
+    const larguraUtil = PAGE_WIDTH - 2 * MARGIN;
+    const larguraCol = Math.min(70, (larguraUtil - larguraNum - larguraNome) / Math.max(tabela.colunas.length, 1));
+    const tamanho = larguraCol < 36 ? 6 : 8;
     const colunas = [
-      { titulo: 'Nº', largura: 24 },
-      { titulo: 'Nome', largura: 150 },
-      ...resumo.criterios.map((c) => ({
-        titulo: `${c.nome} (${Math.round(c.peso * 100)}%)`,
-        largura: 100,
-      })),
-      { titulo: 'Final (0-20)', largura: 60 },
-      ...(comNivel ? [{ titulo: 'Nível', largura: 40 }] : []),
+      { largura: larguraNum },
+      { largura: larguraNome },
+      ...tabela.colunas.map(() => ({ largura: larguraCol })),
     ];
 
     let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -49,41 +49,52 @@ export async function GET(
       y -= 16;
       page.drawText(resumo.periodo.nome, { x: MARGIN, y, size: 9, font });
       y -= 14;
-      y = desenharLinhaTabela(page, colunas.map((c) => c.titulo), colunas, y, fontBold, true);
+      // Duas linhas de cabeçalho: critério (quando existe) e instrumento/coluna.
+      y = desenharLinhaTabela(page, ['', '', ...tabela.colunas.map((c) => c.grupo ?? '')], colunas, y, fontBold, tamanho, false);
+      y = desenharLinhaTabela(
+        page,
+        ['Nº', 'Nome', ...tabela.colunas.map((c) => c.titulo)],
+        colunas,
+        y,
+        fontBold,
+        tamanho,
+        true
+      );
     };
 
     desenharCabecalhoPagina();
 
-    for (const linha of linhas) {
-      if (y < MARGIN + 40) {
+    const novaPaginaSeNecessario = (espaco: number) => {
+      if (y < MARGIN + espaco) {
         page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
         y = PAGE_HEIGHT - MARGIN;
         desenharCabecalhoPagina();
       }
-      const valores = [
-        String(linha.numero),
-        linha.nome,
-        ...linha.porCriterio.map((c) => c.valor),
-        linha.notaFinal20,
-        ...(comNivel ? [linha.nivel ?? '—'] : []),
-      ];
-      y = desenharLinhaTabela(page, valores, colunas, y, font, false);
-    }
+    };
 
+    tabela.alunos.forEach((aluno, idx) => {
+      novaPaginaSeNecessario(40);
+      y = desenharLinhaTabela(
+        page,
+        [String(aluno.numero), aluno.nome, ...tabela.colunas.map((c) => c.valores[idx])],
+        colunas,
+        y,
+        font,
+        tamanho,
+        false
+      );
+    });
+
+    // Rodapé: média da turma e % de negativas por coluna.
+    novaPaginaSeNecessario(40);
+    y -= 4;
+    y = desenharLinhaTabela(page, ['', 'Média da turma', ...tabela.colunas.map((c) => c.media)], colunas, y, fontBold, tamanho, false);
+    y = desenharLinhaTabela(page, ['', '% negativas', ...tabela.colunas.map((c) => c.negativas)], colunas, y, fontBold, tamanho, false);
+
+    novaPaginaSeNecessario(40);
     y -= 10;
-    if (y < MARGIN + 20) {
-      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      y = PAGE_HEIGHT - MARGIN;
-    }
-    const comNota20 = resumo.resultados.filter((r) => r.notaFinal20 != null);
-    const percentNegativas = comNivel
-      ? resumo.estatisticas.percentNegativas
-      : comNota20.length > 0
-        ? (comNota20.filter((r) => (r.notaFinal20 as number) < 10).length / comNota20.length) * 100
-        : null;
     page.drawText(
-      `Média da turma (0-20): ${resumo.estatisticas.mediaTurma20?.toFixed(2).replace('.', ',') ?? '—'}    ` +
-        `% negativas: ${percentNegativas?.toFixed(1).replace('.', ',') ?? '—'}%`,
+      `Alunos por classificação:    ${tabela.intervalos.map((i) => `${i.label}: ${i.total}`).join('    ')}`,
       { x: MARGIN, y, size: 9, font }
     );
 
@@ -103,19 +114,20 @@ export async function GET(
 function desenharLinhaTabela(
   page: PDFPage,
   valores: string[],
-  colunas: Array<{ titulo: string; largura: number }>,
+  colunas: Array<{ largura: number }>,
   y: number,
   font: PDFFont,
-  cabecalho: boolean
+  tamanho: number,
+  linhaSeparadora: boolean
 ): number {
   let x = MARGIN;
-  const alturaLinha = 16;
+  const alturaLinha = 14;
   for (let i = 0; i < colunas.length; i++) {
-    const texto = truncar(valores[i] ?? '', colunas[i].largura, font, 8);
-    page.drawText(texto, { x: x + 2, y, size: 8, font, color: rgb(0.1, 0.1, 0.1) });
+    const texto = truncar(valores[i] ?? '', colunas[i].largura, font, tamanho);
+    page.drawText(texto, { x: x + 2, y, size: tamanho, font, color: rgb(0.1, 0.1, 0.1) });
     x += colunas[i].largura;
   }
-  if (cabecalho) {
+  if (linhaSeparadora) {
     page.drawLine({
       start: { x: MARGIN, y: y - 4 },
       end: { x, y: y - 4 },

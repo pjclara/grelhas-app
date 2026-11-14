@@ -24,6 +24,8 @@ export interface ResumoPeriodo {
   instrumentos: InstrumentoResumo[];
   alunos: Array<{ id: string; numero: number; nome: string }>;
   resultados: ResultadoAluno[];
+  /** Classificação inserida pelo professor, por alunoId (ausente = usa a média final arredondada). */
+  classificacoes: Record<string, number>;
   estatisticas: ReturnType<typeof calcularEstatisticasTurma>;
 }
 
@@ -114,6 +116,12 @@ export async function construirResumoPeriodo(
 
   const estatisticas = calcularEstatisticasTurma(resultados);
 
+  const classificacoesDb = await prisma.classificacao.findMany({
+    where: { turmaDisciplinaId, periodoId },
+    select: { alunoId: true, valor: true },
+  });
+  const classificacoes = Object.fromEntries(classificacoesDb.map((c) => [c.alunoId, c.valor]));
+
   return {
     turma: {
       id: turmaDisciplina.turma.id,
@@ -132,6 +140,7 @@ export async function construirResumoPeriodo(
     })),
     alunos: alunos.map((a) => ({ id: a.id, numero: numeroPorAluno.get(a.id) ?? 0, nome: a.nome })),
     resultados,
+    classificacoes,
     estatisticas,
   };
 }

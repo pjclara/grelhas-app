@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { requireUserId } from '@/lib/auth';
 import { assertTurmaDisciplinaOwnership } from '@/lib/turma-access';
 import { construirResumoPeriodo } from '@/lib/resumo';
-import { construirLinhas, mostraNivel, nomeFicheiro } from '@/lib/export-format';
+import { construirTabela, nomeFicheiro } from '@/lib/export-format';
 import { handleApiError } from '@/lib/api-helpers';
 
 export const runtime = 'nodejs';
@@ -16,8 +16,9 @@ export async function GET(
     const userId = await requireUserId();
     await assertTurmaDisciplinaOwnership(params.turmaId, params.turmaDisciplinaId, userId);
     const resumo = await construirResumoPeriodo(params.turmaId, params.turmaDisciplinaId, params.periodoId);
-    const linhas = construirLinhas(resumo);
-    const comNivel = mostraNivel(resumo);
+    const tabela = construirTabela(resumo);
+    const colunas = tabela.colunas;
+    const totalColunas = 2 + colunas.length;
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Grelhas de Avaliação';
@@ -26,54 +27,70 @@ export async function GET(
     sheet.addRow([
       `Grelha de Avaliação — ${resumo.turma.disciplina} — Turma ${resumo.turma.nome} — Ano letivo ${resumo.turma.anoLetivo}`,
     ]);
-    sheet.mergeCells(1, 1, 1, 4 + resumo.criterios.length);
+    sheet.mergeCells(1, 1, 1, totalColunas);
     sheet.getRow(1).font = { bold: true, size: 13 };
     sheet.addRow([]);
 
-    const cabecalho = [
-      'Nº',
-      'Nome',
-      ...resumo.criterios.map((c) => `${c.nome} (${Math.round(c.peso * 100)}%)`),
-      'Nota final (0-20)',
-      ...(comNivel ? ['Nível'] : []),
-    ];
-    const headerRow = sheet.addRow(cabecalho);
-    headerRow.font = { bold: true };
-    headerRow.eachCell((cell) => {
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDFB' } };
+    // Cabeçalho em duas linhas: critério (agrupado) e instrumento/coluna.
+    const linhaGrupos = sheet.addRow(['Nº', 'Nome', ...colunas.map((c) => c.grupo ?? c.titulo)]);
+    const linhaTitulos = sheet.addRow(['', '', ...colunas.map((c) => (c.grupo ? c.titulo : ''))]);
+    const topo = linhaGrupos.number;
+    for (let col = 1; col <= totalColunas; col++) {
+      const c = col >= 3 ? colunas[col - 3] : null;
+      if (!c || !c.grupo) sheet.mergeCells(topo, col, topo + 1, col);
+    }
+    // Junta as células do mesmo critério na primeira linha do cabeçalho.
+    let inicio = 0;
+    while (inicio < colunas.length) {
+      let fim = inicio;
+      while (colunas[inicio].grupo && fim + 1 < colunas.length && colunas[fim + 1].grupo === colunas[inicio].grupo) fim++;
+      if (fim > inicio) sheet.mergeCells(topo, 3 + inicio, topo, 3 + fim);
+      inicio = fim + 1;
+    }
+    for (const row of [linhaGrupos, linhaTitulos]) {
+      row.font = { bold: true };
+      row.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDFB' } };
+      });
+    }
+    linhaTitulos.eachCell({ includeEmpty: true }, (cell) => {
       cell.border = { bottom: { style: 'thin' } };
     });
 
-    for (const linha of linhas) {
-      sheet.addRow([
-        linha.numero,
-        linha.nome,
-        ...linha.porCriterio.map((c) => c.valor),
-        linha.notaFinal20,
-        ...(comNivel ? [linha.nivel] : []),
-      ]);
-    }
+    tabela.alunos.forEach((aluno, idx) => {
+      const row = sheet.addRow([aluno.numero, aluno.nome, ...colunas.map((c) => c.valores[idx])]);
+      row.alignment = { horizontal: 'center' };
+      row.getCell(2).alignment = { horizontal: 'left' };
+      colunas.forEach((c, i) => {
+        if (c.destaque) row.getCell(3 + i).font = { bold: true };
+      });
+    });
 
-    const comNota20 = resumo.resultados.filter((r) => r.notaFinal20 != null);
-    const percentNegativas = comNivel
-      ? resumo.estatisticas.percentNegativas
-      : comNota20.length > 0
-        ? (comNota20.filter((r) => (r.notaFinal20 as number) < 10).length / comNota20.length) * 100
-        : null;
+    const rodape = (rotulo: string, valores: string[]) => {
+      const row = sheet.addRow([rotulo, '', ...valores]);
+      sheet.mergeCells(row.number, 1, row.number, 2);
+      row.font = { bold: true };
+      row.alignment = { horizontal: 'center' };
+      row.getCell(1).alignment = { horizontal: 'left' };
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      });
+    };
+    sheet.addRow([]).height = 6;
+    rodape('Média da turma', colunas.map((c) => c.media));
+    rodape('% negativas', colunas.map((c) => c.negativas));
 
     sheet.addRow([]);
-    const estatRow = sheet.addRow([
-      'Média da turma (0-20):',
-      resumo.estatisticas.mediaTurma20?.toFixed(2).replace('.', ',') ?? '—',
-      '% negativas:',
-      percentNegativas != null ? percentNegativas.toFixed(1).replace('.', ',') + '%' : '—',
-    ]);
-    estatRow.font = { italic: true };
+    const titulo = sheet.addRow(['Alunos por classificação']);
+    titulo.font = { bold: true };
+    sheet.addRow(tabela.intervalos.map((i) => i.label));
+    sheet.addRow(tabela.intervalos.map((i) => i.total));
 
-    sheet.getColumn(1).width = 6;
+    sheet.getColumn(1).width = 14;
     sheet.getColumn(2).width = 32;
-    for (let i = 0; i < resumo.criterios.length; i++) {
-      sheet.getColumn(3 + i).width = 20;
+    for (let i = 0; i < colunas.length; i++) {
+      sheet.getColumn(3 + i).width = colunas[i].grupo ? 14 : 18;
     }
 
     const buffer = await workbook.xlsx.writeBuffer();

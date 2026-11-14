@@ -254,6 +254,7 @@ model TurmaDisciplina {
   periodo      Periodo?                     @relation(fields: [periodoId], references: [id], onDelete: SetNull)
   instrumentos Instrumento[]
   alunos       AlunoDisciplina[]
+  classificacoes Classificacao[]
 
   @@unique([turmaId, disciplinaId])
 }
@@ -270,6 +271,7 @@ model Aluno {
   notas       Nota[]
   disciplinas AlunoDisciplina[]
   medidas     AlunoMedida[]
+  classificacoes Classificacao[]
 
   @@unique([userId, numeroProcesso])
 }
@@ -342,6 +344,22 @@ model AlunoDisciplina {
   @@unique([alunoId, turmaDisciplinaId])
 }
 
+// Classificação do período (0-20, inteira) atribuída pelo professor a um aluno
+// numa disciplina da turma. Sem registo = assume a média final arredondada.
+model Classificacao {
+  id                String @id @default(cuid())
+  alunoId           String
+  turmaDisciplinaId String
+  periodoId         String
+  valor             Int
+
+  aluno           Aluno           @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  turmaDisciplina TurmaDisciplina @relation(fields: [turmaDisciplinaId], references: [id], onDelete: Cascade)
+  periodo         Periodo         @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+
+  @@unique([alunoId, turmaDisciplinaId, periodoId])
+}
+
 model Periodo {
   id      String @id @default(cuid())
   turmaId String
@@ -351,6 +369,7 @@ model Periodo {
   turma            Turma             @relation(fields: [turmaId], references: [id], onDelete: Cascade)
   instrumentos     Instrumento[]
   turmaDisciplinas TurmaDisciplina[]
+  classificacoes   Classificacao[]
 
   @@unique([turmaId, ordem])
 }

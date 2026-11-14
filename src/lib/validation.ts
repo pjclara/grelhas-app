@@ -119,6 +119,12 @@ export const notasLancamentoSchema = z.object({
   notas: z.record(z.string(), z.record(z.string(), z.number().nullable())),
 });
 
+// Classificação do período; valor null remove a classificação manual (volta à média arredondada).
+export const classificacaoSchema = z.object({
+  alunoId: z.string().min(1),
+  valor: z.number().int().min(0).max(20).nullable(),
+});
+
 // ---------- Critérios de avaliação (ano letivo + ciclo) ----------
 
 const pesoCriterioSchema = z.number().min(0).max(1);

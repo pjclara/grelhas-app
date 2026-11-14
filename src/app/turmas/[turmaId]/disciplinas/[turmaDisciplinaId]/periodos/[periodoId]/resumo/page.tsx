@@ -138,6 +138,18 @@ export default function ResumoPage({
     return m.toFixed(c.tipo === 'nota' ? 1 : 2);
   };
 
+  // Nº de alunos por intervalo de nota final (arredondada às unidades).
+  const intervalosNota = [
+    { label: '0 - 7', min: 0, max: 7 },
+    { label: '8 - 9', min: 8, max: 9 },
+    { label: '10 - 13', min: 10, max: 13 },
+    { label: '14 - 17', min: 14, max: 17 },
+    { label: '18 - 20', min: 18, max: 20 },
+  ].map((i) => ({
+    ...i,
+    total: valoresFinal.filter((n) => Math.round(n) >= i.min && Math.round(n) <= i.max).length,
+  }));
+
   return (
     <AppShell width="full">
       <div className="mx-auto max-w-none">
@@ -303,36 +315,16 @@ export default function ResumoPage({
           </table>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          <Estatistica titulo="Média da turma (0-20)" valor={resumo.estatisticas.mediaTurma20?.toFixed(2) ?? '—'} />
-          {mostrarNivel ? (
-            <>
-              <Estatistica
-                titulo="% negativas (níveis 1-2)"
-                valor={
-                  resumo.estatisticas.percentNegativas != null
-                    ? `${resumo.estatisticas.percentNegativas.toFixed(0)}%`
-                    : '—'
-                }
-              />
-              <Card className="p-4">
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Alunos por nível</p>
-                <div className="flex gap-3 text-sm">
-                  {([1, 2, 3, 4, 5] as const).map((n) => (
-                    <span key={n} className="text-slate-600">
-                      N{n}: <strong className="text-slate-900">{resumo.estatisticas.contagemPorNivel[n]}</strong>
-                    </span>
-                  ))}
-                </div>
-              </Card>
-            </>
-          ) : (
-            <Estatistica
-              titulo="% negativas (< 10 valores)"
-              valor={percentNegativasSecundario != null ? `${percentNegativasSecundario.toFixed(0)}%` : '—'}
-            />
-          )}
-        </div>
+        <Card className="mt-6 p-4">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Alunos por nota final</p>
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            {intervalosNota.map((i) => (
+              <span key={i.label} className="text-slate-600">
+                {i.label}: <strong className="text-slate-900">{i.total}</strong>
+              </span>
+            ))}
+          </div>
+        </Card>
       </div>
     </AppShell>
   );
@@ -343,14 +335,5 @@ function BackLink({ href }: { href: string }) {
     <Link href={href} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
       <ArrowLeft className="h-4 w-4" /> Voltar à disciplina
     </Link>
-  );
-}
-
-function Estatistica({ titulo, valor }: { titulo: string; valor: string }) {
-  return (
-    <Card className="p-4">
-      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">{titulo}</p>
-      <p className="text-2xl font-semibold tracking-tight text-slate-900">{valor}</p>
-    </Card>
   );
 }

@@ -70,10 +70,10 @@ export default function ResumoPage({
 
   // Cada coluna de critério (instrumento de recolha ou sub-instrumento) mostra uma
   // coluna por instrumento de avaliação, além da média. Até ao 9.º ano (2.º/3.º ciclo)
-  // os valores são apresentados em %; no Secundário (10.º/11.º/12.º) na escala 0-200.
-  const escala200 = ehSecundario(resumo.turma.nivelEnsino);
+  // os valores são apresentados em %; no Secundário (10.º/11.º/12.º) na escala 0-20.
+  const escala20 = ehSecundario(resumo.turma.nivelEnsino);
   const formatarValor = (v: number | null | undefined) =>
-    v == null ? '—' : escala200 ? (v * 2).toFixed(0) : `${v.toFixed(0)}%`;
+    v == null ? '—' : escala20 ? (v / 5).toFixed(1) : `${v.toFixed(0)}%`;
 
   // Os critérios de "Atitudes" (um por item, cada um com o seu próprio peso) são
   // condensados numa única coluna em vez de uma coluna por item — mostram-se
@@ -143,7 +143,7 @@ export default function ResumoPage({
     const m = mediaDe(c.valores);
     if (m == null) return '—';
     if (c.tipo === 'percent') return formatarValor(m);
-    return m.toFixed(c.tipo === 'nota' ? 1 : c.tipo === 'inteira' ? 0 : 2);
+    return m.toFixed(c.tipo === 'nota' ? 2 : c.tipo === 'inteira' ? 0 : 2);
   };
 
   async function guardarNota(campo: 'classificacao' | 'autoavaliacao', alunoId: string, texto: string) {
@@ -343,7 +343,7 @@ export default function ResumoPage({
                       </td>
                     )}
                     <td className="px-3 py-1.5 text-center tabular-nums font-semibold text-slate-900">
-                      {resultado.notaFinal20 != null ? resultado.notaFinal20.toFixed(1) : '—'}
+                      {resultado.notaFinal20 != null ? resultado.notaFinal20.toFixed(2) : '—'}
                     </td>
                     <td className="px-3 py-1.5 text-center">
                       <input

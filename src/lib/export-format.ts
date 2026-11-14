@@ -45,10 +45,10 @@ const fmtPct = (v: number | null) => (v == null ? '—' : `${v.toFixed(0)}%`);
 export function construirTabela(resumo: ResumoPeriodo): TabelaExport {
   const comNivel = mostraNivel(resumo);
   // Até ao 9.º ano (2.º/3.º ciclo) os valores são apresentados em %; no
-  // Secundário na escala 0-200 — mesma regra da página de resumo.
-  const escala200 = ehSecundario(resumo.turma.nivelEnsino);
+  // Secundário na escala 0-20 — mesma regra da página de resumo.
+  const escala20 = ehSecundario(resumo.turma.nivelEnsino);
   const formatarValor = (v: number | null | undefined) =>
-    v == null ? '—' : escala200 ? (v * 2).toFixed(0) : `${v.toFixed(0)}%`;
+    v == null ? '—' : escala20 ? (v / 5).toFixed(1).replace('.', ',') : `${v.toFixed(0)}%`;
   const fmtMediaPercent = (v: number | null) => (v == null ? '—' : formatarValor(v));
 
   const resultadoDe = (alunoId: string) => resumo.resultados.find((r) => r.alunoId === alunoId)!;
@@ -108,8 +108,8 @@ export function construirTabela(resumo: ResumoPeriodo): TabelaExport {
   colunas.push({
     grupo: null,
     titulo: 'Média final',
-    valores: finais.map((v) => formatNum(v)),
-    media: formatNum(mediaDe(finaisNums)),
+    valores: finais.map((v) => formatNum(v, 2)),
+    media: formatNum(mediaDe(finaisNums), 2),
     negativas: fmtPct(negativasDe(finaisNums, 10)),
     destaque: true,
   });
@@ -120,7 +120,7 @@ export function construirTabela(resumo: ResumoPeriodo): TabelaExport {
     grupo: null,
     titulo: 'Autoavaliação',
     valores: autoavaliacoes.map((v) => (v == null ? '—' : String(v))),
-    media: formatNum(mediaDe(autoNums), 1),
+    media: formatNum(mediaDe(autoNums), 2),
     negativas: fmtPct(negativasDe(autoNums, 10)),
     destaque: true,
   });
